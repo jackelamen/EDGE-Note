@@ -1,7 +1,8 @@
 import { config } from "./config.js";
 import { isDatabaseError } from "./db.js";
 import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
-import { readJson, requireMethod, sendDownload, sendJson } from "./http.js";
+import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
+import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
 import { pullSyncChanges } from "./syncRepository.js";
@@ -9,6 +10,16 @@ import { ensureTags, listTags } from "./tagsRepository.js";
 
 function parseNoteId(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseNoteAttachmentsPath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/attachments$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseAttachmentDownloadPath(pathname) {
+  const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
   return match ? Number(match[1]) : null;
 }
 
@@ -120,6 +131,56 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
       sendDownload(res, 200, await buildMarkdownExport({ userId: config.ownerUserId }));
+    });
+    return true;
+  }
+
+  const noteAttachmentsId = parseNoteAttachmentsPath(url.pathname);
+  if (noteAttachmentsId) {
+    await safely(res, async () => {
+      if (req.method === "GET") {
+        const attachments = await listAttachments({
+          userId: config.ownerUserId,
+          noteId: noteAttachmentsId
+        });
+        sendJson(res, 200, { attachments });
+        return;
+      }
+
+      requireMethod(req, ["POST"]);
+      const { file } = await readMultipart(req, {
+        limitBytes: config.attachments.limitMb * 1024 * 1024
+      });
+      const attachment = await saveAttachment({
+        userId: config.ownerUserId,
+        noteId: noteAttachmentsId,
+        file
+      });
+      sendJson(res, 201, { attachment });
+    });
+    return true;
+  }
+
+  const attachmentId = parseAttachmentDownloadPath(url.pathname);
+  if (attachmentId) {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const attachment = await getAttachment({
+        userId: config.ownerUserId,
+        attachmentId
+      });
+      if (!attachment) {
+        sendJson(res, 404, { error: "Attachment not found" });
+        return;
+      }
+
+      res.writeHead(200, {
+        "content-type": attachment.mimeType,
+        "content-disposition": `attachment; filename="${attachment.filename}"`,
+        "content-length": attachment.sizeBytes,
+        "cache-control": "private, max-age=300"
+      });
+      attachment.stream().pipe(res);
     });
     return true;
   }

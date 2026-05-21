@@ -6,6 +6,7 @@ const cacheKeys = {
 };
 
 const state = {
+  attachments: [],
   notebooks: [],
   notes: [],
   tags: [],
@@ -15,6 +16,8 @@ const state = {
 };
 
 const elements = {
+  attachmentFile: document.querySelector("[data-attachment-file]"),
+  attachmentList: document.querySelector("[data-attachments-list]"),
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
@@ -29,7 +32,8 @@ const elements = {
   search: document.querySelector("[data-notes-search]"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
-  title: document.querySelector("[data-note-title]")
+  title: document.querySelector("[data-note-title]"),
+  uploadAttachment: document.querySelector("[data-action='upload-attachment']")
 };
 
 function readCache(key, fallback) {
@@ -77,6 +81,13 @@ function formatDate(value) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function setCacheStatus(title, text) {
@@ -143,8 +154,31 @@ function selectNote(note) {
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
+    loadAttachments(note.id);
+  } else {
+    state.attachments = [];
+    renderAttachments();
   }
   renderNotes();
+}
+
+function renderAttachments() {
+  if (!state.selectedId) {
+    elements.attachmentList.innerHTML = '<div class="empty-state">Save a note before adding attachments.</div>';
+    return;
+  }
+
+  if (!state.attachments.length) {
+    elements.attachmentList.innerHTML = '<div class="empty-state">No attachments yet.</div>';
+    return;
+  }
+
+  elements.attachmentList.innerHTML = state.attachments.map((attachment) => `
+    <a class="attachment-item" href="${attachment.downloadUrl}">
+      <span>${escapeHtml(attachment.filename)}</span>
+      <small>${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
+    </a>
+  `).join("");
 }
 
 function renderCollections() {
@@ -310,6 +344,22 @@ async function loadNotes() {
   }
 }
 
+async function loadAttachments(noteId = state.selectedId) {
+  if (!noteId) {
+    state.attachments = [];
+    renderAttachments();
+    return;
+  }
+
+  try {
+    const payload = await requestJson(`/api/notes/${noteId}/attachments`);
+    state.attachments = payload.attachments || [];
+  } catch {
+    state.attachments = [];
+  }
+  renderAttachments();
+}
+
 async function saveNote() {
   if (state.pendingSave) return;
   state.pendingSave = true;
@@ -345,12 +395,56 @@ async function saveNote() {
     await loadCollections();
     setStatus(`Saved ${formatDate(saved.updatedAt)}`);
     setCacheStatus("Synced locally", "Server note cached");
+    return saved;
   } catch (error) {
     setStatus(error.message);
     saveDraftCache();
+    return null;
   } finally {
     state.pendingSave = false;
     elements.saveNote.textContent = "Sync";
+  }
+}
+
+async function uploadAttachment() {
+  let noteId = state.selectedId;
+  const file = elements.attachmentFile.files?.[0];
+  if (!file) {
+    setStatus("Choose a file first");
+    return;
+  }
+
+  if (!noteId) {
+    const saved = await saveNote();
+    noteId = saved?.id;
+  }
+
+  if (!noteId) {
+    setStatus("Save the note before uploading attachments");
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  elements.uploadAttachment.textContent = "Uploading";
+
+  try {
+    const response = await fetch(`/api/notes/${noteId}/attachments`, {
+      method: "POST",
+      body: form
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.message || payload.error || "Upload failed");
+    }
+    state.attachments.unshift(payload.attachment);
+    elements.attachmentFile.value = "";
+    renderAttachments();
+    setStatus(`Attached ${payload.attachment.filename}`);
+  } catch (error) {
+    setStatus(error.message);
+  } finally {
+    elements.uploadAttachment.textContent = "Upload";
   }
 }
 
@@ -368,6 +462,7 @@ function bindEvents() {
   });
 
   elements.saveNote.addEventListener("click", saveNote);
+  elements.uploadAttachment.addEventListener("click", uploadAttachment);
 
   elements.exportJson.addEventListener("click", () => {
     window.location.href = "/api/export.json";

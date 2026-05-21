@@ -125,7 +125,16 @@
 
         <section>
           <h2>Attachments</h2>
-          <div class="empty-state">Lazy downloads and export-safe files will land with the attachment API.</div>
+          <div class="attachment-actions">
+            <label class="file-picker">
+              <input type="file" data-attachment-file>
+              <span>Choose file</span>
+            </label>
+            <button type="button" data-action="upload-attachment">Upload</button>
+          </div>
+          <div class="attachment-list" data-attachments-list>
+            <div class="empty-state">Save a note before adding attachments.</div>
+          </div>
         </section>
 
         <section>
