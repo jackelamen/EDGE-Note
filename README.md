@@ -1,4 +1,4 @@
-# EDGE Note
+# EDGE-Note
 
 EDGE Note is a private, Hostinger-friendly Evernote replacement. The first version is built for one owner, with a path to portable sync, attachments, export, and Gemma-powered AI through an external endpoint.
 
