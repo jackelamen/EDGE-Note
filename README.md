@@ -38,6 +38,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `GET /api/tags` lists tags
 - `POST /api/tags` creates tags
 - `GET /api/sync/pull?cursor=0` pulls incremental change records
+- `POST /api/sync/push` pushes note create/update/delete batches
 - `GET /api/export.json` downloads a portable JSON backup
 - `GET /api/export.md` downloads notes as Markdown
 - `GET /api/notes/:id/attachments` lists note attachments
@@ -66,13 +67,38 @@ Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
 The browser caches the latest note list, notebook list, tag list, selected note, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
 
+## Sync Push
+
+`POST /api/sync/push` accepts up to 50 note changes per request:
+
+```json
+{
+  "changes": [
+    {
+      "clientId": "mobile-1",
+      "entityType": "note",
+      "action": "update",
+      "entityId": 123,
+      "baseSyncVersion": 4,
+      "data": {
+        "title": "Updated title",
+        "body": "Updated body",
+        "tags": ["mobile"]
+      }
+    }
+  ]
+}
+```
+
+Updates with a stale `baseSyncVersion` return `conflict` and include the current server note. The server does not silently overwrite conflicting note bodies.
+
 ## Next Build Steps
 
-1. Add sync push/conflict handling.
-2. Add attachment thumbnails and size controls.
-3. Add export packaging for attachment files.
-4. Add password reset/change flow.
-5. Add hosted deployment checklist.
+1. Add attachment thumbnails and size controls.
+2. Add export packaging for attachment files.
+3. Add password reset/change flow.
+4. Add hosted deployment checklist.
+5. Add mobile cache schema.
 
 ## Hostinger Notes
 

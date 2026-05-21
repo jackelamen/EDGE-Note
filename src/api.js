@@ -15,6 +15,7 @@ import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
 import { pullSyncChanges } from "./syncRepository.js";
+import { pushSyncChanges } from "./syncPushRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
 
 function parseNoteId(pathname) {
@@ -196,6 +197,18 @@ export async function handleApi(req, res, url) {
         userId,
         cursor: url.searchParams.get("cursor") || 0,
         limit: url.searchParams.get("limit") || 100
+      });
+      sendJson(res, 200, payload);
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/sync/push") {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const payload = await pushSyncChanges({
+        userId,
+        changes: (await readJson(req)).changes || []
       });
       sendJson(res, 200, payload);
     });
