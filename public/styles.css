@@ -123,10 +123,20 @@ a {
 
 .nav-group a,
 .nav-section a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border-radius: 8px;
   padding: 10px 12px;
   color: var(--muted);
   font-weight: 650;
+}
+
+.nav-section a span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .nav-group a.active,
@@ -322,8 +332,23 @@ h1 {
 .metadata-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px 14px;
   margin: 10px 0 22px;
+}
+
+.meta-control select,
+.meta-control input {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--ink);
+}
+
+.tag-control input {
+  width: min(280px, 70vw);
 }
 
 textarea {

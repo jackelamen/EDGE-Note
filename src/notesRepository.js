@@ -1,19 +1,48 @@
 import { query } from "./db.js";
+import { normalizeTags, setNoteTags } from "./tagsRepository.js";
 
 const listSelect = `
   SELECT
-    id,
-    notebook_id AS notebookId,
-    title,
-    body,
-    body_format AS bodyFormat,
-    favorite,
-    sync_version AS syncVersion,
-    created_at AS createdAt,
-    updated_at AS updatedAt,
-    archived_at AS archivedAt
-  FROM notes
+    n.id,
+    n.notebook_id AS notebookId,
+    nb.name AS notebookName,
+    n.title,
+    n.body,
+    n.body_format AS bodyFormat,
+    n.favorite,
+    n.sync_version AS syncVersion,
+    n.created_at AS createdAt,
+    n.updated_at AS updatedAt,
+    n.archived_at AS archivedAt,
+    COALESCE(ts.tagsCsv, '') AS tagsCsv
+  FROM notes n
+  LEFT JOIN notebooks nb ON nb.id = n.notebook_id
+  LEFT JOIN (
+    SELECT
+      nt.note_id,
+      GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',') AS tagsCsv
+    FROM note_tags nt
+    JOIN tags t ON t.id = nt.tag_id
+    GROUP BY nt.note_id
+  ) ts ON ts.note_id = n.id
 `;
+
+function mapNote(row) {
+  return {
+    id: row.id,
+    notebookId: row.notebookId,
+    notebookName: row.notebookName,
+    title: row.title,
+    body: row.body,
+    bodyFormat: row.bodyFormat,
+    favorite: Boolean(row.favorite),
+    syncVersion: row.syncVersion,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    archivedAt: row.archivedAt,
+    tags: row.tagsCsv ? row.tagsCsv.split(",") : []
+  };
+}
 
 function noteParams(userId, input) {
   return {
@@ -22,7 +51,8 @@ function noteParams(userId, input) {
     title: String(input.title || "").trim() || "Untitled note",
     body: String(input.body || ""),
     bodyFormat: input.bodyFormat || "markdown",
-    favorite: input.favorite ? 1 : 0
+    favorite: input.favorite ? 1 : 0,
+    tags: normalizeTags(input.tags)
   };
 }
 
@@ -33,35 +63,35 @@ export async function listNotes({ userId, search = "", limit = 50 }) {
   if (term) {
     return query(
       `${listSelect}
-       WHERE user_id = :userId
-         AND deleted_at IS NULL
-         AND (title LIKE :likeTerm OR body LIKE :likeTerm)
-       ORDER BY updated_at DESC
+       WHERE n.user_id = :userId
+         AND n.deleted_at IS NULL
+         AND (n.title LIKE :likeTerm OR n.body LIKE :likeTerm OR ts.tagsCsv LIKE :likeTerm)
+       ORDER BY n.updated_at DESC
        LIMIT ${cleanLimit}`,
       { userId, likeTerm: `%${term}%` }
-    );
+    ).then((rows) => rows.map(mapNote));
   }
 
   return query(
     `${listSelect}
-     WHERE user_id = :userId
-       AND deleted_at IS NULL
-     ORDER BY updated_at DESC
+     WHERE n.user_id = :userId
+       AND n.deleted_at IS NULL
+     ORDER BY n.updated_at DESC
      LIMIT ${cleanLimit}`,
     { userId }
-  );
+  ).then((rows) => rows.map(mapNote));
 }
 
 export async function getNote({ userId, noteId }) {
   const rows = await query(
     `${listSelect}
-     WHERE user_id = :userId
-       AND id = :noteId
-       AND deleted_at IS NULL
+     WHERE n.user_id = :userId
+       AND n.id = :noteId
+       AND n.deleted_at IS NULL
      LIMIT 1`,
     { userId, noteId }
   );
-  return rows[0] || null;
+  return rows[0] ? mapNote(rows[0]) : null;
 }
 
 export async function createNote({ userId, input }) {
@@ -73,6 +103,10 @@ export async function createNote({ userId, input }) {
        (:userId, :notebookId, :title, :body, :bodyFormat, :favorite, 1)`,
     params
   );
+
+  if (params.tags.length) {
+    await setNoteTags({ userId, noteId: result.insertId, tags: params.tags });
+  }
 
   return getNote({ userId, noteId: result.insertId });
 }
@@ -99,7 +133,8 @@ export async function updateNote({ userId, noteId, input }) {
     title: input.title ?? existing.title,
     body: input.body ?? existing.body,
     bodyFormat: input.bodyFormat ?? existing.bodyFormat,
-    favorite: input.favorite ?? existing.favorite
+    favorite: input.favorite ?? existing.favorite,
+    tags: input.tags ?? existing.tags
   });
 
   await query(
@@ -116,6 +151,8 @@ export async function updateNote({ userId, noteId, input }) {
        AND deleted_at IS NULL`,
     { ...params, noteId }
   );
+
+  await setNoteTags({ userId, noteId, tags: params.tags });
 
   return getNote({ userId, noteId });
 }

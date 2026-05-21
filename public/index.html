@@ -29,7 +29,7 @@
           <a href="#archive">Archive</a>
         </nav>
 
-        <section class="nav-section" aria-labelledby="notebook-heading">
+        <section class="nav-section" aria-labelledby="notebook-heading" data-notebooks-list>
           <h2 id="notebook-heading">Notebooks</h2>
           <a href="#daily">Daily</a>
           <a href="#projects">Projects</a>
@@ -92,10 +92,19 @@
 
         <article class="document">
           <input class="title-input" value="Connect MySQL to load notes" aria-label="Note title" data-note-title>
-          <div class="metadata-row" data-note-meta>
-            <span>#setup</span>
-            <span>#hostinger</span>
-            <span>Not saved yet</span>
+          <div class="metadata-row">
+            <label class="meta-control">
+              <span class="sr-only">Notebook</span>
+              <select data-note-notebook>
+                <option value="">No notebook</option>
+              </select>
+            </label>
+            <label class="meta-control tag-control">
+              <span class="sr-only">Tags</span>
+              <input type="text" placeholder="tags, comma separated" data-note-tags list="known-tags">
+              <datalist id="known-tags" data-tags-list></datalist>
+            </label>
+            <span data-note-meta>Not saved yet</span>
           </div>
           <textarea aria-label="Note body" data-note-body>The notes API is ready for MySQL-backed create, update, search, and soft delete.
 

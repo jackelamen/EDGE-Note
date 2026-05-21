@@ -29,6 +29,10 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `/` serves the web app
 - `/api/health` confirms the Node process is alive
 - `/api/config` exposes safe client settings
+- `GET /api/notebooks` lists notebooks
+- `POST /api/notebooks` creates a notebook
+- `GET /api/tags` lists tags
+- `POST /api/tags` creates tags
 - `GET /api/notes` lists notes for the first owner account
 - `POST /api/notes` creates a note
 - `GET /api/notes/:id` reads one note
@@ -49,10 +53,10 @@ Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-use
 ## Next Build Steps
 
 1. Add login/session protection.
-2. Add notebooks and tags endpoints.
-3. Add local browser cache for offline-first editing.
-4. Add incremental sync changes.
-5. Add attachment upload using Hostinger file storage.
+2. Add local browser cache for offline-first editing.
+3. Add incremental sync changes.
+4. Add attachment upload using Hostinger file storage.
+5. Add first manual Gemma AI actions.
 
 ## Hostinger Notes
 

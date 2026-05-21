@@ -1,7 +1,9 @@
 import { config } from "./config.js";
 import { isDatabaseError } from "./db.js";
 import { readJson, requireMethod, sendJson } from "./http.js";
+import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
+import { ensureTags, listTags } from "./tagsRepository.js";
 
 function parseNoteId(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)$/);
@@ -50,6 +52,43 @@ export async function handleApi(req, res, url) {
       syncMode: "manual",
       aiEnabled: Boolean(config.ai.endpointUrl),
       aiModelName: config.ai.modelName
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/notebooks") {
+    await safely(res, async () => {
+      if (req.method === "GET") {
+        const notebooks = await listNotebooks({ userId: config.ownerUserId });
+        sendJson(res, 200, { notebooks });
+        return;
+      }
+
+      requireMethod(req, ["POST"]);
+      const notebooks = await createNotebook({
+        userId: config.ownerUserId,
+        input: await readJson(req)
+      });
+      sendJson(res, 201, { notebooks });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/tags") {
+    await safely(res, async () => {
+      if (req.method === "GET") {
+        const tags = await listTags({ userId: config.ownerUserId });
+        sendJson(res, 200, { tags });
+        return;
+      }
+
+      requireMethod(req, ["POST"]);
+      await ensureTags({
+        userId: config.ownerUserId,
+        tags: (await readJson(req)).tags || []
+      });
+      const tags = await listTags({ userId: config.ownerUserId });
+      sendJson(res, 201, { tags });
     });
     return true;
   }

@@ -1,5 +1,7 @@
 const state = {
+  notebooks: [],
   notes: [],
+  tags: [],
   selectedId: null,
   pendingSave: false
 };
@@ -9,8 +11,12 @@ const elements = {
   list: document.querySelector("[data-notes-list]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
+  notebook: document.querySelector("[data-note-notebook]"),
+  notebooksList: document.querySelector("[data-notebooks-list]"),
   saveNote: document.querySelector("[data-action='save-note']"),
   search: document.querySelector("[data-notes-search]"),
+  tags: document.querySelector("[data-note-tags]"),
+  tagsList: document.querySelector("[data-tags-list]"),
   title: document.querySelector("[data-note-title]")
 };
 
@@ -37,27 +43,59 @@ function formatDate(value) {
 }
 
 function setStatus(text) {
-  elements.meta.innerHTML = `
-    <span>#markdown</span>
-    <span>${state.selectedId ? `Note ${state.selectedId}` : "Draft"}</span>
-    <span>${escapeHtml(text)}</span>
-  `;
+  elements.meta.textContent = `${state.selectedId ? `Note ${state.selectedId}` : "Draft"} · ${text}`;
+}
+
+function splitTags(value) {
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 }
 
 function currentDraft() {
   return {
+    notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
     title: elements.title.value,
     body: elements.body.value,
-    bodyFormat: "markdown"
+    bodyFormat: "markdown",
+    tags: splitTags(elements.tags.value)
   };
 }
 
 function selectNote(note) {
   state.selectedId = note?.id || null;
+  elements.notebook.value = note?.notebookId || "";
+  elements.tags.value = (note?.tags || []).join(", ");
   elements.title.value = note?.title || "Untitled note";
   elements.body.value = note?.body || "";
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
   renderNotes();
+}
+
+function renderCollections() {
+  const selectedNotebook = elements.notebook.value;
+  const notebookOptions = [
+    '<option value="">No notebook</option>',
+    ...state.notebooks.map((notebook) => (
+      `<option value="${notebook.id}">${escapeHtml(notebook.name)}</option>`
+    ))
+  ];
+
+  elements.notebook.innerHTML = notebookOptions.join("");
+  elements.notebook.value = selectedNotebook;
+  elements.notebooksList.innerHTML = `
+    <h2 id="notebook-heading">Notebooks</h2>
+    ${state.notebooks.length ? state.notebooks.map((notebook) => `
+      <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}">
+        ${escapeHtml(notebook.name)}
+        <span>${notebook.noteCount || 0}</span>
+      </a>
+    `).join("") : '<a href="#setup">Connect MySQL</a>'}
+  `;
+  elements.tagsList.innerHTML = state.tags.map((tag) => (
+    `<option value="${escapeHtml(tag.name)}"></option>`
+  )).join("");
 }
 
 function renderNotes() {
@@ -78,7 +116,7 @@ function renderNotes() {
 
   elements.list.innerHTML = state.notes.map((note) => `
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}">
-      <span class="tag">${note.favorite ? "Favorite" : "Note"}</span>
+      <span class="tag">${escapeHtml(note.tags?.[0] || note.notebookName || "Note")}</span>
       <h2>${escapeHtml(note.title || "Untitled note")}</h2>
       <p>${escapeHtml(notePreview(note))}</p>
       <footer>
@@ -116,6 +154,20 @@ async function hydrateConfig() {
     document.documentElement.dataset.ai = config.aiEnabled ? "enabled" : "disabled";
   } catch {
     document.documentElement.dataset.ai = "offline";
+  }
+}
+
+async function loadCollections() {
+  try {
+    const [notebooksPayload, tagsPayload] = await Promise.all([
+      requestJson("/api/notebooks"),
+      requestJson("/api/tags")
+    ]);
+    state.notebooks = notebooksPayload.notebooks || [];
+    state.tags = tagsPayload.tags || [];
+    renderCollections();
+  } catch {
+    renderCollections();
   }
 }
 
@@ -176,6 +228,7 @@ async function saveNote() {
       state.notes.unshift(saved);
     }
     selectNote(saved);
+    await loadCollections();
     setStatus(`Saved ${formatDate(saved.updatedAt)}`);
   } catch (error) {
     setStatus(error.message);
@@ -188,6 +241,8 @@ async function saveNote() {
 function bindEvents() {
   elements.newNote.addEventListener("click", () => {
     state.selectedId = null;
+    elements.notebook.value = state.notebooks[0]?.id || "";
+    elements.tags.value = "";
     elements.title.value = "Untitled note";
     elements.body.value = "";
     setStatus("New draft");
@@ -210,6 +265,11 @@ function bindEvents() {
   });
 }
 
-bindEvents();
-hydrateConfig();
-loadNotes();
+async function init() {
+  bindEvents();
+  hydrateConfig();
+  await loadCollections();
+  await loadNotes();
+}
+
+init();
