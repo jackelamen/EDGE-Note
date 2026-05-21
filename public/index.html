@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EDGE Note</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Notebook navigation">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <div>
+            <strong>EDGE Note</strong>
+            <span>Private notes workspace</span>
+          </div>
+        </div>
+
+        <button class="primary-action" type="button">
+          <span aria-hidden="true">+</span>
+          New note
+        </button>
+
+        <nav class="nav-group" aria-label="Main">
+          <a class="active" href="#all-notes">All notes</a>
+          <a href="#favorites">Favorites</a>
+          <a href="#tasks">Tasks</a>
+          <a href="#archive">Archive</a>
+        </nav>
+
+        <section class="nav-section" aria-labelledby="notebook-heading">
+          <h2 id="notebook-heading">Notebooks</h2>
+          <a href="#daily">Daily</a>
+          <a href="#projects">Projects</a>
+          <a href="#reference">Reference</a>
+        </section>
+
+        <section class="sync-panel" aria-label="Sync status">
+          <span class="sync-dot" aria-hidden="true"></span>
+          <div>
+            <strong>Local cache ready</strong>
+            <span>Manual sync first</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="note-list" aria-label="Notes">
+        <header class="list-header">
+          <div>
+            <p class="eyebrow">Today</p>
+            <h1>All notes</h1>
+          </div>
+          <button class="icon-button" type="button" aria-label="Search notes" title="Search notes">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m16 16 4 4"></path>
+            </svg>
+          </button>
+        </header>
+
+        <label class="search-field">
+          <span class="sr-only">Search</span>
+          <input type="search" placeholder="Search notes, tags, and tasks">
+        </label>
+
+        <div class="note-stack">
+          <article class="note-card active">
+            <span class="tag">Planning</span>
+            <h2>EDGE Note app shell</h2>
+            <p>Build the Hostinger Node foundation, then connect MySQL notes.</p>
+            <footer>
+              <span>Just now</span>
+              <span>2 tasks</span>
+            </footer>
+          </article>
+          <article class="note-card">
+            <span class="tag muted">Architecture</span>
+            <h2>Sync model</h2>
+            <p>Pull changes since cursor, push local edits in small batches.</p>
+            <footer>
+              <span>Draft</span>
+              <span>API</span>
+            </footer>
+          </article>
+          <article class="note-card">
+            <span class="tag warm">AI</span>
+            <h2>Gemma actions</h2>
+            <p>Manual summaries, task extraction, title creation, and tag suggestions.</p>
+            <footer>
+              <span>Queued</span>
+              <span>Cached</span>
+            </footer>
+          </article>
+        </div>
+      </section>
+
+      <section class="editor" aria-label="Editor">
+        <header class="editor-toolbar">
+          <div class="crumbs">Daily / Planning</div>
+          <div class="toolbar-actions" aria-label="Editor actions">
+            <button class="icon-button" type="button" aria-label="Favorite" title="Favorite">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"></path>
+              </svg>
+            </button>
+            <button class="secondary-action" type="button">Sync</button>
+          </div>
+        </header>
+
+        <article class="document">
+          <input class="title-input" value="EDGE Note app shell" aria-label="Note title">
+          <div class="metadata-row">
+            <span>#planning</span>
+            <span>#hostinger</span>
+            <span>Updated just now</span>
+          </div>
+          <textarea aria-label="Note body">Start with a boring, portable Node app. Keep the first version local-first, MySQL-backed, and inexpensive to host.
+
+- Serve the responsive web app
+- Add health and config API routes
+- Keep AI optional and manually triggered
+- Prepare the MySQL schema next</textarea>
+        </article>
+      </section>
+
+      <aside class="context-panel" aria-label="Context and AI">
+        <section>
+          <h2>AI actions</h2>
+          <button type="button">Summarize</button>
+          <button type="button">Extract tasks</button>
+          <button type="button">Suggest tags</button>
+        </section>
+
+        <section>
+          <h2>Attachments</h2>
+          <div class="empty-state">Lazy downloads and export-safe files will land with the attachment API.</div>
+        </section>
+
+        <section>
+          <h2>Backup</h2>
+          <div class="status-line">
+            <span class="sync-dot pending" aria-hidden="true"></span>
+            JSON and Markdown export planned
+          </div>
+        </section>
+      </aside>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
