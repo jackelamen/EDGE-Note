@@ -29,6 +29,10 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `/` serves the web app
 - `/api/health` confirms the Node process is alive
 - `/api/config` exposes safe client settings
+- `GET /api/auth/status` checks login/setup state
+- `POST /api/auth/setup` sets the first owner password
+- `POST /api/auth/login` logs in
+- `POST /api/auth/logout` logs out
 - `GET /api/notebooks` lists notebooks
 - `POST /api/notebooks` creates a notebook
 - `GET /api/tags` lists tags
@@ -55,7 +59,8 @@ mysql -u edge_note -p edge_note < database/schema.sql
 mysql -u edge_note -p edge_note < database/seed.sql
 ```
 
-Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-user build defaults to `1` until login is added.
+Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-user build defaults to `1`.
+Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
 ## Local Cache
 
@@ -63,11 +68,11 @@ The browser caches the latest note list, notebook list, tag list, selected note,
 
 ## Next Build Steps
 
-1. Add login/session protection.
-2. Add sync push/conflict handling.
-3. Add attachment thumbnails and size controls.
-4. Add export packaging for attachment files.
-5. Add login/session protection.
+1. Add sync push/conflict handling.
+2. Add attachment thumbnails and size controls.
+3. Add export packaging for attachment files.
+4. Add password reset/change flow.
+5. Add hosted deployment checklist.
 
 ## Hostinger Notes
 

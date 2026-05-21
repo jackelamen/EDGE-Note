@@ -1,5 +1,13 @@
 import { config } from "./config.js";
 import { runAiAction } from "./aiRepository.js";
+import {
+  authStatus,
+  clearSessionCookie,
+  loginOwner,
+  requireAuth,
+  setSessionCookie,
+  setupOwnerPassword
+} from "./authRepository.js";
 import { isDatabaseError } from "./db.js";
 import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
@@ -54,6 +62,22 @@ async function safely(res, action) {
   }
 }
 
+async function safelyAuth(req, res, action) {
+  try {
+    await action();
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      sendDatabaseUnavailable(res, error);
+      return;
+    }
+
+    sendJson(res, error.status || 500, {
+      error: error.status ? error.message : "Unexpected server error",
+      auth: error.auth
+    });
+  }
+}
+
 export async function handleApi(req, res, url) {
   if (url.pathname === "/api/health") {
     sendJson(res, 200, {
@@ -75,17 +99,70 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
+  if (url.pathname === "/api/auth/status") {
+    await safelyAuth(req, res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await authStatus(req));
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/setup") {
+    await safelyAuth(req, res, async () => {
+      requireMethod(req, ["POST"]);
+      const userId = await setupOwnerPassword(await readJson(req));
+      setSessionCookie(res, userId);
+      sendJson(res, 201, { authenticated: true });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/login") {
+    await safelyAuth(req, res, async () => {
+      requireMethod(req, ["POST"]);
+      const userId = await loginOwner(await readJson(req));
+      setSessionCookie(res, userId);
+      sendJson(res, 200, { authenticated: true });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/logout") {
+    await safelyAuth(req, res, async () => {
+      requireMethod(req, ["POST"]);
+      clearSessionCookie(res);
+      sendJson(res, 200, { authenticated: false });
+    });
+    return true;
+  }
+
+  let authUser;
+  try {
+    authUser = await requireAuth(req);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      sendDatabaseUnavailable(res, error);
+    } else {
+      sendJson(res, error.status || 401, {
+        error: error.message,
+        auth: error.auth
+      });
+    }
+    return true;
+  }
+  const userId = authUser.id;
+
   if (url.pathname === "/api/notebooks") {
     await safely(res, async () => {
       if (req.method === "GET") {
-        const notebooks = await listNotebooks({ userId: config.ownerUserId });
+        const notebooks = await listNotebooks({ userId });
         sendJson(res, 200, { notebooks });
         return;
       }
 
       requireMethod(req, ["POST"]);
       const notebooks = await createNotebook({
-        userId: config.ownerUserId,
+        userId,
         input: await readJson(req)
       });
       sendJson(res, 201, { notebooks });
@@ -96,17 +173,17 @@ export async function handleApi(req, res, url) {
   if (url.pathname === "/api/tags") {
     await safely(res, async () => {
       if (req.method === "GET") {
-        const tags = await listTags({ userId: config.ownerUserId });
+        const tags = await listTags({ userId });
         sendJson(res, 200, { tags });
         return;
       }
 
       requireMethod(req, ["POST"]);
       await ensureTags({
-        userId: config.ownerUserId,
+        userId,
         tags: (await readJson(req)).tags || []
       });
-      const tags = await listTags({ userId: config.ownerUserId });
+      const tags = await listTags({ userId });
       sendJson(res, 201, { tags });
     });
     return true;
@@ -116,7 +193,7 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
       const payload = await pullSyncChanges({
-        userId: config.ownerUserId,
+        userId,
         cursor: url.searchParams.get("cursor") || 0,
         limit: url.searchParams.get("limit") || 100
       });
@@ -128,7 +205,7 @@ export async function handleApi(req, res, url) {
   if (url.pathname === "/api/export.json") {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
-      sendDownload(res, 200, await buildJsonExport({ userId: config.ownerUserId }));
+      sendDownload(res, 200, await buildJsonExport({ userId }));
     });
     return true;
   }
@@ -136,7 +213,7 @@ export async function handleApi(req, res, url) {
   if (url.pathname === "/api/export.md") {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
-      sendDownload(res, 200, await buildMarkdownExport({ userId: config.ownerUserId }));
+      sendDownload(res, 200, await buildMarkdownExport({ userId }));
     });
     return true;
   }
@@ -146,7 +223,7 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       if (req.method === "GET") {
         const attachments = await listAttachments({
-          userId: config.ownerUserId,
+          userId,
           noteId: noteAttachmentsId
         });
         sendJson(res, 200, { attachments });
@@ -158,7 +235,7 @@ export async function handleApi(req, res, url) {
         limitBytes: config.attachments.limitMb * 1024 * 1024
       });
       const attachment = await saveAttachment({
-        userId: config.ownerUserId,
+        userId,
         noteId: noteAttachmentsId,
         file
       });
@@ -172,7 +249,7 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["POST"]);
       const result = await runAiAction({
-        userId: config.ownerUserId,
+        userId,
         noteId: aiAction.noteId,
         action: aiAction.action
       });
@@ -186,7 +263,7 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
       const attachment = await getAttachment({
-        userId: config.ownerUserId,
+        userId,
         attachmentId
       });
       if (!attachment) {
@@ -209,7 +286,7 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       if (req.method === "GET") {
         const notes = await listNotes({
-          userId: config.ownerUserId,
+          userId,
           search: url.searchParams.get("q") || "",
           limit: url.searchParams.get("limit") || 50
         });
@@ -219,7 +296,7 @@ export async function handleApi(req, res, url) {
 
       requireMethod(req, ["POST"]);
       const note = await createNote({
-        userId: config.ownerUserId,
+        userId,
         input: await readJson(req)
       });
       sendJson(res, 201, { note });
@@ -231,14 +308,14 @@ export async function handleApi(req, res, url) {
   if (noteId) {
     await safely(res, async () => {
       if (req.method === "GET") {
-        const note = await getNote({ userId: config.ownerUserId, noteId });
+        const note = await getNote({ userId, noteId });
         sendJson(res, note ? 200 : 404, note ? { note } : { error: "Note not found" });
         return;
       }
 
       if (req.method === "PUT") {
         const note = await updateNote({
-          userId: config.ownerUserId,
+          userId,
           noteId,
           input: await readJson(req)
         });
@@ -247,7 +324,7 @@ export async function handleApi(req, res, url) {
       }
 
       if (req.method === "DELETE") {
-        const deleted = await deleteNote({ userId: config.ownerUserId, noteId });
+        const deleted = await deleteNote({ userId, noteId });
         sendJson(res, deleted ? 200 : 404, deleted ? { ok: true } : { error: "Note not found" });
         return;
       }

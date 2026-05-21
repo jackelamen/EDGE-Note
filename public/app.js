@@ -7,6 +7,7 @@ const cacheKeys = {
 
 const state = {
   attachments: [],
+  authMode: "login",
   notebooks: [],
   notes: [],
   tags: [],
@@ -18,6 +19,13 @@ const state = {
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
   attachmentList: document.querySelector("[data-attachments-list]"),
+  appShell: document.querySelector("[data-app-shell]"),
+  authForm: document.querySelector("[data-auth-form]"),
+  authMessage: document.querySelector("[data-auth-message]"),
+  authMode: document.querySelector("[data-auth-mode]"),
+  authPanel: document.querySelector("[data-auth-panel]"),
+  authPassword: document.querySelector("[data-auth-password]"),
+  authSubmit: document.querySelector("[data-auth-submit]"),
   aiActions: document.querySelectorAll("[data-ai-action]"),
   aiResult: document.querySelector("[data-ai-result]"),
   body: document.querySelector("[data-note-body]"),
@@ -30,6 +38,7 @@ const elements = {
   newNote: document.querySelector("[data-action='new-note']"),
   notebook: document.querySelector("[data-note-notebook]"),
   notebooksList: document.querySelector("[data-notebooks-list]"),
+  logout: document.querySelector("[data-action='logout']"),
   saveNote: document.querySelector("[data-action='save-note']"),
   search: document.querySelector("[data-notes-search]"),
   tags: document.querySelector("[data-note-tags]"),
@@ -37,6 +46,22 @@ const elements = {
   title: document.querySelector("[data-note-title]"),
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
 };
+
+function showApp() {
+  elements.authPanel.hidden = true;
+  elements.appShell.hidden = false;
+}
+
+function showAuth({ setupRequired = false, message = "" } = {}) {
+  state.authMode = setupRequired ? "setup" : "login";
+  elements.appShell.hidden = true;
+  elements.authPanel.hidden = false;
+  elements.authMode.textContent = setupRequired ? "Set owner password" : "Private access";
+  elements.authSubmit.textContent = setupRequired ? "Set password" : "Log in";
+  elements.authPassword.autocomplete = setupRequired ? "new-password" : "current-password";
+  elements.authMessage.textContent = message;
+  elements.authPassword.focus();
+}
 
 function readCache(key, fallback) {
   try {
@@ -270,10 +295,58 @@ async function requestJson(url, options = {}) {
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed");
     error.status = response.status;
+    error.auth = payload.auth;
+    if (response.status === 401 && payload.auth) {
+      showAuth({ setupRequired: payload.auth.setupRequired, message: error.message });
+    }
     throw error;
   }
 
   return payload;
+}
+
+async function checkAuth() {
+  try {
+    const status = await requestJson("/api/auth/status");
+    if (status.authenticated) {
+      showApp();
+      return true;
+    }
+    showAuth({ setupRequired: status.setupRequired });
+  } catch (error) {
+    showAuth({ setupRequired: error.auth?.setupRequired, message: error.message });
+  }
+  return false;
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const password = elements.authPassword.value;
+  elements.authSubmit.textContent = state.authMode === "setup" ? "Setting..." : "Logging in...";
+  elements.authMessage.textContent = "";
+
+  try {
+    await requestJson(state.authMode === "setup" ? "/api/auth/setup" : "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ password })
+    });
+    elements.authPassword.value = "";
+    showApp();
+    await loadCollections();
+    await loadNotes();
+  } catch (error) {
+    elements.authMessage.textContent = error.message;
+  } finally {
+    elements.authSubmit.textContent = state.authMode === "setup" ? "Set password" : "Log in";
+  }
+}
+
+async function logout() {
+  await requestJson("/api/auth/logout", {
+    method: "POST",
+    body: JSON.stringify({})
+  }).catch(() => {});
+  showAuth({ message: "Logged out." });
 }
 
 async function hydrateConfig() {
@@ -506,6 +579,9 @@ async function runAiAction(action) {
 }
 
 function bindEvents() {
+  elements.authForm.addEventListener("submit", submitAuth);
+  elements.logout.addEventListener("click", logout);
+
   elements.newNote.addEventListener("click", () => {
     state.localDraftRestored = true;
     state.selectedId = null;
@@ -553,6 +629,7 @@ function bindEvents() {
 async function init() {
   bindEvents();
   hydrateConfig();
+  if (!(await checkAuth())) return;
   await loadCollections();
   const restoredDraft = restoreDraftCache();
   await loadNotes();

@@ -7,7 +7,25 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="app-shell">
+    <section class="auth-panel" data-auth-panel hidden>
+      <form class="auth-box" data-auth-form>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <div>
+            <strong>EDGE Note</strong>
+            <span data-auth-mode>Private access</span>
+          </div>
+        </div>
+        <label>
+          <span>Password</span>
+          <input type="password" minlength="10" autocomplete="current-password" data-auth-password required>
+        </label>
+        <button class="primary-action" type="submit" data-auth-submit>Continue</button>
+        <p data-auth-message></p>
+      </form>
+    </section>
+
+    <main class="app-shell" data-app-shell hidden>
       <aside class="sidebar" aria-label="Notebook navigation">
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">E</span>
@@ -21,6 +39,7 @@
           <span aria-hidden="true">+</span>
           New note
         </button>
+        <button class="secondary-action quiet-action" type="button" data-action="logout">Log out</button>
 
         <nav class="nav-group" aria-label="Main">
           <a class="active" href="#all-notes">All notes</a>

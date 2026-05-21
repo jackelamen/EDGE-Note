@@ -15,6 +15,9 @@ export const config = {
     root: process.env.ATTACHMENT_ROOT || "./uploads",
     limitMb: Number(process.env.ATTACHMENT_LIMIT_MB || 25)
   },
+  auth: {
+    sessionSecret: process.env.EDGE_NOTE_SESSION_SECRET || "change-this-session-secret"
+  },
   ai: {
     endpointUrl: process.env.AI_ENDPOINT_URL || "",
     modelName: process.env.AI_MODEL_NAME || "gemma",
