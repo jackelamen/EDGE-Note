@@ -1,13 +1,23 @@
+const cacheKeys = {
+  draft: "edge_note_draft_v1",
+  notes: "edge_note_notes_v1",
+  collections: "edge_note_collections_v1",
+  selectedId: "edge_note_selected_note_v1"
+};
+
 const state = {
   notebooks: [],
   notes: [],
   tags: [],
+  localDraftRestored: false,
   selectedId: null,
   pendingSave: false
 };
 
 const elements = {
   body: document.querySelector("[data-note-body]"),
+  cacheStatus: document.querySelector("[data-cache-status]"),
+  cacheTitle: document.querySelector("[data-cache-title]"),
   list: document.querySelector("[data-notes-list]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
@@ -19,6 +29,31 @@ const elements = {
   tagsList: document.querySelector("[data-tags-list]"),
   title: document.querySelector("[data-note-title]")
 };
+
+function readCache(key, fallback) {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeCache(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache failure should not block note editing.
+  }
+}
+
+function removeCache(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Cache failure should not block note editing.
+  }
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -42,6 +77,11 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function setCacheStatus(title, text) {
+  elements.cacheTitle.textContent = title;
+  elements.cacheStatus.textContent = text;
+}
+
 function setStatus(text) {
   elements.meta.textContent = `${state.selectedId ? `Note ${state.selectedId}` : "Draft"} · ${text}`;
 }
@@ -63,6 +103,35 @@ function currentDraft() {
   };
 }
 
+function saveDraftCache() {
+  state.localDraftRestored = true;
+  writeCache(cacheKeys.draft, {
+    ...currentDraft(),
+    selectedId: state.selectedId,
+    cachedAt: new Date().toISOString()
+  });
+  setCacheStatus("Draft cached", "Saved in this browser");
+}
+
+function clearDraftCache() {
+  removeCache(cacheKeys.draft);
+}
+
+function restoreDraftCache() {
+  const draft = readCache(cacheKeys.draft, null);
+  if (!draft) return false;
+
+  state.localDraftRestored = true;
+  state.selectedId = draft.selectedId || null;
+  elements.notebook.value = draft.notebookId || "";
+  elements.tags.value = (draft.tags || []).join(", ");
+  elements.title.value = draft.title || "Untitled note";
+  elements.body.value = draft.body || "";
+  setStatus(`Restored local draft from ${formatDate(draft.cachedAt)}`);
+  setCacheStatus("Draft restored", "Review and sync when ready");
+  return true;
+}
+
 function selectNote(note) {
   state.selectedId = note?.id || null;
   elements.notebook.value = note?.notebookId || "";
@@ -70,6 +139,9 @@ function selectNote(note) {
   elements.title.value = note?.title || "Untitled note";
   elements.body.value = note?.body || "";
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
+  if (note?.id) {
+    writeCache(cacheKeys.selectedId, note.id);
+  }
   renderNotes();
 }
 
@@ -165,8 +237,19 @@ async function loadCollections() {
     ]);
     state.notebooks = notebooksPayload.notebooks || [];
     state.tags = tagsPayload.tags || [];
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
     renderCollections();
   } catch {
+    const cached = readCache(cacheKeys.collections, null);
+    if (cached) {
+      state.notebooks = cached.notebooks || [];
+      state.tags = cached.tags || [];
+      setCacheStatus("Collections cached", `From ${formatDate(cached.cachedAt)}`);
+    }
     renderCollections();
   }
 }
@@ -179,14 +262,35 @@ async function loadNotes() {
   try {
     const payload = await requestJson(`/api/notes${params.size ? `?${params}` : ""}`);
     state.notes = payload.notes || [];
+    writeCache(cacheKeys.notes, {
+      notes: state.notes,
+      cachedAt: new Date().toISOString()
+    });
     renderNotes();
-    if (state.notes.length && !state.selectedId) {
-      selectNote(state.notes[0]);
+    if (state.notes.length && !state.selectedId && !state.localDraftRestored) {
+      const cachedSelectedId = readCache(cacheKeys.selectedId, null);
+      const selected = state.notes.find((note) => note.id === cachedSelectedId) || state.notes[0];
+      selectNote(selected);
     }
-    if (!state.notes.length) {
+    if (!state.notes.length && !state.localDraftRestored) {
       setStatus("Ready for first note");
     }
+    setCacheStatus("Synced locally", `${state.notes.length} notes cached`);
   } catch (error) {
+    const cached = readCache(cacheKeys.notes, null);
+    if (cached?.notes?.length) {
+      state.notes = cached.notes;
+      renderNotes();
+      if (!state.selectedId) {
+        const cachedSelectedId = readCache(cacheKeys.selectedId, null);
+        const selected = state.notes.find((note) => note.id === cachedSelectedId) || state.notes[0];
+        selectNote(selected);
+      }
+      setStatus("Loaded cached notes while database is offline");
+      setCacheStatus("Offline cache", `From ${formatDate(cached.cachedAt)}`);
+      return;
+    }
+
     elements.list.innerHTML = `
       <article class="note-card active">
         <span class="tag warm">Setup</span>
@@ -198,7 +302,9 @@ async function loadNotes() {
         </footer>
       </article>
     `;
+    restoreDraftCache();
     setStatus("Database setup needed");
+    setCacheStatus("Local only", "Drafts still cache here");
   }
 }
 
@@ -228,10 +334,18 @@ async function saveNote() {
       state.notes.unshift(saved);
     }
     selectNote(saved);
+    state.localDraftRestored = false;
+    clearDraftCache();
+    writeCache(cacheKeys.notes, {
+      notes: state.notes,
+      cachedAt: new Date().toISOString()
+    });
     await loadCollections();
     setStatus(`Saved ${formatDate(saved.updatedAt)}`);
+    setCacheStatus("Synced locally", "Server note cached");
   } catch (error) {
     setStatus(error.message);
+    saveDraftCache();
   } finally {
     state.pendingSave = false;
     elements.saveNote.textContent = "Sync";
@@ -240,6 +354,7 @@ async function saveNote() {
 
 function bindEvents() {
   elements.newNote.addEventListener("click", () => {
+    state.localDraftRestored = true;
     state.selectedId = null;
     elements.notebook.value = state.notebooks[0]?.id || "";
     elements.tags.value = "";
@@ -251,6 +366,11 @@ function bindEvents() {
   });
 
   elements.saveNote.addEventListener("click", saveNote);
+
+  elements.title.addEventListener("input", saveDraftCache);
+  elements.body.addEventListener("input", saveDraftCache);
+  elements.notebook.addEventListener("change", saveDraftCache);
+  elements.tags.addEventListener("input", saveDraftCache);
 
   elements.search.addEventListener("input", () => {
     window.clearTimeout(elements.search.searchTimer);
@@ -269,7 +389,11 @@ async function init() {
   bindEvents();
   hydrateConfig();
   await loadCollections();
+  const restoredDraft = restoreDraftCache();
   await loadNotes();
+  if (restoredDraft) {
+    setCacheStatus("Draft restored", "Sync when ready");
+  }
 }
 
 init();

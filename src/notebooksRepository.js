@@ -1,4 +1,5 @@
 import { query } from "./db.js";
+import { recordSyncChange } from "./syncRepository.js";
 
 function mapNotebook(row) {
   return {
@@ -42,7 +43,7 @@ export async function createNotebook({ userId, input }) {
     throw error;
   }
 
-  await query(
+  const result = await query(
     `INSERT INTO notebooks (user_id, name, sort_order)
      VALUES (:userId, :name, :sortOrder)`,
     {
@@ -51,6 +52,13 @@ export async function createNotebook({ userId, input }) {
       sortOrder: Number(input.sortOrder || 100)
     }
   );
+
+  await recordSyncChange({
+    userId,
+    entityType: "notebook",
+    entityId: result.insertId,
+    action: "create"
+  });
 
   return listNotebooks({ userId });
 }

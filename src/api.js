@@ -3,6 +3,7 @@ import { isDatabaseError } from "./db.js";
 import { readJson, requireMethod, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
+import { pullSyncChanges } from "./syncRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
 
 function parseNoteId(pathname) {
@@ -89,6 +90,19 @@ export async function handleApi(req, res, url) {
       });
       const tags = await listTags({ userId: config.ownerUserId });
       sendJson(res, 201, { tags });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/sync/pull") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const payload = await pullSyncChanges({
+        userId: config.ownerUserId,
+        cursor: url.searchParams.get("cursor") || 0,
+        limit: url.searchParams.get("limit") || 100
+      });
+      sendJson(res, 200, payload);
     });
     return true;
   }

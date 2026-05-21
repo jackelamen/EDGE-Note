@@ -1,4 +1,5 @@
 import { query } from "./db.js";
+import { recordSyncChange } from "./syncRepository.js";
 import { normalizeTags, setNoteTags } from "./tagsRepository.js";
 
 const listSelect = `
@@ -108,7 +109,16 @@ export async function createNote({ userId, input }) {
     await setNoteTags({ userId, noteId: result.insertId, tags: params.tags });
   }
 
-  return getNote({ userId, noteId: result.insertId });
+  const note = await getNote({ userId, noteId: result.insertId });
+  await recordSyncChange({
+    userId,
+    entityType: "note",
+    entityId: result.insertId,
+    action: "create",
+    syncVersion: note.syncVersion
+  });
+
+  return note;
 }
 
 export async function updateNote({ userId, noteId, input }) {
@@ -154,7 +164,16 @@ export async function updateNote({ userId, noteId, input }) {
 
   await setNoteTags({ userId, noteId, tags: params.tags });
 
-  return getNote({ userId, noteId });
+  const note = await getNote({ userId, noteId });
+  await recordSyncChange({
+    userId,
+    entityType: "note",
+    entityId: noteId,
+    action: "update",
+    syncVersion: note.syncVersion
+  });
+
+  return note;
 }
 
 export async function deleteNote({ userId, noteId }) {
@@ -169,5 +188,15 @@ export async function deleteNote({ userId, noteId }) {
     { userId, noteId }
   );
 
-  return result.affectedRows > 0;
+  const deleted = result.affectedRows > 0;
+  if (deleted) {
+    await recordSyncChange({
+      userId,
+      entityType: "note",
+      entityId: noteId,
+      action: "delete"
+    });
+  }
+
+  return deleted;
 }

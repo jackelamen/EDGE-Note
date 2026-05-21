@@ -33,6 +33,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `POST /api/notebooks` creates a notebook
 - `GET /api/tags` lists tags
 - `POST /api/tags` creates tags
+- `GET /api/sync/pull?cursor=0` pulls incremental change records
 - `GET /api/notes` lists notes for the first owner account
 - `POST /api/notes` creates a note
 - `GET /api/notes/:id` reads one note
@@ -50,13 +51,17 @@ mysql -u edge_note -p edge_note < database/seed.sql
 
 Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-user build defaults to `1` until login is added.
 
+## Local Cache
+
+The browser caches the latest note list, notebook list, tag list, selected note, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
+
 ## Next Build Steps
 
 1. Add login/session protection.
-2. Add local browser cache for offline-first editing.
-3. Add incremental sync changes.
-4. Add attachment upload using Hostinger file storage.
-5. Add first manual Gemma AI actions.
+2. Add sync push/conflict handling.
+3. Add attachment upload using Hostinger file storage.
+4. Add first manual Gemma AI actions.
+5. Add export and backup actions.
 
 ## Hostinger Notes
 
