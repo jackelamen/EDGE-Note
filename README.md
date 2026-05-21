@@ -6,9 +6,9 @@ EDGE Note is a private, Hostinger-friendly Evernote replacement. The first versi
 
 This first shell includes:
 
-- Node 22 HTTP server with no required runtime dependencies
+- Node 22 HTTP server with `mysql2` for MySQL access
 - Responsive notes workspace UI
-- Health, config, and placeholder notes API routes
+- Health, config, and MySQL-backed notes API routes
 - MySQL schema draft for the MVP data model
 - Environment example for Hostinger-style deployment
 
@@ -16,6 +16,7 @@ This first shell includes:
 
 ```bash
 cp .env.example .env
+npm install
 npm run dev
 ```
 
@@ -28,15 +29,30 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `/` serves the web app
 - `/api/health` confirms the Node process is alive
 - `/api/config` exposes safe client settings
-- `/api/notes` is a placeholder for the MySQL-backed notes API
+- `GET /api/notes` lists notes for the first owner account
+- `POST /api/notes` creates a note
+- `GET /api/notes/:id` reads one note
+- `PUT /api/notes/:id` updates a note and stores the previous body as a version
+- `DELETE /api/notes/:id` soft deletes a note
+
+## Database Setup
+
+Create the MySQL database, then run:
+
+```bash
+mysql -u edge_note -p edge_note < database/schema.sql
+mysql -u edge_note -p edge_note < database/seed.sql
+```
+
+Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-user build defaults to `1` until login is added.
 
 ## Next Build Steps
 
-1. Add a small MySQL connection layer.
-2. Seed the first owner account and default notebooks.
-3. Replace placeholder notes with real CRUD endpoints.
-4. Add login/session protection.
-5. Persist local edits and prepare incremental sync.
+1. Add login/session protection.
+2. Add notebooks and tags endpoints.
+3. Add local browser cache for offline-first editing.
+4. Add incremental sync changes.
+5. Add attachment upload using Hostinger file storage.
 
 ## Hostinger Notes
 

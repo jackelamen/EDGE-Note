@@ -7,9 +7,12 @@
   "engines": {
     "node": ">=22"
   },
+  "dependencies": {
+    "mysql2": "^3.11.5"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "EDGE_NOTE_ENV=development node src/server.js",
-    "check": "node --check src/server.js"
+    "check": "for file in src/*.js public/*.js; do node --check \"$file\"; done"
   }
 }

@@ -17,7 +17,7 @@
           </div>
         </div>
 
-        <button class="primary-action" type="button">
+        <button class="primary-action" type="button" data-action="new-note">
           <span aria-hidden="true">+</span>
           New note
         </button>
@@ -61,35 +61,17 @@
 
         <label class="search-field">
           <span class="sr-only">Search</span>
-          <input type="search" placeholder="Search notes, tags, and tasks">
+          <input type="search" placeholder="Search notes, tags, and tasks" data-notes-search>
         </label>
 
-        <div class="note-stack">
+        <div class="note-stack" data-notes-list>
           <article class="note-card active">
-            <span class="tag">Planning</span>
-            <h2>EDGE Note app shell</h2>
-            <p>Build the Hostinger Node foundation, then connect MySQL notes.</p>
+            <span class="tag">Setup</span>
+            <h2>Connect MySQL to load notes</h2>
+            <p>The notes API is ready. Add the schema and environment values, then refresh.</p>
             <footer>
-              <span>Just now</span>
-              <span>2 tasks</span>
-            </footer>
-          </article>
-          <article class="note-card">
-            <span class="tag muted">Architecture</span>
-            <h2>Sync model</h2>
-            <p>Pull changes since cursor, push local edits in small batches.</p>
-            <footer>
-              <span>Draft</span>
+              <span>Waiting</span>
               <span>API</span>
-            </footer>
-          </article>
-          <article class="note-card">
-            <span class="tag warm">AI</span>
-            <h2>Gemma actions</h2>
-            <p>Manual summaries, task extraction, title creation, and tag suggestions.</p>
-            <footer>
-              <span>Queued</span>
-              <span>Cached</span>
             </footer>
           </article>
         </div>
@@ -104,23 +86,23 @@
                 <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"></path>
               </svg>
             </button>
-            <button class="secondary-action" type="button">Sync</button>
+            <button class="secondary-action" type="button" data-action="save-note">Sync</button>
           </div>
         </header>
 
         <article class="document">
-          <input class="title-input" value="EDGE Note app shell" aria-label="Note title">
-          <div class="metadata-row">
-            <span>#planning</span>
+          <input class="title-input" value="Connect MySQL to load notes" aria-label="Note title" data-note-title>
+          <div class="metadata-row" data-note-meta>
+            <span>#setup</span>
             <span>#hostinger</span>
-            <span>Updated just now</span>
+            <span>Not saved yet</span>
           </div>
-          <textarea aria-label="Note body">Start with a boring, portable Node app. Keep the first version local-first, MySQL-backed, and inexpensive to host.
+          <textarea aria-label="Note body" data-note-body>The notes API is ready for MySQL-backed create, update, search, and soft delete.
 
-- Serve the responsive web app
-- Add health and config API routes
-- Keep AI optional and manually triggered
-- Prepare the MySQL schema next</textarea>
+- Import database/schema.sql
+- Copy .env.example to .env
+- Fill in your MySQL credentials
+- Run npm install before starting the app</textarea>
         </article>
       </section>
 
