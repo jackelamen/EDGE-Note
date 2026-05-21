@@ -377,6 +377,16 @@ textarea {
   background: var(--ink);
 }
 
+.backup-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.backup-status {
+  margin-bottom: 8px;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;

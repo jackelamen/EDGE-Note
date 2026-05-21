@@ -18,6 +18,8 @@ const elements = {
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
+  exportJson: document.querySelector("[data-export='json']"),
+  exportMarkdown: document.querySelector("[data-export='markdown']"),
   list: document.querySelector("[data-notes-list]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
@@ -366,6 +368,14 @@ function bindEvents() {
   });
 
   elements.saveNote.addEventListener("click", saveNote);
+
+  elements.exportJson.addEventListener("click", () => {
+    window.location.href = "/api/export.json";
+  });
+
+  elements.exportMarkdown.addEventListener("click", () => {
+    window.location.href = "/api/export.md";
+  });
 
   elements.title.addEventListener("input", saveDraftCache);
   elements.body.addEventListener("input", saveDraftCache);

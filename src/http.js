@@ -9,6 +9,15 @@ export function sendJson(res, status, payload) {
   res.end(body);
 }
 
+export function sendDownload(res, status, { filename, contentType, body }) {
+  res.writeHead(status, {
+    "content-type": contentType,
+    "content-disposition": `attachment; filename="${filename}"`,
+    "cache-control": "no-store"
+  });
+  res.end(body);
+}
+
 export async function readJson(req) {
   let body = "";
 

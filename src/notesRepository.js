@@ -58,7 +58,7 @@ function noteParams(userId, input) {
 }
 
 export async function listNotes({ userId, search = "", limit = 50 }) {
-  const cleanLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const cleanLimit = Math.min(Math.max(Number(limit) || 50, 1), 1000);
   const term = String(search || "").trim();
 
   if (term) {

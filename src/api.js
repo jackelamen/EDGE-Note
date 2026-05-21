@@ -1,6 +1,7 @@
 import { config } from "./config.js";
 import { isDatabaseError } from "./db.js";
-import { readJson, requireMethod, sendJson } from "./http.js";
+import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
+import { readJson, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
 import { pullSyncChanges } from "./syncRepository.js";
@@ -103,6 +104,22 @@ export async function handleApi(req, res, url) {
         limit: url.searchParams.get("limit") || 100
       });
       sendJson(res, 200, payload);
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/export.json") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendDownload(res, 200, await buildJsonExport({ userId: config.ownerUserId }));
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/export.md") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendDownload(res, 200, await buildMarkdownExport({ userId: config.ownerUserId }));
     });
     return true;
   }

@@ -34,6 +34,8 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `GET /api/tags` lists tags
 - `POST /api/tags` creates tags
 - `GET /api/sync/pull?cursor=0` pulls incremental change records
+- `GET /api/export.json` downloads a portable JSON backup
+- `GET /api/export.md` downloads notes as Markdown
 - `GET /api/notes` lists notes for the first owner account
 - `POST /api/notes` creates a note
 - `GET /api/notes/:id` reads one note
