@@ -442,6 +442,18 @@ textarea {
   color: var(--muted);
 }
 
+.ai-result {
+  min-height: 72px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;

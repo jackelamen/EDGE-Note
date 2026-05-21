@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { runAiAction } from "./aiRepository.js";
 import { isDatabaseError } from "./db.js";
 import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
@@ -21,6 +22,11 @@ function parseNoteAttachmentsPath(pathname) {
 function parseAttachmentDownloadPath(pathname) {
   const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
   return match ? Number(match[1]) : null;
+}
+
+function parseAiActionPath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/ai\/([a-z-]+)$/);
+  return match ? { noteId: Number(match[1]), action: match[2] } : null;
 }
 
 function sendDatabaseUnavailable(res, error) {
@@ -157,6 +163,20 @@ export async function handleApi(req, res, url) {
         file
       });
       sendJson(res, 201, { attachment });
+    });
+    return true;
+  }
+
+  const aiAction = parseAiActionPath(url.pathname);
+  if (aiAction) {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const result = await runAiAction({
+        userId: config.ownerUserId,
+        noteId: aiAction.noteId,
+        action: aiAction.action
+      });
+      sendJson(res, 200, result);
     });
     return true;
   }

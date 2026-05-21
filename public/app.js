@@ -18,6 +18,8 @@ const state = {
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
   attachmentList: document.querySelector("[data-attachments-list]"),
+  aiActions: document.querySelectorAll("[data-ai-action]"),
+  aiResult: document.querySelector("[data-ai-result]"),
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
@@ -179,6 +181,26 @@ function renderAttachments() {
       <small>${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
     </a>
   `).join("");
+}
+
+function renderAiOutput(payload) {
+  const output = payload.output || {};
+  const action = payload.action?.replaceAll("-", " ") || "AI";
+  let body = output.text || "";
+
+  if (Array.isArray(output.summary)) {
+    body = output.summary.map((item) => `- ${item}`).join("\n");
+  } else if (Array.isArray(output.tasks)) {
+    body = output.tasks.map((item) => `- ${item}`).join("\n");
+  } else if (Array.isArray(output.tags)) {
+    body = output.tags.map((item) => `#${item}`).join(" ");
+  } else if (output.title) {
+    body = output.title;
+  } else if (!body) {
+    body = JSON.stringify(output, null, 2);
+  }
+
+  elements.aiResult.textContent = `${action}${payload.cached ? " (cached)" : ""}\n${body}`;
 }
 
 function renderCollections() {
@@ -448,6 +470,41 @@ async function uploadAttachment() {
   }
 }
 
+async function runAiAction(action) {
+  let noteId = state.selectedId;
+  if (!noteId) {
+    const saved = await saveNote();
+    noteId = saved?.id;
+  }
+
+  if (!noteId) {
+    elements.aiResult.textContent = "Save the note before running AI.";
+    return;
+  }
+
+  elements.aiResult.textContent = "Thinking...";
+
+  try {
+    const payload = await requestJson(`/api/notes/${noteId}/ai/${action}`, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    renderAiOutput(payload);
+
+    if (action === "suggest-tags" && payload.output?.tags?.length) {
+      elements.tags.value = payload.output.tags.join(", ");
+      saveDraftCache();
+    }
+
+    if (action === "create-title" && payload.output?.title) {
+      elements.title.value = payload.output.title;
+      saveDraftCache();
+    }
+  } catch (error) {
+    elements.aiResult.textContent = error.message;
+  }
+}
+
 function bindEvents() {
   elements.newNote.addEventListener("click", () => {
     state.localDraftRestored = true;
@@ -463,6 +520,9 @@ function bindEvents() {
 
   elements.saveNote.addEventListener("click", saveNote);
   elements.uploadAttachment.addEventListener("click", uploadAttachment);
+  elements.aiActions.forEach((button) => {
+    button.addEventListener("click", () => runAiAction(button.dataset.aiAction));
+  });
 
   elements.exportJson.addEventListener("click", () => {
     window.location.href = "/api/export.json";

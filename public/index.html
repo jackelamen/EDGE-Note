@@ -118,9 +118,11 @@
       <aside class="context-panel" aria-label="Context and AI">
         <section>
           <h2>AI actions</h2>
-          <button type="button">Summarize</button>
-          <button type="button">Extract tasks</button>
-          <button type="button">Suggest tags</button>
+          <button type="button" data-ai-action="summarize">Summarize</button>
+          <button type="button" data-ai-action="extract-tasks">Extract tasks</button>
+          <button type="button" data-ai-action="suggest-tags">Suggest tags</button>
+          <button type="button" data-ai-action="create-title">Create title</button>
+          <div class="ai-result" data-ai-result>Manual AI actions use your configured Gemma endpoint.</div>
         </section>
 
         <section>

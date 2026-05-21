@@ -39,6 +39,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `GET /api/notes/:id/attachments` lists note attachments
 - `POST /api/notes/:id/attachments` uploads a file to Hostinger storage
 - `GET /api/attachments/:id/download` lazily downloads one attachment
+- `POST /api/notes/:id/ai/:action` runs a cached manual AI action
 - `GET /api/notes` lists notes for the first owner account
 - `POST /api/notes` creates a note
 - `GET /api/notes/:id` reads one note
@@ -64,9 +65,9 @@ The browser caches the latest note list, notebook list, tag list, selected note,
 
 1. Add login/session protection.
 2. Add sync push/conflict handling.
-3. Add first manual Gemma AI actions.
-4. Add attachment thumbnails and size controls.
-5. Add export packaging for attachment files.
+3. Add attachment thumbnails and size controls.
+4. Add export packaging for attachment files.
+5. Add login/session protection.
 
 ## Hostinger Notes
 

@@ -17,6 +17,7 @@ export const config = {
   },
   ai: {
     endpointUrl: process.env.AI_ENDPOINT_URL || "",
-    modelName: process.env.AI_MODEL_NAME || "gemma"
+    modelName: process.env.AI_MODEL_NAME || "gemma",
+    apiKey: process.env.AI_API_KEY || ""
   }
 };
