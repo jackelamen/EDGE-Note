@@ -43,6 +43,7 @@ const elements = {
   listEyebrow: document.querySelector("[data-list-eyebrow]"),
   listTitle: document.querySelector("[data-list-title]"),
   mainNav: document.querySelector("[data-main-nav]"),
+  markdownPreview: document.querySelector("[data-markdown-preview]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
   notebook: document.querySelector("[data-note-notebook]"),
@@ -60,6 +61,8 @@ const elements = {
   title: document.querySelector("[data-note-title]"),
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
+  formatButtons: document.querySelectorAll("[data-format]"),
+  togglePreview: document.querySelector("[data-action='toggle-preview']"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
@@ -160,6 +163,80 @@ function splitTags(value) {
     .filter(Boolean);
 }
 
+function isSafeUrl(value) {
+  try {
+    const url = new URL(value, window.location.origin);
+    return ["http:", "https:", "mailto:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function renderInlineMarkdown(value) {
+  let html = escapeHtml(value);
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/\[([^\]]+)]\(([^)\s]+)\)/g, (match, text, url) => (
+    isSafeUrl(url) ? `<a href="${escapeHtml(url)}">${text}</a>` : match
+  ));
+  return html;
+}
+
+function renderMarkdown(body) {
+  const lines = String(body || "").split("\n");
+  const output = [];
+  let listOpen = false;
+
+  function closeList() {
+    if (listOpen) {
+      output.push("</ul>");
+      listOpen = false;
+    }
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      closeList();
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      closeList();
+      const level = heading[1].length + 1;
+      output.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+      continue;
+    }
+
+    const quote = trimmed.match(/^>\s+(.+)$/);
+    if (quote) {
+      closeList();
+      output.push(`<blockquote>${renderInlineMarkdown(quote[1])}</blockquote>`);
+      continue;
+    }
+
+    const listItem = trimmed.match(/^-\s+(?:\[([ xX])]\s+)?(.+)$/);
+    if (listItem) {
+      if (!listOpen) {
+        output.push("<ul>");
+        listOpen = true;
+      }
+      const checked = listItem[1]?.toLowerCase() === "x";
+      const checkbox = listItem[1] ? `<span class="preview-check">${checked ? "[x]" : "[ ]"}</span>` : "";
+      output.push(`<li class="${checked ? "complete" : ""}">${checkbox}${renderInlineMarkdown(listItem[2])}</li>`);
+      continue;
+    }
+
+    closeList();
+    output.push(`<p>${renderInlineMarkdown(trimmed)}</p>`);
+  }
+
+  closeList();
+  return output.join("") || '<p class="empty-state">Nothing to preview yet.</p>';
+}
+
 function parseChecklistTasks(body) {
   return String(body || "")
     .split("\n")
@@ -212,6 +289,7 @@ function restoreDraftCache() {
   elements.title.value = draft.title || "Untitled note";
   elements.body.value = draft.body || "";
   renderTasks();
+  renderPreview();
   setStatus(`Restored local draft from ${formatDate(draft.cachedAt)}`);
   setCacheStatus("Draft restored", "Review and sync when ready");
   return true;
@@ -225,6 +303,7 @@ function selectNote(note) {
   elements.body.value = note?.body || "";
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
   renderTasks();
+  renderPreview();
   renderEditorActions(note);
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
@@ -313,6 +392,10 @@ function renderTasks() {
   `).join("");
 }
 
+function renderPreview() {
+  elements.markdownPreview.innerHTML = renderMarkdown(elements.body.value);
+}
+
 function insertChecklistItem() {
   const textarea = elements.body;
   const { selectionStart, selectionEnd, value } = textarea;
@@ -327,6 +410,7 @@ function insertChecklistItem() {
   textarea.focus();
   saveDraftCache();
   renderTasks();
+  renderPreview();
 }
 
 function toggleTaskLine(lineIndex) {
@@ -340,6 +424,56 @@ function toggleTaskLine(lineIndex) {
   elements.body.value = lines.join("\n");
   saveDraftCache();
   renderTasks();
+  renderPreview();
+}
+
+function applyMarkdownFormat(format) {
+  const textarea = elements.body;
+  const { selectionStart, selectionEnd, value } = textarea;
+  const selected = value.slice(selectionStart, selectionEnd);
+  const fallback = {
+    heading: "Heading",
+    bold: "bold text",
+    italic: "italic text",
+    bullet: "List item",
+    quote: "Quoted text",
+    code: "code",
+    link: "link text"
+  }[format] || "";
+  const text = selected || fallback;
+  const replacements = {
+    heading: `## ${text}`,
+    bold: `**${text}**`,
+    italic: `*${text}*`,
+    bullet: `- ${text}`,
+    quote: `> ${text}`,
+    code: `\`${text}\``,
+    link: `[${text}](https://)`
+  };
+  const replacement = replacements[format] || text;
+  const needsLeadingLine = ["heading", "bullet", "quote"].includes(format)
+    && selectionStart > 0
+    && value[selectionStart - 1] !== "\n";
+  const insertion = `${needsLeadingLine ? "\n" : ""}${replacement}`;
+
+  textarea.setRangeText(insertion, selectionStart, selectionEnd, "select");
+  textarea.focus();
+  saveDraftCache();
+  renderTasks();
+  renderPreview();
+}
+
+function togglePreview() {
+  const showing = elements.markdownPreview.hidden;
+  elements.markdownPreview.hidden = !showing;
+  elements.body.hidden = showing;
+  elements.togglePreview.classList.toggle("active", showing);
+  elements.togglePreview.textContent = showing ? "Write" : "Preview";
+  if (showing) {
+    renderPreview();
+  } else {
+    elements.body.focus();
+  }
 }
 
 function renderAttachments() {
@@ -881,12 +1015,17 @@ function bindEvents() {
     elements.body.value = "";
     setStatus("New draft");
     renderTasks();
+    renderPreview();
     renderEditorActions(null);
     renderNotes();
     elements.title.focus();
   });
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
+  elements.formatButtons.forEach((button) => {
+    button.addEventListener("click", () => applyMarkdownFormat(button.dataset.format));
+  });
+  elements.togglePreview.addEventListener("click", togglePreview);
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
   elements.deleteNote.addEventListener("click", deleteCurrentNote);
@@ -908,6 +1047,7 @@ function bindEvents() {
   elements.body.addEventListener("input", () => {
     saveDraftCache();
     renderTasks();
+    renderPreview();
   });
   elements.notebook.addEventListener("change", saveDraftCache);
   elements.tags.addEventListener("input", saveDraftCache);

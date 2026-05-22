@@ -127,6 +127,7 @@
             <button class="secondary-action" type="button" data-action="insert-checklist">Checklist</button>
             <button class="secondary-action quiet-action" type="button" data-action="archive-note">Archive</button>
             <button class="secondary-action danger-action" type="button" data-action="delete-note">Delete</button>
+            <button class="secondary-action quiet-action" type="button" data-action="toggle-preview">Preview</button>
             <button class="secondary-action" type="button" data-action="save-note">Sync</button>
           </div>
         </header>
@@ -147,12 +148,22 @@
             </label>
             <span data-note-meta>Not saved yet</span>
           </div>
+          <div class="format-toolbar" aria-label="Text formatting">
+            <button type="button" data-format="heading">H2</button>
+            <button type="button" data-format="bold">B</button>
+            <button type="button" data-format="italic">I</button>
+            <button type="button" data-format="bullet">List</button>
+            <button type="button" data-format="quote">Quote</button>
+            <button type="button" data-format="code">Code</button>
+            <button type="button" data-format="link">Link</button>
+          </div>
           <textarea aria-label="Note body" data-note-body>The notes API is ready for MySQL-backed create, update, search, and soft delete.
 
 - Import database/schema.sql
 - Copy .env.example to .env
 - Fill in your MySQL credentials
 - Run npm install before starting the app</textarea>
+          <div class="markdown-preview" data-markdown-preview hidden></div>
         </article>
       </section>
 

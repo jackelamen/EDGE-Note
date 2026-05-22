@@ -138,6 +138,12 @@ a {
   background: var(--soft);
 }
 
+.secondary-action.active {
+  border: 1px solid rgba(22, 117, 101, 0.36);
+  background: var(--soft);
+  color: var(--accent-strong);
+}
+
 .danger-action:hover {
   background: #742424;
 }
@@ -440,6 +446,7 @@ h1 {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -481,6 +488,31 @@ h1 {
   width: min(280px, 70vw);
 }
 
+.format-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.format-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.format-toolbar button:hover {
+  background: var(--soft);
+}
+
 textarea {
   width: 100%;
   min-height: 58vh;
@@ -491,6 +523,62 @@ textarea {
   color: var(--ink);
   font-size: 1.04rem;
   line-height: 1.75;
+}
+
+.markdown-preview {
+  min-height: 58vh;
+  color: var(--ink);
+  font-size: 1.04rem;
+  line-height: 1.75;
+}
+
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4 {
+  margin: 1.2rem 0 0.45rem;
+  line-height: 1.2;
+}
+
+.markdown-preview p,
+.markdown-preview ul,
+.markdown-preview blockquote {
+  margin: 0 0 1rem;
+}
+
+.markdown-preview ul {
+  padding-left: 1.25rem;
+}
+
+.markdown-preview li.complete {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.markdown-preview blockquote {
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+  color: var(--muted);
+}
+
+.markdown-preview code {
+  border-radius: 6px;
+  padding: 2px 5px;
+  background: var(--soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+
+.markdown-preview a {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.preview-check {
+  margin-right: 8px;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88rem;
+  font-weight: 800;
 }
 
 .context-panel {
