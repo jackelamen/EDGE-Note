@@ -88,6 +88,8 @@ Run this checklist after schema import and before any deployment handoff.
 5. `POST /api/sync/push` can create a note.
 6. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
 7. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
+8. Trigger or simulate a queued stale edit and confirm the conflict panel shows server and local text side by side.
+9. Resolve one conflict with Keep server, one with Use local, and one with Edit local.
 
 ## 10. AI
 

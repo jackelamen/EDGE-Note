@@ -16,6 +16,7 @@ const state = {
   notes: [],
   tagFilter: null,
   tags: [],
+  conflicts: [],
   localDraftRestored: false,
   selectedId: null,
   pendingSave: false
@@ -41,6 +42,8 @@ const elements = {
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
+  conflictList: document.querySelector("[data-conflict-list]"),
+  conflictPanel: document.querySelector("[data-conflict-panel]"),
   exportJson: document.querySelector("[data-export='json']"),
   exportArchive: document.querySelector("[data-export='archive']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
@@ -355,6 +358,56 @@ function queuePendingChange(change) {
     ...change
   });
   writePendingChanges(changes);
+}
+
+function removePendingChange(clientId) {
+  const nextChanges = pendingChanges().filter((change) => change.clientId !== clientId);
+  writePendingChanges(nextChanges);
+}
+
+function conflictPreview(value) {
+  return String(value || "").trim().slice(0, 900) || "No body";
+}
+
+function renderConflictPanel() {
+  elements.conflictPanel.hidden = !state.conflicts.length;
+  if (!state.conflicts.length) {
+    elements.conflictList.innerHTML = "";
+    return;
+  }
+
+  elements.conflictList.innerHTML = state.conflicts.map((conflict) => {
+    const local = conflict.clientChange?.data || {};
+    const server = conflict.serverNote || {};
+    return `
+      <article class="conflict-item" data-conflict-id="${escapeHtml(conflict.clientId)}">
+        <header>
+          <div>
+            <span class="tag warm">Conflict</span>
+            <h3>${escapeHtml(server.title || local.title || "Untitled note")}</h3>
+          </div>
+          <span>Server v${escapeHtml(server.syncVersion || "unknown")}</span>
+        </header>
+        <div class="conflict-compare">
+          <div>
+            <strong>Server</strong>
+            <p>${escapeHtml(server.title || "Untitled note")}</p>
+            <pre>${escapeHtml(conflictPreview(server.body))}</pre>
+          </div>
+          <div>
+            <strong>Local edit</strong>
+            <p>${escapeHtml(local.title || "Untitled note")}</p>
+            <pre>${escapeHtml(conflictPreview(local.body))}</pre>
+          </div>
+        </div>
+        <div class="conflict-actions">
+          <button type="button" data-conflict-action="server" data-conflict-id="${escapeHtml(conflict.clientId)}">Keep server</button>
+          <button type="button" data-conflict-action="local" data-conflict-id="${escapeHtml(conflict.clientId)}">Use local</button>
+          <button type="button" data-conflict-action="merge" data-conflict-id="${escapeHtml(conflict.clientId)}">Edit local</button>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 function restoreDraftCache() {
@@ -1063,13 +1116,18 @@ async function flushPendingChanges() {
     writePendingChanges(retryChanges);
 
     if (conflicts.length) {
+      state.conflicts = conflicts.map((conflict) => ({
+        ...conflict,
+        clientChange: changes.find((change) => change.clientId === conflict.clientId) || null
+      }));
+      renderConflictPanel();
       setStatus(`${conflicts.length} sync conflict${conflicts.length === 1 ? "" : "s"} need review`);
-      elements.aiResult.textContent = conflicts.map((conflict) => (
-        `Conflict: ${conflict.serverNote?.title || "Untitled note"}\nServer version ${conflict.serverNote?.syncVersion || "unknown"} changed before this edit synced.`
-      )).join("\n\n");
+      elements.aiResult.textContent = "Review the sync conflict panel above the editor.";
       return;
     }
 
+    state.conflicts = [];
+    renderConflictPanel();
     if (payload.accepted) {
       await loadNotes();
       setStatus(`Synced ${payload.accepted} queued change${payload.accepted === 1 ? "" : "s"}`);
@@ -1082,6 +1140,61 @@ async function flushPendingChanges() {
 function schedulePendingSync() {
   window.clearTimeout(pendingSyncTimer);
   pendingSyncTimer = window.setTimeout(flushPendingChanges, 500);
+}
+
+async function resolveConflict(clientId, action) {
+  const conflict = state.conflicts.find((item) => item.clientId === clientId);
+  if (!conflict) return;
+
+  const local = conflict.clientChange?.data || {};
+  const server = conflict.serverNote;
+
+  if (action === "server") {
+    removePendingChange(clientId);
+    state.conflicts = state.conflicts.filter((item) => item.clientId !== clientId);
+    const index = state.notes.findIndex((note) => note.id === server.id);
+    if (index >= 0) state.notes[index] = server;
+    selectNote(server);
+    renderConflictPanel();
+    setStatus("Kept server version");
+    return;
+  }
+
+  if (action === "merge") {
+    removePendingChange(clientId);
+    state.conflicts = state.conflicts.filter((item) => item.clientId !== clientId);
+    selectNote({
+      ...server,
+      notebookId: local.notebookId ?? server.notebookId,
+      title: local.title ?? server.title,
+      body: local.body ?? server.body,
+      bodyFormat: local.bodyFormat || server.bodyFormat,
+      tags: local.tags || server.tags
+    });
+    saveDraftCache();
+    renderConflictPanel();
+    setStatus("Local edit loaded. Review and Sync when ready.");
+    return;
+  }
+
+  if (action === "local") {
+    try {
+      const payload = await requestJson(`/api/notes/${server.id}`, {
+        method: "PUT",
+        body: JSON.stringify(local)
+      });
+      removePendingChange(clientId);
+      state.conflicts = state.conflicts.filter((item) => item.clientId !== clientId);
+      const updated = payload.note;
+      const index = state.notes.findIndex((note) => note.id === updated.id);
+      if (index >= 0) state.notes[index] = updated;
+      selectNote(updated);
+      renderConflictPanel();
+      setStatus("Applied local edit");
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
 }
 
 async function loadAttachments(noteId = state.selectedId) {
@@ -1382,6 +1495,12 @@ function bindEvents() {
   elements.clearSearch.addEventListener("click", () => {
     elements.search.value = "";
     loadNotes();
+  });
+
+  elements.conflictList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-conflict-action]");
+    if (!button) return;
+    resolveConflict(button.dataset.conflictId, button.dataset.conflictAction);
   });
 
   elements.mainNav.addEventListener("click", (event) => {

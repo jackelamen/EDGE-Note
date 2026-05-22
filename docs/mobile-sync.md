@@ -122,4 +122,4 @@ The client should not overwrite automatically. Show:
 
 The web app now queues failed note saves in `localStorage` under `edge_note_pending_changes_v1`.
 
-When the browser comes back online, it retries queued changes through `/api/sync/push`. Conflicts are surfaced in the AI/status panel for review.
+When the browser comes back online, it retries queued changes through `/api/sync/push`. Conflicts are surfaced in the editor with the server note and local queued edit side by side. The user can keep the server version, apply the local edit, or load the local edit into the editor for manual review before syncing.

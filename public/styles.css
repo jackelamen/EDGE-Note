@@ -882,6 +882,100 @@ textarea {
   white-space: pre-wrap;
 }
 
+.conflict-panel {
+  max-width: 820px;
+  margin: 18px auto 0;
+  border: 1px solid rgba(161, 84, 43, 0.28);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 247, 237, 0.78);
+}
+
+.conflict-panel h2 {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+
+.conflict-list {
+  display: grid;
+  gap: 12px;
+}
+
+.conflict-item {
+  display: grid;
+  gap: 12px;
+}
+
+.conflict-item header,
+.conflict-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.conflict-item h3,
+.conflict-item p {
+  margin: 0;
+}
+
+.conflict-item h3 {
+  margin-top: 4px;
+  font-size: 1rem;
+}
+
+.conflict-item header > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.conflict-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.conflict-compare > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.conflict-compare strong,
+.conflict-compare p {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.conflict-compare pre {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.conflict-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.conflict-actions button {
+  min-height: 32px;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -941,5 +1035,9 @@ textarea {
 
   textarea {
     min-height: 42vh;
+  }
+
+  .conflict-compare {
+    grid-template-columns: 1fr;
   }
 }

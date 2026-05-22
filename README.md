@@ -122,9 +122,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add conflict resolution UI with side-by-side local/server text.
-2. Add saved searches.
-3. Add Evernote import mapping.
+1. Add saved searches.
+2. Add Evernote import mapping.
+3. Add import/export polish for large note sets.
 
 ## Hostinger Notes
 
