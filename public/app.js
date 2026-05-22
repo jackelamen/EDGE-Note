@@ -13,6 +13,7 @@ const state = {
   notebooks: [],
   notebookFilter: null,
   notes: [],
+  tagFilter: null,
   tags: [],
   localDraftRestored: false,
   selectedId: null,
@@ -45,12 +46,15 @@ const elements = {
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
   notebook: document.querySelector("[data-note-notebook]"),
+  notebookForm: document.querySelector("[data-notebook-form]"),
+  notebookName: document.querySelector("[data-notebook-name]"),
   notebooksList: document.querySelector("[data-notebooks-list]"),
   logout: document.querySelector("[data-action='logout']"),
   saveNote: document.querySelector("[data-action='save-note']"),
   search: document.querySelector("[data-notes-search]"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
+  tagsNav: document.querySelector("[data-tags-nav]"),
   taskList: document.querySelector("[data-task-list]"),
   taskSummary: document.querySelector("[data-task-summary]"),
   title: document.querySelector("[data-note-title]"),
@@ -248,6 +252,10 @@ function viewLabel() {
     return notebook?.name || "Notebook";
   }
 
+  if (state.tagFilter) {
+    return `#${state.tagFilter}`;
+  }
+
   return {
     all: "All notes",
     favorites: "Favorites",
@@ -259,6 +267,7 @@ function viewLabel() {
 function visibleNotes() {
   return state.notes.filter((note) => {
     if (state.notebookFilter && note.notebookId !== state.notebookFilter) return false;
+    if (state.tagFilter && !note.tags?.includes(state.tagFilter)) return false;
     if (state.filter === "archive") return Boolean(note.archivedAt);
     if (note.archivedAt) return false;
     if (state.filter === "favorites") return note.favorite;
@@ -269,14 +278,18 @@ function visibleNotes() {
 
 function updateNavigationState() {
   elements.listTitle.textContent = viewLabel();
-  elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : "Notes";
+  elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
 
   elements.mainNav.querySelectorAll("[data-view-filter]").forEach((link) => {
-    link.classList.toggle("active", !state.notebookFilter && link.dataset.viewFilter === state.filter);
+    link.classList.toggle("active", !state.notebookFilter && !state.tagFilter && link.dataset.viewFilter === state.filter);
   });
 
   elements.notebooksList.querySelectorAll("[data-notebook-filter]").forEach((link) => {
     link.classList.toggle("active", Number(link.dataset.notebookFilter) === state.notebookFilter);
+  });
+
+  elements.tagsNav.querySelectorAll("[data-tag-filter]").forEach((link) => {
+    link.classList.toggle("active", link.dataset.tagFilter === state.tagFilter);
   });
 }
 
@@ -388,6 +401,15 @@ function renderCollections() {
         <span>${notebook.noteCount || 0}</span>
       </a>
     `).join("") : '<a href="#setup">Connect MySQL</a>'}
+  `;
+  elements.tagsNav.innerHTML = `
+    <h2 id="tags-heading">Tags</h2>
+    ${state.tags.length ? state.tags.map((tag) => `
+      <a href="#tag-${escapeHtml(tag.name)}" data-tag-filter="${escapeHtml(tag.name)}">
+        #${escapeHtml(tag.name)}
+        <span>${tag.noteCount || 0}</span>
+      </a>
+    `).join("") : '<a href="#tags">No tags yet</a>'}
   `;
   elements.tagsList.innerHTML = state.tags.map((tag) => (
     `<option value="${escapeHtml(tag.name)}"></option>`
@@ -616,6 +638,38 @@ async function loadCollections() {
   }
 }
 
+async function createNotebookFromForm(event) {
+  event.preventDefault();
+  const name = elements.notebookName.value.trim();
+  if (!name) return;
+
+  try {
+    const payload = await requestJson("/api/notebooks", {
+      method: "POST",
+      body: JSON.stringify({ name })
+    });
+    state.notebooks = payload.notebooks || [];
+    elements.notebookName.value = "";
+    const created = state.notebooks.find((notebook) => notebook.name.toLowerCase() === name.toLowerCase());
+    if (created) {
+      state.notebookFilter = created.id;
+      state.tagFilter = null;
+      state.filter = "all";
+      elements.notebook.value = created.id;
+    }
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
+    renderCollections();
+    renderNotes();
+    setStatus(`Notebook "${name}" ready`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
 async function loadNotes() {
   const params = new URLSearchParams();
   const search = elements.search.value.trim();
@@ -816,11 +870,12 @@ async function runAiAction(action) {
 function bindEvents() {
   elements.authForm.addEventListener("submit", submitAuth);
   elements.logout.addEventListener("click", logout);
+  elements.notebookForm.addEventListener("submit", createNotebookFromForm);
 
   elements.newNote.addEventListener("click", () => {
     state.localDraftRestored = true;
     state.selectedId = null;
-    elements.notebook.value = state.notebooks[0]?.id || "";
+    elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
     elements.tags.value = "";
     elements.title.value = "Untitled note";
     elements.body.value = "";
@@ -868,6 +923,7 @@ function bindEvents() {
     event.preventDefault();
     state.filter = link.dataset.viewFilter;
     state.notebookFilter = null;
+    state.tagFilter = null;
     renderNotes();
   });
 
@@ -876,6 +932,17 @@ function bindEvents() {
     if (!link) return;
     event.preventDefault();
     state.notebookFilter = Number(link.dataset.notebookFilter);
+    state.tagFilter = null;
+    state.filter = "all";
+    renderNotes();
+  });
+
+  elements.tagsNav.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-tag-filter]");
+    if (!link) return;
+    event.preventDefault();
+    state.tagFilter = link.dataset.tagFilter;
+    state.notebookFilter = null;
     state.filter = "all";
     renderNotes();
   });

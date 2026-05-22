@@ -19,9 +19,13 @@ export async function listTags({ userId }) {
        t.id,
        t.name,
        t.created_at AS createdAt,
-       COUNT(nt.note_id) AS noteCount
+       COUNT(n.id) AS noteCount
      FROM tags t
      LEFT JOIN note_tags nt ON nt.tag_id = t.id
+     LEFT JOIN notes n
+       ON n.id = nt.note_id
+      AND n.user_id = t.user_id
+      AND n.deleted_at IS NULL
      WHERE t.user_id = :userId
      GROUP BY t.id, t.name, t.created_at
      ORDER BY t.name ASC`,
@@ -31,7 +35,7 @@ export async function listTags({ userId }) {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    noteCount: row.noteCount || 0,
+    noteCount: Number(row.noteCount) || 0,
     createdAt: row.createdAt
   }));
 }
