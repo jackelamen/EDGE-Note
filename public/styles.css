@@ -405,6 +405,77 @@ h1 {
   background: var(--soft);
 }
 
+.saved-search-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.saved-search-tools input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.saved-search-tools button,
+.saved-search button {
+  min-height: 34px;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.saved-searches {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.saved-searches > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.saved-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 8px;
+}
+
+.saved-search button:first-child {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 2px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.saved-search button:last-child {
+  padding: 0;
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.saved-search span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 .note-stack {
   display: grid;
   gap: 12px;

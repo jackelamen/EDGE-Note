@@ -89,7 +89,7 @@ Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
 ## Local Cache
 
-The browser caches the latest note list, notebook list, tag list, selected note, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
+The browser caches the latest note list, notebook list, tag list, selected note, saved searches, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
 
 ## Attachments
 
@@ -122,9 +122,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add saved searches.
-2. Add Evernote import mapping.
-3. Add import/export polish for large note sets.
+1. Add Evernote import mapping.
+2. Add import/export polish for large note sets.
+3. Add richer keyboard navigation.
 
 ## Hostinger Notes
 

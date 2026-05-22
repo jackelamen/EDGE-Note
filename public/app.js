@@ -3,7 +3,8 @@ const cacheKeys = {
   notes: "edge_note_notes_v1",
   collections: "edge_note_collections_v1",
   pendingChanges: "edge_note_pending_changes_v1",
-  selectedId: "edge_note_selected_note_v1"
+  selectedId: "edge_note_selected_note_v1",
+  savedSearches: "edge_note_saved_searches_v1"
 };
 
 const state = {
@@ -14,6 +15,7 @@ const state = {
   notebooks: [],
   notebookFilter: null,
   notes: [],
+  savedSearches: [],
   tagFilter: null,
   tags: [],
   conflicts: [],
@@ -67,6 +69,9 @@ const elements = {
   search: document.querySelector("[data-notes-search]"),
   searchSummary: document.querySelector("[data-search-summary]"),
   clearSearch: document.querySelector("[data-action='clear-search']"),
+  savedSearchName: document.querySelector("[data-saved-search-name]"),
+  savedSearchesList: document.querySelector("[data-saved-searches-list]"),
+  saveSearch: document.querySelector("[data-action='save-search']"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
   tagsNav: document.querySelector("[data-tags-nav]"),
@@ -475,6 +480,96 @@ function viewLabel() {
     tasks: "Tasks",
     archive: "Archive"
   }[state.filter] || "All notes";
+}
+
+function currentSearchState() {
+  return {
+    search: elements.search.value.trim(),
+    filter: state.filter,
+    notebookFilter: state.notebookFilter,
+    tagFilter: state.tagFilter
+  };
+}
+
+function hasSearchCriteria(savedSearch = currentSearchState()) {
+  return Boolean(
+    savedSearch.search
+    || savedSearch.notebookFilter
+    || savedSearch.tagFilter
+    || !["all", ""].includes(savedSearch.filter)
+  );
+}
+
+function defaultSavedSearchName(savedSearch = currentSearchState()) {
+  if (elements.savedSearchName.value.trim()) return elements.savedSearchName.value.trim();
+  if (savedSearch.search) return savedSearch.search;
+  return viewLabel();
+}
+
+function persistSavedSearches() {
+  writeCache(cacheKeys.savedSearches, state.savedSearches);
+}
+
+function renderSavedSearches() {
+  if (!state.savedSearches.length) {
+    elements.savedSearchesList.innerHTML = '<span>No saved searches yet</span>';
+    return;
+  }
+
+  elements.savedSearchesList.innerHTML = state.savedSearches.map((savedSearch) => `
+    <article class="saved-search" data-saved-search-id="${escapeHtml(savedSearch.id)}">
+      <button type="button" data-saved-search-apply="${escapeHtml(savedSearch.id)}">
+        <strong>${escapeHtml(savedSearch.name)}</strong>
+        <span>${escapeHtml(savedSearch.search || savedSearch.tagFilter || savedSearch.filter || "all notes")}</span>
+      </button>
+      <button type="button" aria-label="Delete saved search" title="Delete saved search" data-saved-search-delete="${escapeHtml(savedSearch.id)}">x</button>
+    </article>
+  `).join("");
+}
+
+function loadSavedSearches() {
+  state.savedSearches = readCache(cacheKeys.savedSearches, []);
+  renderSavedSearches();
+}
+
+function saveCurrentSearch() {
+  const savedSearch = currentSearchState();
+  if (!hasSearchCriteria(savedSearch)) {
+    setStatus("Add search text or choose a filter before saving");
+    return;
+  }
+
+  const name = defaultSavedSearchName(savedSearch);
+  state.savedSearches = [
+    {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name,
+      createdAt: new Date().toISOString(),
+      ...savedSearch
+    },
+    ...state.savedSearches.filter((item) => item.name.toLowerCase() !== name.toLowerCase())
+  ].slice(0, 12);
+  elements.savedSearchName.value = "";
+  persistSavedSearches();
+  renderSavedSearches();
+  setStatus(`Saved search "${name}"`);
+}
+
+function applySavedSearch(savedSearch) {
+  elements.search.value = savedSearch.search || "";
+  state.filter = savedSearch.filter || "all";
+  state.notebookFilter = savedSearch.notebookFilter || null;
+  state.tagFilter = savedSearch.tagFilter || null;
+  loadNotes();
+  setStatus(`Loaded search "${savedSearch.name}"`);
+}
+
+function deleteSavedSearch(id) {
+  const savedSearch = state.savedSearches.find((item) => item.id === id);
+  state.savedSearches = state.savedSearches.filter((item) => item.id !== id);
+  persistSavedSearches();
+  renderSavedSearches();
+  if (savedSearch) setStatus(`Deleted search "${savedSearch.name}"`);
 }
 
 function visibleNotes() {
@@ -1497,6 +1592,21 @@ function bindEvents() {
     loadNotes();
   });
 
+  elements.saveSearch.addEventListener("click", saveCurrentSearch);
+
+  elements.savedSearchesList.addEventListener("click", (event) => {
+    const apply = event.target.closest("[data-saved-search-apply]");
+    const remove = event.target.closest("[data-saved-search-delete]");
+    if (apply) {
+      const savedSearch = state.savedSearches.find((item) => item.id === apply.dataset.savedSearchApply);
+      if (savedSearch) applySavedSearch(savedSearch);
+      return;
+    }
+    if (remove) {
+      deleteSavedSearch(remove.dataset.savedSearchDelete);
+    }
+  });
+
   elements.conflictList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-conflict-action]");
     if (!button) return;
@@ -1571,6 +1681,7 @@ async function init() {
   bindEvents();
   hydrateConfig();
   if (!(await checkAuth())) return;
+  loadSavedSearches();
   await loadCollections();
   const restoredDraft = restoreDraftCache();
   await loadNotes();
