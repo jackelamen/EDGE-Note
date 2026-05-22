@@ -111,6 +111,7 @@
                 <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"></path>
               </svg>
             </button>
+            <button class="secondary-action" type="button" data-action="insert-checklist">Checklist</button>
             <button class="secondary-action" type="button" data-action="save-note">Sync</button>
           </div>
         </header>
@@ -141,6 +142,14 @@
       </section>
 
       <aside class="context-panel" aria-label="Context and AI">
+        <section>
+          <h2>Tasks</h2>
+          <div class="status-line task-summary" data-task-summary>No checklist items</div>
+          <div class="task-list" data-task-list>
+            <div class="empty-state">Add checklist lines to track tasks in this note.</div>
+          </div>
+        </section>
+
         <section>
           <h2>AI actions</h2>
           <button type="button" data-ai-action="summarize">Summarize</button>

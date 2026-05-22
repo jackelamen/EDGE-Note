@@ -46,7 +46,10 @@ const elements = {
   search: document.querySelector("[data-notes-search]"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
+  taskList: document.querySelector("[data-task-list]"),
+  taskSummary: document.querySelector("[data-task-summary]"),
   title: document.querySelector("[data-note-title]"),
+  insertChecklist: document.querySelector("[data-action='insert-checklist']"),
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
 };
 
@@ -141,6 +144,21 @@ function splitTags(value) {
     .filter(Boolean);
 }
 
+function parseChecklistTasks(body) {
+  return String(body || "")
+    .split("\n")
+    .map((line, index) => {
+      const match = line.match(/^(\s*)-\s+\[([ xX])]\s+(.*)$/);
+      if (!match) return null;
+      return {
+        lineIndex: index,
+        checked: match[2].toLowerCase() === "x",
+        text: match[3].trim() || "Untitled task"
+      };
+    })
+    .filter(Boolean);
+}
+
 function currentDraft() {
   return {
     notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
@@ -175,6 +193,7 @@ function restoreDraftCache() {
   elements.tags.value = (draft.tags || []).join(", ");
   elements.title.value = draft.title || "Untitled note";
   elements.body.value = draft.body || "";
+  renderTasks();
   setStatus(`Restored local draft from ${formatDate(draft.cachedAt)}`);
   setCacheStatus("Draft restored", "Review and sync when ready");
   return true;
@@ -187,6 +206,7 @@ function selectNote(note) {
   elements.title.value = note?.title || "Untitled note";
   elements.body.value = note?.body || "";
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
+  renderTasks();
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
     loadAttachments(note.id);
@@ -195,6 +215,55 @@ function selectNote(note) {
     renderAttachments();
   }
   renderNotes();
+}
+
+function renderTasks() {
+  const tasks = parseChecklistTasks(elements.body.value);
+  const complete = tasks.filter((task) => task.checked).length;
+  elements.taskSummary.textContent = tasks.length
+    ? `${complete} of ${tasks.length} complete`
+    : "No checklist items";
+
+  if (!tasks.length) {
+    elements.taskList.innerHTML = '<div class="empty-state">Add checklist lines to track tasks in this note.</div>';
+    return;
+  }
+
+  elements.taskList.innerHTML = tasks.map((task) => `
+    <button class="task-item ${task.checked ? "complete" : ""}" type="button" data-task-line="${task.lineIndex}">
+      <span aria-hidden="true">${task.checked ? "[x]" : "[ ]"}</span>
+      <span>${escapeHtml(task.text)}</span>
+    </button>
+  `).join("");
+}
+
+function insertChecklistItem() {
+  const textarea = elements.body;
+  const { selectionStart, selectionEnd, value } = textarea;
+  const needsLeadingLine = selectionStart > 0 && value[selectionStart - 1] !== "\n";
+  const needsTrailingLine = selectionEnd < value.length && value[selectionEnd] !== "\n";
+  const insertion = `${needsLeadingLine ? "\n" : ""}- [ ] ${needsTrailingLine ? "\n" : ""}`;
+
+  textarea.setRangeText(insertion, selectionStart, selectionEnd, "end");
+  const cursorOffset = needsTrailingLine ? insertion.length - 1 : insertion.length;
+  textarea.selectionStart = selectionStart + cursorOffset;
+  textarea.selectionEnd = textarea.selectionStart;
+  textarea.focus();
+  saveDraftCache();
+  renderTasks();
+}
+
+function toggleTaskLine(lineIndex) {
+  const lines = elements.body.value.split("\n");
+  const line = lines[lineIndex];
+  if (!line) return;
+
+  lines[lineIndex] = line.replace(/^(\s*-\s+\[)([ xX])(\]\s+.*)$/, (_, prefix, checked, suffix) => (
+    `${prefix}${checked.toLowerCase() === "x" ? " " : "x"}${suffix}`
+  ));
+  elements.body.value = lines.join("\n");
+  saveDraftCache();
+  renderTasks();
 }
 
 function renderAttachments() {
@@ -609,10 +678,12 @@ function bindEvents() {
     elements.title.value = "Untitled note";
     elements.body.value = "";
     setStatus("New draft");
+    renderTasks();
     renderNotes();
     elements.title.focus();
   });
 
+  elements.insertChecklist.addEventListener("click", insertChecklistItem);
   elements.saveNote.addEventListener("click", saveNote);
   elements.uploadAttachment.addEventListener("click", uploadAttachment);
   elements.aiActions.forEach((button) => {
@@ -628,7 +699,10 @@ function bindEvents() {
   });
 
   elements.title.addEventListener("input", saveDraftCache);
-  elements.body.addEventListener("input", saveDraftCache);
+  elements.body.addEventListener("input", () => {
+    saveDraftCache();
+    renderTasks();
+  });
   elements.notebook.addEventListener("change", saveDraftCache);
   elements.tags.addEventListener("input", saveDraftCache);
 
@@ -642,6 +716,12 @@ function bindEvents() {
     if (!card) return;
     const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
     if (note) selectNote(note);
+  });
+
+  elements.taskList.addEventListener("click", (event) => {
+    const task = event.target.closest("[data-task-line]");
+    if (!task) return;
+    toggleTaskLine(Number(task.dataset.taskLine));
   });
 }
 
