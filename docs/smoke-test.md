@@ -96,7 +96,10 @@ Only run this section when `AI_ENDPOINT_URL` is configured.
 2. Run Extract tasks.
 3. Run Suggest tags.
 4. Run Create title.
-5. Confirm repeated actions can return cached output.
+5. Run Clean up and confirm cleaned text appears without replacing the note automatically.
+6. Run Find related and confirm matching saved notes appear without requiring AI configuration.
+7. Type a question in Ask this note and run Ask note.
+8. Confirm repeated endpoint-backed actions can return cached output.
 
 ## Expected Result
 

@@ -394,10 +394,12 @@ export async function handleApi(req, res, url) {
   if (aiAction) {
     await safely(res, async () => {
       requireMethod(req, ["POST"]);
+      const input = await readJson(req);
       const result = await runAiAction({
         userId,
         noteId: aiAction.noteId,
-        action: aiAction.action
+        action: aiAction.action,
+        question: input.question || ""
       });
       sendJson(res, 200, result);
     });

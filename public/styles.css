@@ -849,6 +849,27 @@ textarea {
   color: white;
 }
 
+.ai-question {
+  display: block;
+  margin: 10px 0 8px;
+}
+
+.ai-question input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+
+.ai-question input:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgba(62, 128, 109, 0.18);
+}
+
 .ai-result {
   min-height: 72px;
   border: 1px dashed var(--line);

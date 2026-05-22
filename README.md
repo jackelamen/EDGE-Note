@@ -34,6 +34,10 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
 - Use [docs/mobile-sync.md](docs/mobile-sync.md) for the mobile/offline sync contract.
 
+## AI Actions
+
+Manual AI actions currently support summarize, extract tasks, suggest tags, create title, clean up, find related, and ask note. Endpoint-backed actions cache their output by note content, action, model name, and question text. Find related runs locally against saved note titles, bodies, and tags, so it works even when `AI_ENDPOINT_URL` is not configured.
+
 ## Useful Routes
 
 - `/` serves the web app

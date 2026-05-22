@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { config } from "./config.js";
 import { query } from "./db.js";
-import { getNote } from "./notesRepository.js";
+import { findRelatedNotes, getNote } from "./notesRepository.js";
 
 const actions = {
   summarize: {
@@ -19,16 +19,30 @@ const actions = {
   "create-title": {
     label: "create title",
     instruction: "Create a short clear title for this note. Return JSON with a title string."
+  },
+  "clean-up": {
+    label: "clean up",
+    instruction: "Clean up the note for clarity while preserving the author's intent and details. Return JSON with a text string."
+  },
+  "find-related": {
+    label: "find related",
+    local: true
+  },
+  "ask-note": {
+    label: "ask note",
+    instruction: "Answer the user's question using only this note. If the note does not contain the answer, say so. Return JSON with an answer string."
   }
 };
 
-function checksumFor(note, action) {
+function checksumFor(note, action, extra = "") {
   return createHash("sha256")
     .update(action)
     .update("\n")
     .update(note.title || "")
     .update("\n")
     .update(note.body || "")
+    .update("\n")
+    .update(extra)
     .digest("hex");
 }
 
@@ -67,14 +81,21 @@ async function cacheOutput({ noteId, outputType, modelName, inputChecksum, outpu
 }
 
 function parseJsonContent(content) {
+  const cleanContent = String(content || "")
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
   try {
-    return JSON.parse(content);
+    return JSON.parse(cleanContent);
   } catch {
-    return { text: content };
+    return { text: cleanContent || content };
   }
 }
 
-async function callAiEndpoint({ action, note }) {
+async function callAiEndpoint({ action, note, question = "" }) {
   if (!config.ai.endpointUrl) {
     const error = new Error("Configure AI_ENDPOINT_URL before running AI actions.");
     error.status = 503;
@@ -96,7 +117,7 @@ async function callAiEndpoint({ action, note }) {
         },
         {
           role: "user",
-          content: `${actions[action].instruction}\n\nTitle: ${note.title}\n\nBody:\n${note.body}`
+          content: `${actions[action].instruction}${question ? `\n\nQuestion: ${question}` : ""}\n\nTitle: ${note.title}\n\nBody:\n${note.body}`
         }
       ],
       temperature: 0.2
@@ -114,7 +135,19 @@ async function callAiEndpoint({ action, note }) {
   return parseJsonContent(content);
 }
 
-export async function runAiAction({ userId, noteId, action }) {
+function relatedOutput(notes) {
+  return {
+    related: notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      notebookName: note.notebookName,
+      tags: note.tags,
+      updatedAt: note.updatedAt
+    }))
+  };
+}
+
+export async function runAiAction({ userId, noteId, action, question = "" }) {
   if (!actions[action]) {
     const error = new Error("Unknown AI action.");
     error.status = 404;
@@ -128,8 +161,24 @@ export async function runAiAction({ userId, noteId, action }) {
     throw error;
   }
 
+  if (action === "find-related") {
+    return {
+      action,
+      modelName: "local-search",
+      cached: false,
+      output: relatedOutput(await findRelatedNotes({ userId, noteId })),
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  if (action === "ask-note" && !String(question || "").trim()) {
+    const error = new Error("Ask a question before running this AI action.");
+    error.status = 400;
+    throw error;
+  }
+
   const modelName = config.ai.modelName;
-  const inputChecksum = checksumFor(note, action);
+  const inputChecksum = checksumFor(note, action, question);
   const cached = await getCachedOutput({
     noteId,
     outputType: action,
@@ -147,7 +196,7 @@ export async function runAiAction({ userId, noteId, action }) {
     };
   }
 
-  const output = await callAiEndpoint({ action, note });
+  const output = await callAiEndpoint({ action, note, question });
   await cacheOutput({
     noteId,
     outputType: action,

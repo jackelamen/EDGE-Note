@@ -36,6 +36,7 @@ const elements = {
   authSubmit: document.querySelector("[data-auth-submit]"),
   setupHelp: document.querySelector("[data-setup-help]"),
   aiActions: document.querySelectorAll("[data-ai-action]"),
+  aiQuestion: document.querySelector("[data-ai-question]"),
   aiResult: document.querySelector("[data-ai-result]"),
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
@@ -594,6 +595,15 @@ function renderAiOutput(payload) {
     body = output.tags.map((item) => `#${item}`).join(" ");
   } else if (output.title) {
     body = output.title;
+  } else if (output.answer) {
+    body = output.answer;
+  } else if (Array.isArray(output.related)) {
+    body = output.related.length
+      ? output.related.map((note) => {
+        const tags = note.tags?.length ? ` #${note.tags.join(" #")}` : "";
+        return `- ${note.title || "Untitled note"}${note.notebookName ? ` (${note.notebookName})` : ""}${tags}`;
+      }).join("\n")
+      : "No related notes found.";
   } else if (!body) {
     body = JSON.stringify(output, null, 2);
   }
@@ -1223,6 +1233,13 @@ async function deleteSelectedAttachment(attachmentId) {
 }
 
 async function runAiAction(action) {
+  const question = elements.aiQuestion?.value.trim() || "";
+  if (action === "ask-note" && !question) {
+    elements.aiResult.textContent = "Ask a question first.";
+    elements.aiQuestion?.focus();
+    return;
+  }
+
   let noteId = state.selectedId;
   if (!noteId) {
     const saved = await saveNote();
@@ -1239,7 +1256,7 @@ async function runAiAction(action) {
   try {
     const payload = await requestJson(`/api/notes/${noteId}/ai/${action}`, {
       method: "POST",
-      body: JSON.stringify({})
+      body: JSON.stringify({ question })
     });
     renderAiOutput(payload);
 

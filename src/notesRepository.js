@@ -2,6 +2,27 @@ import { query } from "./db.js";
 import { recordSyncChange } from "./syncRepository.js";
 import { normalizeTags, setNoteTags } from "./tagsRepository.js";
 
+const relatedStopWords = new Set([
+  "about",
+  "after",
+  "also",
+  "because",
+  "been",
+  "before",
+  "from",
+  "have",
+  "into",
+  "note",
+  "notes",
+  "that",
+  "their",
+  "then",
+  "there",
+  "this",
+  "with",
+  "your"
+]);
+
 const listSelect = `
   SELECT
     n.id,
@@ -163,6 +184,43 @@ export async function getNote({ userId, noteId }) {
     { userId, noteId }
   );
   return rows[0] ? mapNote(rows[0]) : null;
+}
+
+export async function findRelatedNotes({ userId, noteId, limit = 6 }) {
+  const note = await getNote({ userId, noteId });
+  if (!note) return [];
+
+  const cleanLimit = Math.min(Math.max(Number(limit) || 6, 1), 12);
+  const tagTerms = (note.tags || []).map((tag) => `#${tag}`).join(" ");
+  const words = `${note.title || ""} ${tagTerms} ${note.body || ""}`
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3 && !relatedStopWords.has(word))
+    .filter((word, index, allWords) => allWords.indexOf(word) === index)
+    .slice(0, 12);
+
+  if (!words.length) return [];
+
+  return query(
+    `${listSelect}
+     WHERE n.user_id = :userId
+       AND n.id <> :noteId
+       AND n.deleted_at IS NULL
+       AND n.archived_at IS NULL
+       AND (
+         ${words.map((_, index) => `(n.title LIKE :term${index} OR n.body LIKE :term${index} OR ts.tagsCsv LIKE :term${index})`).join(" OR ")}
+       )
+     ORDER BY
+       ${words.map((_, index) => `(CASE WHEN n.title LIKE :term${index} THEN 3 WHEN ts.tagsCsv LIKE :term${index} THEN 2 WHEN n.body LIKE :term${index} THEN 1 ELSE 0 END)`).join(" + ")} DESC,
+       n.updated_at DESC
+     LIMIT ${cleanLimit}`,
+    Object.fromEntries([
+      ["userId", userId],
+      ["noteId", noteId],
+      ...words.map((word, index) => [`term${index}`, `%${word}%`])
+    ])
+  ).then((rows) => rows.map(mapNote));
 }
 
 export async function createNote({ userId, input }) {

@@ -43,6 +43,7 @@ const requiredUiHooks = [
   "data-history-list",
   "data-password-form",
   "data-ai-action",
+  "data-ai-question",
   "data-export"
 ];
 
