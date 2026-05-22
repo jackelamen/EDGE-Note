@@ -28,6 +28,7 @@ const elements = {
   authPanel: document.querySelector("[data-auth-panel]"),
   authPassword: document.querySelector("[data-auth-password]"),
   authSubmit: document.querySelector("[data-auth-submit]"),
+  setupHelp: document.querySelector("[data-setup-help]"),
   aiActions: document.querySelectorAll("[data-ai-action]"),
   aiResult: document.querySelector("[data-ai-result]"),
   body: document.querySelector("[data-note-body]"),
@@ -54,7 +55,7 @@ function showApp() {
   elements.appShell.hidden = false;
 }
 
-function showAuth({ setupRequired = false, message = "" } = {}) {
+function showAuth({ disabled = false, setupRequired = false, message = "" } = {}) {
   state.authMode = setupRequired ? "setup" : "login";
   elements.appShell.hidden = true;
   elements.authPanel.hidden = false;
@@ -62,7 +63,12 @@ function showAuth({ setupRequired = false, message = "" } = {}) {
   elements.authSubmit.textContent = setupRequired ? "Set password" : "Log in";
   elements.authPassword.autocomplete = setupRequired ? "new-password" : "current-password";
   elements.authMessage.textContent = message;
-  elements.authPassword.focus();
+  elements.authPassword.disabled = disabled;
+  elements.authSubmit.disabled = disabled;
+  elements.setupHelp.hidden = !disabled;
+  if (!disabled) {
+    elements.authPassword.focus();
+  }
 }
 
 function readCache(key, fallback) {
@@ -317,7 +323,11 @@ async function checkAuth() {
     }
     showAuth({ setupRequired: status.setupRequired });
   } catch (error) {
-    showAuth({ setupRequired: error.auth?.setupRequired, message: error.message });
+    showAuth({
+      disabled: error.status === 503,
+      setupRequired: error.auth?.setupRequired,
+      message: error.status === 503 ? "Database setup required before login." : error.message
+    });
   }
   return false;
 }
