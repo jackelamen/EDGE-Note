@@ -30,6 +30,37 @@ export async function query(sql, params = {}) {
   return rows;
 }
 
+export async function databaseDiagnostics() {
+  const target = {
+    host: config.database.host,
+    port: config.database.port,
+    database: config.database.database,
+    user: config.database.user,
+    hasPassword: Boolean(config.database.password),
+    connectionLimit: config.database.connectionLimit
+  };
+
+  try {
+    const rows = await query("SELECT DATABASE() AS databaseName, CURRENT_USER() AS currentUser");
+    return {
+      ok: true,
+      target,
+      result: rows[0] || null
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      target,
+      error: {
+        code: error.code,
+        errno: error.errno,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage
+      }
+    };
+  }
+}
+
 export function isDatabaseError(error) {
   return Boolean(error?.code?.startsWith?.("MYSQL") || error?.errno || error?.sqlState);
 }

@@ -9,7 +9,7 @@ import {
   setSessionCookie,
   setupOwnerPassword
 } from "./authRepository.js";
-import { isDatabaseError } from "./db.js";
+import { databaseDiagnostics, isDatabaseError } from "./db.js";
 import { listDevices, registerDevice, updateDeviceCursor } from "./devicesRepository.js";
 import { buildArchiveExport, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import {
@@ -145,6 +145,12 @@ export async function handleApi(req, res, url) {
       aiEnabled: Boolean(config.ai.endpointUrl),
       aiModelName: config.ai.modelName
     });
+    return true;
+  }
+
+  if (url.pathname === "/api/setup/database-diagnostics") {
+    requireMethod(req, ["GET"]);
+    sendJson(res, 200, await databaseDiagnostics());
     return true;
   }
 
