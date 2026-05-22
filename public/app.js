@@ -4,7 +4,8 @@ const cacheKeys = {
   collections: "edge_note_collections_v1",
   pendingChanges: "edge_note_pending_changes_v1",
   selectedId: "edge_note_selected_note_v1",
-  savedSearches: "edge_note_saved_searches_v1"
+  savedSearches: "edge_note_saved_searches_v1",
+  contextCollapsed: "edge_note_context_collapsed_v1"
 };
 
 const state = {
@@ -22,6 +23,7 @@ const state = {
   localDraftRestored: false,
   mobilePanel: "home",
   selectedId: null,
+  contextCollapsed: localStorage.getItem(cacheKeys.contextCollapsed) === "true",
   pendingSave: false
 };
 
@@ -86,6 +88,7 @@ const elements = {
   title: document.querySelector("[data-note-title]"),
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
+  toggleContext: document.querySelector("[data-action='toggle-context']"),
   formatButtons: document.querySelectorAll("[data-format]"),
   formatColorInputs: document.querySelectorAll("[data-format-color]"),
   formatSelects: document.querySelectorAll("[data-format-select]"),
@@ -833,6 +836,21 @@ function filteredNotes() {
   return visibleNotes().filter(noteMatchesSearch);
 }
 
+function applyContextPanelState() {
+  elements.appShell?.classList.toggle("context-collapsed", state.contextCollapsed);
+  if (elements.toggleContext) {
+    elements.toggleContext.setAttribute("aria-pressed", state.contextCollapsed ? "false" : "true");
+    elements.toggleContext.setAttribute("aria-label", state.contextCollapsed ? "Show note tools" : "Hide note tools");
+    elements.toggleContext.title = state.contextCollapsed ? "Show note tools" : "Hide note tools";
+  }
+}
+
+function toggleContextPanel() {
+  state.contextCollapsed = !state.contextCollapsed;
+  localStorage.setItem(cacheKeys.contextCollapsed, String(state.contextCollapsed));
+  applyContextPanelState();
+}
+
 function noteMatchesSearch(note) {
   const term = elements.search.value.trim().toLowerCase();
   if (!term) return true;
@@ -852,6 +870,7 @@ function updateNavigationState() {
   elements.noteListPanel.hidden = isHome;
   if (elements.editorPanel) elements.editorPanel.hidden = isHome;
   if (elements.contextPanel) elements.contextPanel.hidden = isHome;
+  applyContextPanelState();
 
   elements.listTitle.textContent = viewLabel();
   elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
@@ -2211,6 +2230,7 @@ function bindEvents() {
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
   elements.deleteNote.addEventListener("click", deleteCurrentNote);
+  elements.toggleContext?.addEventListener("click", toggleContextPanel);
   elements.saveNote.addEventListener("click", saveNote);
   elements.uploadAttachment.addEventListener("click", uploadAttachment);
   elements.aiActions.forEach((button) => {
