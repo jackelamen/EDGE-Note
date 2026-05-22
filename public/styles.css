@@ -447,6 +447,12 @@ textarea {
   gap: 8px;
 }
 
+.attachment-limit {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .file-picker {
   display: grid;
   min-width: 0;
@@ -478,11 +484,31 @@ textarea {
 
 .attachment-item {
   display: grid;
-  gap: 2px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
   background: var(--panel);
+}
+
+.attachment-item img,
+.attachment-icon {
+  grid-row: span 2;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--soft);
+}
+
+.attachment-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 800;
 }
 
 .attachment-item span {

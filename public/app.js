@@ -7,6 +7,7 @@ const cacheKeys = {
 
 const state = {
   attachments: [],
+  attachmentLimitMb: 25,
   authMode: "login",
   notebooks: [],
   notes: [],
@@ -18,6 +19,7 @@ const state = {
 
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
+  attachmentLimit: document.querySelector("[data-attachment-limit]"),
   attachmentList: document.querySelector("[data-attachments-list]"),
   appShell: document.querySelector("[data-app-shell]"),
   authForm: document.querySelector("[data-auth-form]"),
@@ -202,6 +204,7 @@ function renderAttachments() {
 
   elements.attachmentList.innerHTML = state.attachments.map((attachment) => `
     <a class="attachment-item" href="${attachment.downloadUrl}">
+      ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
       <span>${escapeHtml(attachment.filename)}</span>
       <small>${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
     </a>
@@ -355,6 +358,8 @@ async function hydrateConfig() {
     if (!response.ok) return;
     const config = await response.json();
     document.documentElement.dataset.ai = config.aiEnabled ? "enabled" : "disabled";
+    state.attachmentLimitMb = config.attachmentLimitMb || 25;
+    elements.attachmentLimit.textContent = `Limit ${state.attachmentLimitMb} MB`;
   } catch {
     document.documentElement.dataset.ai = "offline";
   }
@@ -506,6 +511,10 @@ async function uploadAttachment() {
   const file = elements.attachmentFile.files?.[0];
   if (!file) {
     setStatus("Choose a file first");
+    return;
+  }
+  if (file.size > state.attachmentLimitMb * 1024 * 1024) {
+    setStatus(`Attachment exceeds ${state.attachmentLimitMb} MB`);
     return;
   }
 

@@ -67,6 +67,10 @@ Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
 The browser caches the latest note list, notebook list, tag list, selected note, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
 
+## Attachments
+
+Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload, and image attachments render as lightweight preview rows using the lazy download URL. Full generated thumbnails can come later without changing the metadata contract.
+
 ## Sync Push
 
 `POST /api/sync/push` accepts up to 50 note changes per request:
@@ -94,11 +98,11 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add attachment thumbnails and size controls.
-2. Add export packaging for attachment files.
-3. Add password reset/change flow.
-4. Add hosted deployment checklist.
-5. Add mobile cache schema.
+1. Add export packaging for attachment files.
+2. Add password reset/change flow.
+3. Add hosted deployment checklist.
+4. Add mobile cache schema.
+5. Add generated attachment thumbnails.
 
 ## Hostinger Notes
 

@@ -15,6 +15,9 @@ function cleanFilename(value) {
 }
 
 function mapAttachment(row) {
+  const downloadUrl = `/api/attachments/${row.id}/download`;
+  const isImage = String(row.mimeType || "").startsWith("image/");
+
   return {
     id: row.id,
     noteId: row.noteId,
@@ -22,7 +25,8 @@ function mapAttachment(row) {
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
     checksum: row.checksum,
-    downloadUrl: `/api/attachments/${row.id}/download`,
+    downloadUrl,
+    thumbnailUrl: isImage ? downloadUrl : null,
     createdAt: row.createdAt
   };
 }
