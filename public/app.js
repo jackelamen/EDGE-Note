@@ -11,7 +11,7 @@ const state = {
   attachments: [],
   attachmentLimitMb: 25,
   authMode: "login",
-  filter: "all",
+  filter: "home",
   notebooks: [],
   notebookFilter: null,
   notes: [],
@@ -72,6 +72,7 @@ const elements = {
   clearSearch: document.querySelector("[data-action='clear-search']"),
   savedSearchName: document.querySelector("[data-saved-search-name]"),
   savedSearchesList: document.querySelector("[data-saved-searches-list]"),
+  savedSearchNameRow: document.querySelector("[data-saved-search-name-row]"),
   saveSearch: document.querySelector("[data-action='save-search']"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
@@ -85,7 +86,18 @@ const elements = {
   historyList: document.querySelector("[data-history-list]"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
-  uploadAttachment: document.querySelector("[data-action='upload-attachment']")
+  uploadAttachment: document.querySelector("[data-action='upload-attachment']"),
+  // New redesign elements
+  homeView: document.querySelector("[data-home-view]"),
+  homeRecent: document.querySelector("[data-home-recent]"),
+  homeNotebooks: document.querySelector("[data-home-notebooks]"),
+  homeGreeting: document.querySelector("[data-home-greeting]"),
+  floatingToolbar: document.querySelector("[data-floating-toolbar]"),
+  editorBreadcrumb: document.querySelector("[data-editor-breadcrumb]"),
+  noteListPanel: document.querySelector("[data-note-list-panel]"),
+  searchBar: document.querySelector("[data-search-bar]"),
+  noteListFocusSearch: document.querySelector("[data-action='focus-search']"),
+  confirmSaveSearch: document.querySelector("[data-action='confirm-save-search']")
 };
 
 const shortcutFormats = {
@@ -486,6 +498,15 @@ function selectNote(note) {
     : (note?.body || "");
   setEditorHtml(bodyHtml);
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
+
+  // Update editor breadcrumb with notebook or current view
+  if (elements.editorBreadcrumb) {
+    const notebook = note?.notebookId
+      ? state.notebooks.find((nb) => nb.id === note.notebookId)
+      : null;
+    elements.editorBreadcrumb.textContent = notebook?.name || viewLabel();
+  }
+
   renderTasks();
   renderEditorActions(note);
   if (note?.id) {
@@ -521,6 +542,7 @@ function viewLabel() {
   }
 
   return {
+    home: "Home",
     all: "All notes",
     favorites: "Favorites",
     tasks: "Tasks",
@@ -646,8 +668,19 @@ function noteMatchesSearch(note) {
 }
 
 function updateNavigationState() {
+  const isHome = state.filter === "home";
+
+  // Show/hide home view vs note list + editor
+  elements.homeView.hidden = !isHome;
+  elements.noteListPanel.hidden = isHome;
+
   elements.listTitle.textContent = viewLabel();
   elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
+
+  // Update breadcrumb
+  if (elements.editorBreadcrumb) {
+    elements.editorBreadcrumb.textContent = viewLabel();
+  }
 
   elements.mainNav.querySelectorAll("[data-view-filter]").forEach((link) => {
     link.classList.toggle("active", !state.notebookFilter && !state.tagFilter && link.dataset.viewFilter === state.filter);
@@ -699,6 +732,46 @@ function restoreSelection() {
     sel.removeAllRanges();
     sel.addRange(savedSelection);
   }
+}
+
+function updateFloatingToolbar() {
+  const toolbar = elements.floatingToolbar;
+  if (!toolbar) return;
+
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+    toolbar.hidden = true;
+    return;
+  }
+
+  // Only show when the selection is inside the editor
+  const range = sel.getRangeAt(0);
+  if (!elements.body.contains(range.commonAncestorContainer)) {
+    toolbar.hidden = true;
+    return;
+  }
+
+  const rect = range.getBoundingClientRect();
+  if (!rect || rect.width === 0) {
+    toolbar.hidden = true;
+    return;
+  }
+
+  // Position the toolbar centered above the selection
+  toolbar.hidden = false;
+  const toolbarWidth = toolbar.offsetWidth || 320;
+  const gap = 8;
+  let left = rect.left + rect.width / 2 - toolbarWidth / 2;
+  let top = rect.top - toolbar.offsetHeight - gap;
+
+  // Clamp within viewport
+  left = Math.max(8, Math.min(left, window.innerWidth - toolbarWidth - 8));
+  if (top < 8) {
+    top = rect.bottom + gap;
+  }
+
+  toolbar.style.left = `${Math.round(left)}px`;
+  toolbar.style.top = `${Math.round(top)}px`;
 }
 
 function editorExec(command, value = null) {
@@ -879,28 +952,85 @@ function renderCollections() {
 
   elements.notebook.innerHTML = notebookOptions.join("");
   elements.notebook.value = selectedNotebook;
-  elements.notebooksList.innerHTML = `
-    <h2 id="notebook-heading">Notebooks</h2>
-    ${state.notebooks.length ? state.notebooks.map((notebook) => `
-      <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}">
-        ${escapeHtml(notebook.name)}
-        <span>${notebook.noteCount || 0}</span>
-      </a>
-    `).join("") : '<a href="#setup">Connect MySQL</a>'}
-  `;
-  elements.tagsNav.innerHTML = `
-    <h2 id="tags-heading">Tags</h2>
-    ${state.tags.length ? state.tags.map((tag) => `
-      <a href="#tag-${escapeHtml(tag.name)}" data-tag-filter="${escapeHtml(tag.name)}">
-        #${escapeHtml(tag.name)}
-        <span>${tag.noteCount || 0}</span>
-      </a>
-    `).join("") : '<a href="#tags">No tags yet</a>'}
-  `;
+
+  elements.notebooksList.innerHTML = state.notebooks.length
+    ? state.notebooks.map((notebook) => `
+        <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}">
+          <span>${escapeHtml(notebook.name)}</span>
+          <small>${notebook.noteCount || 0}</small>
+        </a>
+      `).join("")
+    : '<span class="sidebar-empty">No notebooks yet</span>';
+
+  elements.tagsNav.innerHTML = state.tags.length
+    ? state.tags.map((tag) => `
+        <a href="#tag-${escapeHtml(tag.name)}" data-tag-filter="${escapeHtml(tag.name)}">
+          <span>#${escapeHtml(tag.name)}</span>
+          <small>${tag.noteCount || 0}</small>
+        </a>
+      `).join("")
+    : '<span class="sidebar-empty">No tags yet</span>';
+
   elements.tagsList.innerHTML = state.tags.map((tag) => (
     `<option value="${escapeHtml(tag.name)}"></option>`
   )).join("");
+
+  // Also refresh home view notebooks grid if present
+  renderHomeNotebooks();
   updateNavigationState();
+}
+
+function timeGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function renderHomeNotebooks() {
+  if (!elements.homeNotebooks) return;
+  if (!state.notebooks.length) {
+    elements.homeNotebooks.innerHTML = '<p class="home-empty">No notebooks yet. Create one from the sidebar.</p>';
+    return;
+  }
+  elements.homeNotebooks.innerHTML = state.notebooks.map((notebook) => `
+    <button class="home-notebook-card" type="button" data-notebook-filter="${notebook.id}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <strong>${escapeHtml(notebook.name)}</strong>
+      <span>${notebook.noteCount || 0} note${notebook.noteCount === 1 ? "" : "s"}</span>
+    </button>
+  `).join("");
+}
+
+function renderHomeView() {
+  if (!elements.homeView || elements.homeView.hidden) return;
+
+  // Update greeting
+  if (elements.homeGreeting) {
+    elements.homeGreeting.textContent = timeGreeting();
+  }
+
+  // Render recent notes — show up to 8 most recent non-archived notes
+  if (elements.homeRecent) {
+    const recent = state.notes
+      .filter((note) => !note.archivedAt)
+      .slice(0, 8);
+
+    if (!recent.length) {
+      elements.homeRecent.innerHTML = '<p class="home-empty">No notes yet. Hit "New note" to get started.</p>';
+    } else {
+      elements.homeRecent.innerHTML = recent.map((note) => `
+        <button class="home-card" type="button" data-note-id="${note.id}">
+          <span class="home-card-notebook">${escapeHtml(note.notebookName || "Note")}</span>
+          <h3 class="home-card-title">${escapeHtml(note.title || "Untitled note")}</h3>
+          <p class="home-card-snippet">${escapeHtml(stripHtml(note.body).slice(0, 120) || "")}</p>
+          <time class="home-card-date">${escapeHtml(formatDate(note.updatedAt))}</time>
+        </button>
+      `).join("");
+    }
+  }
+
+  renderHomeNotebooks();
 }
 
 function renderNotes() {
@@ -913,14 +1043,11 @@ function renderNotes() {
 
   if (!notes.length) {
     elements.list.innerHTML = `
-      <article class="note-card active">
-        <span class="tag">Empty</span>
-        <h2>No matching notes</h2>
-        <p>${search ? "Try a different search or clear the search field." : "Create a note or switch views to see more."}</p>
-        <footer>
-          <span>Ready</span>
-          <span>${escapeHtml(viewLabel())}</span>
-        </footer>
+      <article class="note-card">
+        <span class="note-card-notebook">Empty</span>
+        <h3 class="note-card-title">No matching notes</h3>
+        <p class="note-card-snippet">${search ? "Try a different search or clear the search field." : "Create a note or switch views to see more."}</p>
+        <time class="note-card-date">${escapeHtml(viewLabel())}</time>
       </article>
     `;
     return;
@@ -928,13 +1055,10 @@ function renderNotes() {
 
   elements.list.innerHTML = notes.map((note) => `
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}" tabindex="0">
-      <span class="tag">${escapeHtml(note.favorite ? "Favorite" : note.tags?.[0] || note.notebookName || "Note")}</span>
-      <h2>${escapeHtml(note.title || "Untitled note")}</h2>
-      <p>${escapeHtml(searchSnippet(note))}</p>
-      <footer>
-        <span>${escapeHtml(formatDate(note.updatedAt))}</span>
-        <span>v${note.syncVersion || 1}</span>
-      </footer>
+      <span class="note-card-notebook">${escapeHtml(note.notebookName || (note.tags?.[0] ? `#${note.tags[0]}` : "Note"))}</span>
+      <h3 class="note-card-title">${escapeHtml(note.title || "Untitled note")}${note.favorite ? ' <span class="note-card-star" aria-label="Favorite">★</span>' : ""}</h3>
+      <p class="note-card-snippet">${escapeHtml(searchSnippet(note))}</p>
+      <time class="note-card-date" datetime="${escapeHtml(note.updatedAt || "")}">${escapeHtml(formatDate(note.updatedAt))}</time>
     </article>
   `).join("");
 }
@@ -1228,7 +1352,8 @@ async function loadNotes() {
       cachedAt: new Date().toISOString()
     });
     renderNotes();
-    if (state.notes.length && !state.selectedId && !state.localDraftRestored) {
+    renderHomeView();
+    if (state.filter !== "home" && state.notes.length && !state.selectedId && !state.localDraftRestored) {
       const cachedSelectedId = readCache(cacheKeys.selectedId, null);
       const selected = state.notes.find((note) => note.id === cachedSelectedId) || state.notes[0];
       selectNote(selected);
@@ -1709,7 +1834,16 @@ function bindEvents() {
   elements.logout.addEventListener("click", logout);
   elements.notebookForm.addEventListener("submit", createNotebookFromForm);
 
-  elements.newNote.addEventListener("click", createNewNote);
+  document.querySelectorAll("[data-action='new-note']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // If we're on the home view, switch to note view first
+      if (state.filter === "home") {
+        state.filter = "all";
+        updateNavigationState();
+      }
+      createNewNote();
+    });
+  });
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
   elements.formatButtons.forEach((button) => {
@@ -1718,7 +1852,11 @@ function bindEvents() {
       event.preventDefault(); // prevent editor losing focus
       saveSelection();
     });
-    button.addEventListener("click", () => applyWysiwygFormat(button.dataset.format));
+    button.addEventListener("click", () => {
+      applyWysiwygFormat(button.dataset.format);
+      // Keep toolbar visible after applying format if still a selection
+      updateFloatingToolbar();
+    });
   });
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
@@ -1761,6 +1899,19 @@ function bindEvents() {
       renderTasks();
     }
   });
+
+  // Floating toolbar — show/hide on selection changes inside the editor.
+  document.addEventListener("selectionchange", () => {
+    updateFloatingToolbar();
+  });
+
+  // Hide floating toolbar when clicking outside editor and toolbar
+  document.addEventListener("mousedown", (event) => {
+    const toolbar = elements.floatingToolbar;
+    if (!toolbar || toolbar.hidden) return;
+    if (toolbar.contains(event.target) || elements.body.contains(event.target)) return;
+    toolbar.hidden = true;
+  });
   elements.notebook.addEventListener("change", saveDraftCache);
   elements.tags.addEventListener("input", saveDraftCache);
 
@@ -1774,7 +1925,41 @@ function bindEvents() {
     loadNotes();
   });
 
-  elements.saveSearch.addEventListener("click", saveCurrentSearch);
+  elements.saveSearch.addEventListener("click", () => {
+    if (!hasSearchCriteria()) {
+      setStatus("Add search text or choose a filter before saving");
+      return;
+    }
+    // Show the name row for two-step save
+    if (elements.savedSearchNameRow) {
+      elements.savedSearchNameRow.hidden = false;
+      elements.savedSearchName.value = defaultSavedSearchName();
+      elements.savedSearchName.focus();
+      elements.savedSearchName.select();
+    } else {
+      saveCurrentSearch();
+    }
+  });
+
+  if (elements.confirmSaveSearch) {
+    elements.confirmSaveSearch.addEventListener("click", () => {
+      saveCurrentSearch();
+      if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
+    });
+  }
+
+  if (elements.savedSearchName) {
+    elements.savedSearchName.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveCurrentSearch();
+        if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
+      }
+      if (event.key === "Escape") {
+        if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
+      }
+    });
+  }
 
   elements.savedSearchesList.addEventListener("click", (event) => {
     const apply = event.target.closest("[data-saved-search-apply]");
@@ -1802,8 +1987,57 @@ function bindEvents() {
     state.filter = link.dataset.viewFilter;
     state.notebookFilter = null;
     state.tagFilter = null;
-    loadNotes();
+    if (state.filter === "home") {
+      updateNavigationState();
+      renderHomeView();
+    } else {
+      loadNotes();
+    }
   });
+
+  // Home view "See all" link
+  if (elements.homeView) {
+    elements.homeView.addEventListener("click", (event) => {
+      const seeAll = event.target.closest("[data-view-filter]");
+      if (seeAll) {
+        event.preventDefault();
+        state.filter = seeAll.dataset.viewFilter;
+        state.notebookFilter = null;
+        state.tagFilter = null;
+        loadNotes();
+        return;
+      }
+      // Home notebook card
+      const nbCard = event.target.closest("[data-notebook-filter]");
+      if (nbCard) {
+        state.notebookFilter = Number(nbCard.dataset.notebookFilter);
+        state.tagFilter = null;
+        state.filter = "all";
+        loadNotes();
+        return;
+      }
+      // Home recent note card
+      const noteCard = event.target.closest("[data-note-id]");
+      if (noteCard) {
+        const note = state.notes.find((item) => item.id === Number(noteCard.dataset.noteId));
+        if (note) {
+          state.filter = "all";
+          state.notebookFilter = null;
+          state.tagFilter = null;
+          updateNavigationState();
+          selectNote(note);
+        }
+      }
+    });
+  }
+
+  // Focus search button in note list header
+  if (elements.noteListFocusSearch) {
+    elements.noteListFocusSearch.addEventListener("click", () => {
+      elements.search.focus();
+      elements.search.select();
+    });
+  }
 
   elements.notebooksList.addEventListener("click", (event) => {
     const link = event.target.closest("[data-notebook-filter]");
@@ -1874,11 +2108,23 @@ async function init() {
   bindEvents();
   hydrateConfig();
   if (!(await checkAuth())) return;
+
+  // Set initial home greeting
+  if (elements.homeGreeting) {
+    elements.homeGreeting.textContent = timeGreeting();
+  }
+
   loadSavedSearches();
   await loadCollections();
   const restoredDraft = restoreDraftCache();
   await loadNotes();
   schedulePendingSync();
+
+  // Render home view if it starts visible (home is default view)
+  if (state.filter === "home") {
+    renderHomeView();
+  }
+
   if (restoredDraft) {
     setCacheStatus("Draft restored", "Sync when ready");
   }
