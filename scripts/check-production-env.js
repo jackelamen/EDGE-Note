@@ -70,6 +70,18 @@ if (process.env.MYSQL_HOST === "localhost") {
   fail("MYSQL_HOST should be an explicit Hostinger host or 127.0.0.1, not localhost.");
 }
 
+if (process.env.AI_ENDPOINT_URL || process.env.AI_API_KEY) {
+  if (!/^https:\/\//.test(process.env.AI_ENDPOINT_URL || "")) {
+    fail("AI_ENDPOINT_URL should use https when AI is configured.");
+  }
+  if (!process.env.AI_MODEL_NAME) {
+    fail("AI_MODEL_NAME is required when AI is configured.");
+  }
+  if (!process.env.AI_API_KEY) {
+    fail("AI_API_KEY is required when AI is configured.");
+  }
+}
+
 if (!process.exitCode) {
   console.log("EDGE Note production environment check passed.");
 }

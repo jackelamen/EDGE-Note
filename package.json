@@ -16,6 +16,7 @@
     "check": "for file in src/*.js public/*.js scripts/*.js; do node --check \"$file\"; done",
     "verify": "npm run check && node scripts/verify-setup.js",
     "verify:prod-env": "node scripts/check-production-env.js",
+    "verify:ai": "node scripts/check-ai-endpoint.js",
     "smoke:prod": "node scripts/smoke-production.js"
   }
 }

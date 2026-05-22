@@ -33,15 +33,18 @@ MYSQL_CONNECTION_LIMIT=5
 ATTACHMENT_ROOT=./uploads
 ATTACHMENT_LIMIT_MB=25
 
-AI_ENDPOINT_URL=<optional OpenAI-compatible endpoint>
-AI_MODEL_NAME=gemma
-AI_API_KEY=<optional endpoint key>
+AI_ENDPOINT_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+AI_MODEL_NAME=gemini-2.5-flash
+AI_API_KEY=<rotated and restricted Google AI key>
+AI_TIMEOUT_MS=30000
+AI_MAX_OUTPUT_TOKENS=800
 ```
 
 Run this locally with the same values exported before deploying, or through the Hostinger terminal if available:
 
 ```bash
 npm run verify:prod-env
+npm run verify:ai
 ```
 
 Production hardening depends on `EDGE_NOTE_PUBLIC_URL` being the exact deployed HTTPS origin. Cookie-backed write requests are rejected when their `Origin` or `Referer` does not match that value.
@@ -98,6 +101,7 @@ Then complete the browser workflow:
 14. Change the password and log back in.
 
 Use [docs/smoke-test.md](smoke-test.md) for the fuller feature checklist.
+Use [docs/ai-production.md](ai-production.md) for AI key rotation and endpoint verification.
 
 ## 7. Rollback Plan
 
@@ -109,7 +113,7 @@ Use [docs/smoke-test.md](smoke-test.md) for the fuller feature checklist.
 
 ## 8. Known Constraints
 
-- Do not run Gemma locally on Hostinger Business; use an external HTTP endpoint.
+- Do not run Gemma or Gemini locally on Hostinger Business; use an external HTTP endpoint.
 - Do not depend on WebSockets or background workers for the first version.
 - Keep attachment sizes modest.
 - Keep sync request batches small.

@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { runAiAction } from "./aiRepository.js";
+import { checkAiEndpoint, runAiAction } from "./aiRepository.js";
 import {
   authStatus,
   changeOwnerPassword,
@@ -239,6 +239,14 @@ export async function handleApi(req, res, url) {
       await changeOwnerPassword(await readJson(req));
       clearSessionCookie(res);
       sendJson(res, 200, { authenticated: false, message: "Password changed. Log in again." });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/ai/status") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await checkAiEndpoint());
     });
     return true;
   }

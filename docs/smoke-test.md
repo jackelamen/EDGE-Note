@@ -125,14 +125,16 @@ If the automated smoke check fails at the origin-protection step, confirm the de
 
 Only run this section when `AI_ENDPOINT_URL` is configured.
 
-1. Run Summarize.
-2. Run Extract tasks.
-3. Run Suggest tags.
-4. Run Create title.
-5. Run Clean up and confirm cleaned text appears without replacing the note automatically.
-6. Run Find related and confirm matching saved notes appear without requiring AI configuration.
-7. Type a question in Ask this note and run Ask note.
-8. Confirm repeated endpoint-backed actions can return cached output.
+1. Run `npm run verify:ai` from the deployed environment or Hostinger terminal.
+2. Open `GET /api/ai/status` while logged in and confirm `ok: true`.
+3. Run Summarize.
+4. Run Extract tasks.
+5. Run Suggest tags.
+6. Run Create title.
+7. Run Clean up and confirm cleaned text appears without replacing the note automatically.
+8. Run Find related and confirm matching saved notes appear without requiring AI configuration.
+9. Type a question in Ask this note and run Ask note.
+10. Confirm repeated endpoint-backed actions can return cached output.
 
 ## Expected Result
 

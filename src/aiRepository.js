@@ -95,7 +95,24 @@ function parseJsonContent(content) {
   }
 }
 
-async function callAiEndpoint({ action, note, question = "" }) {
+function aiRequestHeaders() {
+  return {
+    "content-type": "application/json",
+    ...(config.ai.apiKey ? { authorization: `Bearer ${config.ai.apiKey}` } : {})
+  };
+}
+
+function aiRequestBody({ messages, temperature = 0.2 }) {
+  return {
+    model: config.ai.modelName,
+    messages,
+    temperature,
+    max_tokens: config.ai.maxOutputTokens,
+    response_format: { type: "json_object" }
+  };
+}
+
+async function postAiChat(body) {
   if (!config.ai.endpointUrl) {
     const error = new Error("Configure AI_ENDPOINT_URL before running AI actions.");
     error.status = 503;
@@ -104,35 +121,36 @@ async function callAiEndpoint({ action, note, question = "" }) {
 
   const response = await fetch(config.ai.endpointUrl, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(config.ai.apiKey ? { authorization: `Bearer ${config.ai.apiKey}` } : {})
-    },
-    body: JSON.stringify({
-      model: config.ai.modelName,
-      messages: [
-        {
-          role: "system",
-          content: "You are EDGE Note's private notes assistant. Return compact valid JSON only."
-        },
-        {
-          role: "user",
-          content: `${actions[action].instruction}${question ? `\n\nQuestion: ${question}` : ""}\n\nTitle: ${note.title}\n\nBody:\n${note.body}`
-        }
-      ],
-      temperature: 0.2
-    })
+    headers: aiRequestHeaders(),
+    signal: AbortSignal.timeout(config.ai.timeoutMs),
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
     const error = new Error("AI endpoint request failed.");
     error.status = response.status;
+    error.details = await response.text().catch(() => "");
     throw error;
   }
 
   const payload = await response.json();
   const content = payload.choices?.[0]?.message?.content || payload.output || payload.response || "";
   return parseJsonContent(content);
+}
+
+async function callAiEndpoint({ action, note, question = "" }) {
+  return postAiChat(aiRequestBody({
+    messages: [
+      {
+        role: "system",
+        content: "You are EDGE Note's private notes assistant. Return compact valid JSON only."
+      },
+      {
+        role: "user",
+        content: `${actions[action].instruction}${question ? `\n\nQuestion: ${question}` : ""}\n\nTitle: ${note.title}\n\nBody:\n${note.body}`
+      }
+    ]
+  }));
 }
 
 function relatedOutput(notes) {
@@ -145,6 +163,48 @@ function relatedOutput(notes) {
       updatedAt: note.updatedAt
     }))
   };
+}
+
+export async function checkAiEndpoint() {
+  if (!config.ai.endpointUrl) {
+    return {
+      ok: false,
+      configured: false,
+      modelName: config.ai.modelName,
+      message: "AI endpoint is not configured."
+    };
+  }
+
+  try {
+    const output = await postAiChat(aiRequestBody({
+      messages: [
+        {
+          role: "system",
+          content: "Return compact valid JSON only."
+        },
+        {
+          role: "user",
+          content: "Return {\"ok\":true,\"label\":\"edge-note-ai-check\"}."
+        }
+      ],
+      temperature: 0
+    }));
+
+    return {
+      ok: true,
+      configured: true,
+      modelName: config.ai.modelName,
+      output
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      configured: true,
+      modelName: config.ai.modelName,
+      status: error.status || null,
+      message: error.message
+    };
+  }
 }
 
 export async function runAiAction({ userId, noteId, action, question = "" }) {

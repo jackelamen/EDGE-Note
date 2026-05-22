@@ -22,6 +22,8 @@ export const config = {
   ai: {
     endpointUrl: process.env.AI_ENDPOINT_URL || "",
     modelName: process.env.AI_MODEL_NAME || "gemma",
-    apiKey: process.env.AI_API_KEY || ""
+    apiKey: process.env.AI_API_KEY || "",
+    timeoutMs: Number(process.env.AI_TIMEOUT_MS || 30000),
+    maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 800)
   }
 };

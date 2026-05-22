@@ -14,7 +14,10 @@ const requiredEnv = [
   "MYSQL_PASSWORD",
   "ATTACHMENT_ROOT",
   "AI_ENDPOINT_URL",
-  "AI_MODEL_NAME"
+  "AI_MODEL_NAME",
+  "AI_API_KEY",
+  "AI_TIMEOUT_MS",
+  "AI_MAX_OUTPUT_TOKENS"
 ];
 
 const requiredTables = [

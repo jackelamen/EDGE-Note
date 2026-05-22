@@ -30,14 +30,25 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `npm run check` verifies JavaScript syntax.
 - `npm run verify` checks syntax plus the expected env keys, database tables, and UI hooks.
 - `npm run verify:prod-env` checks required production environment variables.
+- `npm run verify:ai` checks the configured OpenAI-compatible AI endpoint.
 - `npm run smoke:prod -- --url https://your-edge-note-domain.example` checks deployed public endpoints, security headers, database diagnostics, and production origin protection.
 - Use [docs/smoke-test.md](docs/smoke-test.md) for the full runtime checklist.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
+- Use [docs/ai-production.md](docs/ai-production.md) for Gemini/OpenAI-compatible endpoint setup.
 - Use [docs/mobile-sync.md](docs/mobile-sync.md) for the mobile/offline sync contract.
 
 ## AI Actions
 
 Manual AI actions currently support summarize, extract tasks, suggest tags, create title, clean up, find related, and ask note. Endpoint-backed actions cache their output by note content, action, model name, and question text. Find related runs locally against saved note titles, bodies, and tags, so it works even when `AI_ENDPOINT_URL` is not configured.
+
+The recommended production AI values are:
+
+```bash
+AI_ENDPOINT_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+AI_MODEL_NAME=gemini-2.5-flash
+```
+
+Keep `AI_API_KEY` in Hostinger environment variables only.
 
 ## Useful Routes
 
@@ -69,6 +80,7 @@ Manual AI actions currently support summarize, extract tasks, suggest tags, crea
 - `DELETE /api/attachments/:id` deletes an attachment file
 - `GET /api/attachments/:id/thumbnail` lazily serves a generated attachment thumbnail when available
 - `GET /api/attachments/:id/download` lazily downloads one attachment
+- `GET /api/ai/status` checks the configured AI endpoint without exposing the API key
 - `POST /api/notes/:id/ai/:action` runs a cached manual AI action
 - `GET /api/notes` lists notes for the first owner account and supports `q`, `notebookId`, `tag`, `favorite`, `tasks`, and `archived` filters
 - `POST /api/notes` creates a note
@@ -141,10 +153,10 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. AI endpoint production setup.
-2. Data safety tools.
-3. Daily use QA.
+1. Data safety tools.
+2. Daily use QA.
+3. Post-MVP nice-to-haves.
 
 ## Hostinger Notes
 
-The app is intentionally boring Node plus SQL. Attachments should live on Hostinger file storage for the early version, and Gemma should be called through a configurable external HTTP endpoint rather than running inference on the Hostinger plan.
+The app is intentionally boring Node plus SQL. Attachments should live on Hostinger file storage for the early version, and Gemini/Gemma-class models should be called through a configurable external HTTP endpoint rather than running inference on the Hostinger plan.
