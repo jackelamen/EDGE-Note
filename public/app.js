@@ -489,6 +489,23 @@ function currentDraft() {
   };
 }
 
+function hasMeaningfulDraft() {
+  const draft = currentDraft();
+  const selected = currentNote();
+  const title = String(draft.title || "").trim();
+  const bodyText = stripHtml(draft.body);
+  const tagText = (draft.tags || []).join(",").trim();
+
+  if (!state.selectedId) {
+    return Boolean(title && title !== "Untitled note") || Boolean(bodyText) || Boolean(tagText);
+  }
+
+  return title !== String(selected?.title || "").trim()
+    || draft.body !== (selected?.body || "")
+    || tagText !== (selected?.tags || []).join(",").trim()
+    || Number(draft.notebookId || 0) !== Number(selected?.notebookId || 0);
+}
+
 function saveDraftCache() {
   state.localDraftRestored = true;
   writeCache(cacheKeys.draft, {
@@ -505,6 +522,10 @@ function clearDraftCache() {
 
 function pendingChanges() {
   return readCache(cacheKeys.pendingChanges, []);
+}
+
+function hasUnsyncedWork() {
+  return state.pendingSave || Boolean(pendingChanges().length) || hasMeaningfulDraft();
 }
 
 function writePendingChanges(changes) {
@@ -2299,6 +2320,11 @@ function bindEvents() {
   });
 
   window.addEventListener("online", schedulePendingSync);
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsyncedWork()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   window.addEventListener("keydown", handleGlobalShortcuts);
 }
 

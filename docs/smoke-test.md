@@ -70,15 +70,13 @@ If the automated smoke check fails at the origin-protection step, confirm the de
 ## 5. Editor
 
 1. Use H2, bold, italic, list, quote, code, and link formatting controls.
-2. Toggle Preview.
-3. Confirm headings, inline formatting, links, quotes, lists, and checklist items render.
-4. Toggle back to Write mode and continue editing.
-5. Use `Cmd/Ctrl+S` to sync.
-6. Use `Cmd/Ctrl+K` to focus search.
-7. Use `Cmd/Ctrl+N` to start a new note.
-8. Use `Cmd/Ctrl+P` to toggle preview.
-9. Use `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, and `Cmd/Ctrl+Enter` in the editor.
-10. Use `Cmd/Ctrl+Up` and `Cmd/Ctrl+Down` to move through visible notes.
+2. Confirm headings, inline formatting, links, quotes, lists, and checklist items render in the editor.
+3. Continue editing after applying formatting.
+4. Use `Cmd/Ctrl+S` to sync.
+5. Use `Cmd/Ctrl+K` to focus search.
+6. Use `Cmd/Ctrl+N` to start a new note.
+7. Use `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, and `Cmd/Ctrl+Enter` in the editor.
+8. Use `Cmd/Ctrl+Up` and `Cmd/Ctrl+Down` to move through visible notes.
 
 ## 6. History
 

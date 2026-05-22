@@ -32,8 +32,10 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `npm run verify:prod-env` checks required production environment variables.
 - `npm run verify:ai` checks the configured OpenAI-compatible AI endpoint.
 - `npm run verify:data` checks that attachment and backup directories are writable.
+- `npm run verify:daily` checks daily-use QA guardrails and docs.
 - `npm run smoke:prod -- --url https://your-edge-note-domain.example` checks deployed public endpoints, security headers, database diagnostics, and production origin protection.
 - Use [docs/smoke-test.md](docs/smoke-test.md) for the full runtime checklist.
+- Use [docs/daily-use-qa.md](docs/daily-use-qa.md) before using EDGE Note as the real notes home for the day.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
 - Use [docs/ai-production.md](docs/ai-production.md) for Gemini/OpenAI-compatible endpoint setup.
 - Use [docs/mobile-sync.md](docs/mobile-sync.md) for the mobile/offline sync contract.
@@ -110,6 +112,8 @@ Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
 The browser caches the latest note list, notebook list, tag list, selected note, saved searches, and unsynced draft edits in `localStorage`. This is an early safety layer, not full sync yet: if MySQL is offline, the app can show cached notes and preserve the current draft until you sync again.
 
+If a note has unsynced edits or queued offline changes, the browser warns before closing or refreshing the tab.
+
 ## Attachments
 
 Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload and generates a small WebP thumbnail for image files before sending them to the server. Attachments can be replaced or deleted from the note panel. Archive export records missing attachment files or thumbnails in `manifest.json` instead of failing the whole backup.
@@ -125,7 +129,6 @@ Use the Backup panel's Save button before schema changes, deployment changes, or
 - `Cmd/Ctrl+S` syncs the current note.
 - `Cmd/Ctrl+K` focuses search.
 - `Cmd/Ctrl+N` starts a new note.
-- `Cmd/Ctrl+P` toggles preview.
 - `Cmd/Ctrl+B` and `Cmd/Ctrl+I` format selected text.
 - `Cmd/Ctrl+Enter` inserts a checklist item.
 - `Cmd/Ctrl+Up` and `Cmd/Ctrl+Down` move through the visible note list.
@@ -159,9 +162,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Daily use QA.
-2. Post-MVP nice-to-haves.
-3. Native mobile client planning.
+1. Post-MVP nice-to-haves.
+2. Native mobile client planning.
+3. Production polish after real usage.
 
 ## Hostinger Notes
 

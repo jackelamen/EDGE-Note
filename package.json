@@ -18,6 +18,7 @@
     "verify:prod-env": "node scripts/check-production-env.js",
     "verify:ai": "node scripts/check-ai-endpoint.js",
     "verify:data": "node scripts/check-data-safety.js",
+    "verify:daily": "node scripts/check-daily-use.js",
     "smoke:prod": "node scripts/smoke-production.js"
   }
 }
