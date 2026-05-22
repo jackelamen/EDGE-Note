@@ -11,7 +11,7 @@ import {
 } from "./authRepository.js";
 import { databaseDiagnostics, isDatabaseError } from "./db.js";
 import { listDevices, registerDevice, updateDeviceCursor } from "./devicesRepository.js";
-import { buildArchiveExport, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
+import { buildArchiveExport, buildExportStatus, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import {
   deleteAttachment,
   getAttachment,
@@ -306,6 +306,14 @@ export async function handleApi(req, res, url) {
         changes: (await readJson(req)).changes || []
       });
       sendJson(res, 200, payload);
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/export/status") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await buildExportStatus({ userId }));
     });
     return true;
   }

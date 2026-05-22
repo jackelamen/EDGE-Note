@@ -57,6 +57,7 @@ Manual AI actions currently support summarize, extract tasks, suggest tags, crea
 - `PUT /api/devices/:id/cursor` updates one device sync cursor
 - `GET /api/sync/pull?cursor=0` pulls incremental change records
 - `POST /api/sync/push` pushes note create/update/delete batches
+- `GET /api/export/status` checks export counts and missing attachment files
 - `GET /api/export.json` downloads a portable JSON backup
 - `GET /api/export.md` downloads notes as Markdown
 - `GET /api/export.tgz` downloads a tar.gz archive with notes, manifest, and attachment files
@@ -95,6 +96,10 @@ The browser caches the latest note list, notebook list, tag list, selected note,
 
 Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload and generates a small WebP thumbnail for image files before sending them to the server. Attachments can be replaced or deleted from the note panel. Archive export records missing attachment files or thumbnails in `manifest.json` instead of failing the whole backup.
 
+## Backup Checks
+
+Use the Backup panel's Check button before downloading exports. It calls `/api/export/status` and reports note counts, attachment counts, total attachment size, and any missing attachment or thumbnail files. JSON and archive exports include the same summary, and archive manifests include per-file checksums for notes, attachments, and thumbnails.
+
 ## Sync Push
 
 `POST /api/sync/push` accepts up to 50 note changes per request:
@@ -122,9 +127,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add Evernote import mapping.
-2. Add import/export polish for large note sets.
-3. Add richer keyboard navigation.
+1. Add richer keyboard navigation.
+2. Add mobile ergonomics.
+3. Add production deployment hardening.
 
 ## Hostinger Notes
 

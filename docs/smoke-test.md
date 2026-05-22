@@ -76,11 +76,12 @@ Run this checklist after schema import and before any deployment handoff.
 
 ## 8. Export
 
-1. Run JSON export.
-2. Run Markdown export.
-3. Run Archive export.
-4. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
-5. Confirm `manifest.json` includes `missingAttachments` or `missingThumbnails` when any attachment file is missing from storage.
+1. Run the Backup Check action and confirm counts match the current workspace.
+2. Run JSON export and confirm it includes `summary`.
+3. Run Markdown export.
+4. Run Archive export.
+5. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
+6. Confirm `manifest.json` includes `summary`, `files`, and missing-file reporting when any attachment file is missing from storage.
 
 ## 9. Sync API
 

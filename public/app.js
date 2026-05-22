@@ -46,6 +46,8 @@ const elements = {
   cacheTitle: document.querySelector("[data-cache-title]"),
   conflictList: document.querySelector("[data-conflict-list]"),
   conflictPanel: document.querySelector("[data-conflict-panel]"),
+  exportStatus: document.querySelector("[data-export-status]"),
+  exportVerify: document.querySelector("[data-export='status']"),
   exportJson: document.querySelector("[data-export='json']"),
   exportArchive: document.querySelector("[data-export='archive']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
@@ -1483,6 +1485,29 @@ async function deleteSelectedAttachment(attachmentId) {
   }
 }
 
+function formatExportStatus(payload) {
+  const counts = payload.counts || {};
+  const missing = (payload.missingAttachments?.length || 0) + (payload.missingThumbnails?.length || 0);
+  const parts = [
+    `${counts.notes || 0} notes`,
+    `${counts.attachments || 0} files`,
+    `${formatBytes(counts.attachmentBytes || 0)} attachments`
+  ];
+  return `${payload.ok ? "Backup check passed" : "Backup needs attention"}: ${parts.join(", ")}${missing ? `, ${missing} missing` : ""}`;
+}
+
+async function checkExportStatus() {
+  elements.exportStatus.textContent = "Checking backup...";
+  try {
+    const payload = await requestJson("/api/export/status");
+    elements.exportStatus.textContent = formatExportStatus(payload);
+    setStatus(payload.ok ? "Backup check passed" : "Backup check found missing files");
+  } catch (error) {
+    elements.exportStatus.textContent = error.message;
+    setStatus("Backup check failed");
+  }
+}
+
 async function runAiAction(action) {
   const question = elements.aiQuestion?.value.trim() || "";
   if (action === "ask-note" && !question) {
@@ -1570,6 +1595,8 @@ function bindEvents() {
   elements.exportArchive.addEventListener("click", () => {
     window.location.href = "/api/export.tgz";
   });
+
+  elements.exportVerify.addEventListener("click", checkExportStatus);
 
   elements.passwordForm.addEventListener("submit", changePassword);
 

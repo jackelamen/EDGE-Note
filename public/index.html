@@ -233,11 +233,12 @@
 
         <section>
           <h2>Backup</h2>
-          <div class="status-line backup-status">
+          <div class="status-line backup-status" data-export-status>
             <span class="sync-dot pending" aria-hidden="true"></span>
-            JSON and Markdown exports ready
+            Run a backup check before downloading
           </div>
           <div class="backup-actions">
+            <button type="button" data-export="status">Check</button>
             <button type="button" data-export="json">JSON</button>
             <button type="button" data-export="markdown">Markdown</button>
             <button type="button" data-export="archive">Archive</button>

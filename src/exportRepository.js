@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { listAllAttachments } from "./attachmentsRepository.js";
 import { listNotebooks } from "./notebooksRepository.js";
@@ -9,12 +11,16 @@ function dateStamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
-function cleanFilename(value) {
+function cleanFilename(value, maxLength = 70) {
   return String(value || "untitled")
     .trim()
     .replace(/[/\\?%*:|"<>]/g, "-")
     .replace(/\s+/g, " ")
-    .slice(0, 90) || "untitled";
+    .slice(0, maxLength) || "untitled";
+}
+
+function sha256(content) {
+  return createHash("sha256").update(content).digest("hex");
 }
 
 function tarChecksum(header) {
@@ -69,7 +75,7 @@ function markdownForNote(note) {
   ].filter((line, index, lines) => line || lines[index - 1] !== "").join("\n");
 }
 
-export async function buildJsonExport({ userId }) {
+async function exportData({ userId }) {
   const [notebooks, tags, notes, attachments] = await Promise.all([
     listNotebooks({ userId }),
     listTags({ userId }),
@@ -77,16 +83,95 @@ export async function buildJsonExport({ userId }) {
     listAllAttachments({ userId })
   ]);
 
+  return { notebooks, tags, notes, attachments };
+}
+
+function publicAttachment(attachment) {
+  const { absolutePath, thumbnailAbsolutePath, ...safeAttachment } = attachment;
+  return safeAttachment;
+}
+
+async function attachmentHealth(attachments) {
+  const missingAttachments = [];
+  const missingThumbnails = [];
+  let totalAttachmentBytes = 0;
+  let totalThumbnailBytes = 0;
+
+  for (const attachment of attachments) {
+    try {
+      const file = await stat(attachment.absolutePath);
+      totalAttachmentBytes += file.size;
+    } catch {
+      missingAttachments.push({
+        id: attachment.id,
+        noteId: attachment.noteId,
+        filename: attachment.filename,
+        storagePath: attachment.storagePath
+      });
+    }
+
+    if (attachment.thumbnailAbsolutePath) {
+      try {
+        const file = await stat(attachment.thumbnailAbsolutePath);
+        totalThumbnailBytes += file.size;
+      } catch {
+        missingThumbnails.push({
+          id: attachment.id,
+          noteId: attachment.noteId,
+          filename: attachment.filename,
+          thumbnailPath: attachment.thumbnailPath
+        });
+      }
+    }
+  }
+
+  return {
+    missingAttachments,
+    missingThumbnails,
+    totalAttachmentBytes,
+    totalThumbnailBytes
+  };
+}
+
+async function exportSummary({ notebooks, tags, notes, attachments }) {
+  const health = await attachmentHealth(attachments);
+  return {
+    generatedAt: new Date().toISOString(),
+    counts: {
+      notebooks: notebooks.length,
+      tags: tags.length,
+      notes: notes.length,
+      attachments: attachments.length,
+      attachmentBytes: health.totalAttachmentBytes,
+      thumbnailBytes: health.totalThumbnailBytes
+    },
+    ok: !health.missingAttachments.length && !health.missingThumbnails.length,
+    missingAttachments: health.missingAttachments,
+    missingThumbnails: health.missingThumbnails
+  };
+}
+
+export async function buildExportStatus({ userId }) {
+  const data = await exportData({ userId });
+  return exportSummary(data);
+}
+
+export async function buildJsonExport({ userId }) {
+  const data = await exportData({ userId });
+  const summary = await exportSummary(data);
+  const { notebooks, tags, notes, attachments } = data;
+
   return {
     filename: `edge-note-backup-${dateStamp()}.json`,
     contentType: "application/json; charset=utf-8",
     body: JSON.stringify({
       exportedAt: new Date().toISOString(),
       format: "edge-note-json-v1",
+      summary,
       notebooks,
       tags,
       notes,
-      attachments: attachments.map(({ absolutePath, thumbnailAbsolutePath, ...attachment }) => attachment)
+      attachments: attachments.map(publicAttachment)
     }, null, 2)
   };
 }
@@ -106,52 +191,64 @@ export async function buildMarkdownExport({ userId }) {
 }
 
 export async function buildArchiveExport({ userId }) {
-  const [notebooks, tags, notes, attachments] = await Promise.all([
-    listNotebooks({ userId }),
-    listTags({ userId }),
-    listNotes({ userId, limit: 1000 }),
-    listAllAttachments({ userId })
-  ]);
+  const data = await exportData({ userId });
+  const summary = await exportSummary(data);
+  const { notebooks, tags, notes, attachments } = data;
   const manifest = {
     exportedAt: new Date().toISOString(),
     format: "edge-note-archive-v1",
+    summary,
     notebooks,
     tags,
     notes,
-    attachments: attachments.map(({ absolutePath, thumbnailAbsolutePath, ...attachment }) => attachment),
-    missingAttachments: [],
-    missingThumbnails: []
+    attachments: attachments.map(publicAttachment),
+    files: []
   };
   const entries = [
     tarEntry("manifest.json", JSON.stringify(manifest, null, 2)),
-    ...notes.map((note) => tarEntry(`notes/${note.id}-${cleanFilename(note.title)}.md`, markdownForNote(note), note.updatedAt))
+    ...notes.map((note) => {
+      const filename = `notes/${note.id}-${cleanFilename(note.title, 62)}.md`;
+      const body = markdownForNote(note);
+      manifest.files.push({
+        path: filename,
+        type: "note",
+        noteId: note.id,
+        sizeBytes: Buffer.byteLength(body),
+        checksum: sha256(body)
+      });
+      return tarEntry(filename, body, note.updatedAt);
+    })
   ];
 
   for (const attachment of attachments) {
-    const filename = `attachments/note-${attachment.noteId}/${attachment.id}-${cleanFilename(attachment.filename)}`;
+    const filename = `attachments/note-${attachment.noteId}/${attachment.id}-${cleanFilename(attachment.filename, 36)}`;
     try {
-      entries.push(tarEntry(filename, await readFile(attachment.absolutePath), attachment.createdAt));
-    } catch {
-      manifest.missingAttachments.push({
-        id: attachment.id,
+      const body = await readFile(attachment.absolutePath);
+      manifest.files.push({
+        path: filename,
+        type: "attachment",
+        attachmentId: attachment.id,
         noteId: attachment.noteId,
-        filename: attachment.filename,
-        storagePath: attachment.storagePath
+        sizeBytes: body.length,
+        checksum: sha256(body)
       });
-    }
+      entries.push(tarEntry(filename, body, attachment.createdAt));
+    } catch {}
 
     if (attachment.thumbnailAbsolutePath) {
       const thumbName = `thumbnails/note-${attachment.noteId}/${attachment.id}-thumbnail`;
       try {
-        entries.push(tarEntry(thumbName, await readFile(attachment.thumbnailAbsolutePath), attachment.createdAt));
-      } catch {
-        manifest.missingThumbnails.push({
-          id: attachment.id,
+        const body = await readFile(attachment.thumbnailAbsolutePath);
+        manifest.files.push({
+          path: thumbName,
+          type: "thumbnail",
+          attachmentId: attachment.id,
           noteId: attachment.noteId,
-          filename: attachment.filename,
-          thumbnailPath: attachment.thumbnailPath
+          sizeBytes: body.length,
+          checksum: sha256(body)
         });
-      }
+        entries.push(tarEntry(thumbName, body, attachment.createdAt));
+      } catch {}
     }
   }
 

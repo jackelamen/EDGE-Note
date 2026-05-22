@@ -83,10 +83,11 @@ npm run verify:prod-env
 9. Upload and download a small attachment.
 10. Upload a small image and confirm it shows a thumbnail.
 11. Save an edit twice, then restore a prior History version.
-12. Export JSON.
-13. Export Markdown.
-14. Export Archive and confirm the `.tar.gz` downloads.
-15. Change the password and log back in.
+12. Run Backup Check and confirm it passes.
+13. Export JSON.
+14. Export Markdown.
+15. Export Archive and confirm the `.tar.gz` downloads.
+16. Change the password and log back in.
 
 ## 7. Rollback Plan
 
