@@ -39,7 +39,7 @@ async function serveStatic(req, res, url) {
     await readFile(filePath, { flag: "r" });
     res.writeHead(200, {
       "content-type": type,
-      "cache-control": config.env === "development" ? "no-store" : "public, max-age=300"
+      "cache-control": "no-cache"
     });
     createReadStream(filePath).pipe(res);
   } catch {
