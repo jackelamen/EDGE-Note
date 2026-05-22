@@ -168,6 +168,41 @@ function formatBytes(value) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+async function createAttachmentThumbnail(file) {
+  if (!file?.type?.startsWith("image/")) return null;
+
+  const imageUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    const loaded = new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+    });
+    image.src = imageUrl;
+    await loaded;
+
+    const maxSize = 240;
+    const scale = Math.min(maxSize / image.naturalWidth, maxSize / image.naturalHeight, 1);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(image, 0, 0, width, height);
+
+    return await new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/webp", 0.76);
+    });
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
 function setCacheStatus(title, text) {
   elements.cacheTitle.textContent = title;
   elements.cacheStatus.textContent = text;
@@ -547,7 +582,7 @@ function renderAttachments() {
   elements.attachmentList.innerHTML = state.attachments.map((attachment) => `
     <article class="attachment-item">
       <a class="attachment-main" href="${attachment.downloadUrl}">
-        ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
+        ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="" loading="lazy">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
         <span>${escapeHtml(attachment.filename)}</span>
         <small>${escapeHtml(attachment.mimeType || "file")} · ${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
       </a>
@@ -1157,6 +1192,10 @@ async function uploadAttachment() {
 
   const form = new FormData();
   form.append("file", file);
+  const thumbnail = await createAttachmentThumbnail(file);
+  if (thumbnail) {
+    form.append("thumbnail", thumbnail, "thumbnail.webp");
+  }
   elements.uploadAttachment.textContent = "Uploading";
 
   try {
@@ -1192,6 +1231,10 @@ async function replaceSelectedAttachment(attachmentId) {
 
   const form = new FormData();
   form.append("file", file);
+  const thumbnail = await createAttachmentThumbnail(file);
+  if (thumbnail) {
+    form.append("thumbnail", thumbnail, "thumbnail.webp");
+  }
   setStatus("Replacing attachment...");
 
   try {

@@ -63,12 +63,13 @@ Run this checklist after schema import and before any deployment handoff.
 ## 7. Attachments
 
 1. Upload a small image.
-2. Confirm it appears in the attachment list.
-3. Download it from the attachment list.
-4. Upload a non-image file.
-5. Confirm the generic file row renders and downloads.
-6. Choose a new file and replace an existing attachment.
-7. Delete a temporary attachment and confirm it disappears.
+2. Confirm it appears in the attachment list with a generated thumbnail.
+3. Open `/api/attachments/:id/thumbnail` for the image and confirm it returns an image.
+4. Download it from the attachment list.
+5. Upload a non-image file.
+6. Confirm the generic file row renders and downloads.
+7. Choose a new file and replace an existing attachment.
+8. Delete a temporary attachment and confirm it disappears.
 
 ## 8. Export
 
@@ -76,7 +77,7 @@ Run this checklist after schema import and before any deployment handoff.
 2. Run Markdown export.
 3. Run Archive export.
 4. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
-5. Confirm `manifest.json` includes `missingAttachments` when any attachment file is missing from storage.
+5. Confirm `manifest.json` includes `missingAttachments` or `missingThumbnails` when any attachment file is missing from storage.
 
 ## 9. Sync API
 

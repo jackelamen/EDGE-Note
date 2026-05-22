@@ -6,6 +6,8 @@ import { config } from "./config.js";
 import { query } from "./db.js";
 import { recordSyncChange } from "./syncRepository.js";
 
+const thumbnailMaxBytes = 320 * 1024;
+
 function cleanFilename(value) {
   return String(value || "attachment")
     .trim()
@@ -14,9 +16,15 @@ function cleanFilename(value) {
     .slice(0, 160) || "attachment";
 }
 
+function thumbnailExtension(mimeType) {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  return "img";
+}
+
 function mapAttachment(row) {
   const downloadUrl = `/api/attachments/${row.id}/download`;
-  const isImage = String(row.mimeType || "").startsWith("image/");
 
   return {
     id: row.id,
@@ -26,9 +34,38 @@ function mapAttachment(row) {
     sizeBytes: row.sizeBytes,
     checksum: row.checksum,
     downloadUrl,
-    thumbnailUrl: isImage ? downloadUrl : null,
+    thumbnailUrl: row.thumbnailPath ? `/api/attachments/${row.id}/thumbnail` : null,
+    thumbnailMimeType: row.thumbnailMimeType || null,
+    thumbnailSizeBytes: row.thumbnailSizeBytes || null,
     createdAt: row.createdAt
   };
+}
+
+async function writeThumbnail({ noteId, checksum, thumbnail }) {
+  if (!thumbnail?.buffer?.length) return null;
+  if (!String(thumbnail.mimeType || "").startsWith("image/")) return null;
+  if (thumbnail.buffer.length > thumbnailMaxBytes) return null;
+
+  const noteDir = join(config.attachments.root, String(noteId));
+  const extension = thumbnailExtension(thumbnail.mimeType);
+  const thumbnailPath = join(String(noteId), `${checksum.slice(0, 16)}-thumb.${extension}`);
+
+  await mkdir(noteDir, { recursive: true });
+  await writeFile(join(config.attachments.root, thumbnailPath), thumbnail.buffer);
+
+  return {
+    thumbnailPath,
+    thumbnailMimeType: thumbnail.mimeType,
+    thumbnailSizeBytes: thumbnail.buffer.length
+  };
+}
+
+function assertAttachmentSize(file) {
+  if (file.buffer.length > config.attachments.limitMb * 1024 * 1024) {
+    const error = new Error("Attachment is too large.");
+    error.status = 413;
+    throw error;
+  }
 }
 
 async function assertNoteAccess({ userId, noteId }) {
@@ -58,6 +95,9 @@ export async function listAttachments({ userId, noteId }) {
        a.filename,
        a.mime_type AS mimeType,
        a.size_bytes AS sizeBytes,
+       a.thumbnail_path AS thumbnailPath,
+       a.thumbnail_mime_type AS thumbnailMimeType,
+       a.thumbnail_size_bytes AS thumbnailSizeBytes,
        a.checksum,
        a.created_at AS createdAt
      FROM attachments a
@@ -72,7 +112,7 @@ export async function listAttachments({ userId, noteId }) {
   return rows.map(mapAttachment);
 }
 
-export async function saveAttachment({ userId, noteId, file }) {
+export async function saveAttachment({ userId, noteId, file, thumbnail = null }) {
   await assertNoteAccess({ userId, noteId });
 
   if (!file?.buffer?.length) {
@@ -80,6 +120,7 @@ export async function saveAttachment({ userId, noteId, file }) {
     error.status = 400;
     throw error;
   }
+  assertAttachmentSize(file);
 
   const checksum = createHash("sha256").update(file.buffer).digest("hex");
   const filename = cleanFilename(file.filename);
@@ -89,18 +130,22 @@ export async function saveAttachment({ userId, noteId, file }) {
 
   await mkdir(noteDir, { recursive: true });
   await writeFile(join(config.attachments.root, storagePath), file.buffer);
+  const thumbnailMeta = await writeThumbnail({ noteId, checksum, thumbnail });
 
   const result = await query(
     `INSERT INTO attachments
-       (note_id, filename, mime_type, size_bytes, storage_path, checksum)
+       (note_id, filename, mime_type, size_bytes, storage_path, thumbnail_path, thumbnail_mime_type, thumbnail_size_bytes, checksum)
      VALUES
-       (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :checksum)`,
+       (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :thumbnailPath, :thumbnailMimeType, :thumbnailSizeBytes, :checksum)`,
     {
       noteId,
       filename,
       mimeType: file.mimeType,
       sizeBytes: file.buffer.length,
       storagePath,
+      thumbnailPath: thumbnailMeta?.thumbnailPath || null,
+      thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
+      thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
       checksum
     }
   );
@@ -124,6 +169,9 @@ export async function getAttachment({ userId, attachmentId }) {
        a.mime_type AS mimeType,
        a.size_bytes AS sizeBytes,
        a.storage_path AS storagePath,
+       a.thumbnail_path AS thumbnailPath,
+       a.thumbnail_mime_type AS thumbnailMimeType,
+       a.thumbnail_size_bytes AS thumbnailSizeBytes,
        a.checksum,
        a.created_at AS createdAt
      FROM attachments a
@@ -141,8 +189,16 @@ export async function getAttachment({ userId, attachmentId }) {
   return {
     ...mapAttachment(row),
     storagePath: row.storagePath,
+    thumbnailPath: row.thumbnailPath,
+    thumbnailStream: () => createReadStream(join(config.attachments.root, row.thumbnailPath)),
     stream: () => createReadStream(join(config.attachments.root, row.storagePath))
   };
+}
+
+export async function getAttachmentThumbnail({ userId, attachmentId }) {
+  const attachment = await getAttachment({ userId, attachmentId });
+  if (!attachment?.thumbnailPath) return null;
+  return attachment;
 }
 
 export async function deleteAttachment({ userId, attachmentId }) {
@@ -158,6 +214,9 @@ export async function deleteAttachment({ userId, attachmentId }) {
     { userId, attachmentId }
   );
   await unlink(join(config.attachments.root, attachment.storagePath)).catch(() => {});
+  if (attachment.thumbnailPath) {
+    await unlink(join(config.attachments.root, attachment.thumbnailPath)).catch(() => {});
+  }
   await recordSyncChange({
     userId,
     entityType: "attachment",
@@ -168,7 +227,7 @@ export async function deleteAttachment({ userId, attachmentId }) {
   return true;
 }
 
-export async function replaceAttachment({ userId, attachmentId, file }) {
+export async function replaceAttachment({ userId, attachmentId, file, thumbnail = null }) {
   const existing = await getAttachment({ userId, attachmentId });
   if (!existing) return null;
   if (!file?.buffer?.length) {
@@ -176,6 +235,7 @@ export async function replaceAttachment({ userId, attachmentId, file }) {
     error.status = 400;
     throw error;
   }
+  assertAttachmentSize(file);
 
   const checksum = createHash("sha256").update(file.buffer).digest("hex");
   const filename = cleanFilename(file.filename);
@@ -185,6 +245,7 @@ export async function replaceAttachment({ userId, attachmentId, file }) {
 
   await mkdir(noteDir, { recursive: true });
   await writeFile(join(config.attachments.root, storagePath), file.buffer);
+  const thumbnailMeta = await writeThumbnail({ noteId: existing.noteId, checksum, thumbnail });
   await query(
     `UPDATE attachments a
      JOIN notes n ON n.id = a.note_id
@@ -192,6 +253,9 @@ export async function replaceAttachment({ userId, attachmentId, file }) {
          a.mime_type = :mimeType,
          a.size_bytes = :sizeBytes,
          a.storage_path = :storagePath,
+         a.thumbnail_path = :thumbnailPath,
+         a.thumbnail_mime_type = :thumbnailMimeType,
+         a.thumbnail_size_bytes = :thumbnailSizeBytes,
          a.checksum = :checksum
      WHERE n.user_id = :userId
        AND a.id = :attachmentId`,
@@ -202,10 +266,16 @@ export async function replaceAttachment({ userId, attachmentId, file }) {
       mimeType: file.mimeType,
       sizeBytes: file.buffer.length,
       storagePath,
+      thumbnailPath: thumbnailMeta?.thumbnailPath || null,
+      thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
+      thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
       checksum
     }
   );
   await unlink(join(config.attachments.root, existing.storagePath)).catch(() => {});
+  if (existing.thumbnailPath) {
+    await unlink(join(config.attachments.root, existing.thumbnailPath)).catch(() => {});
+  }
   await recordSyncChange({
     userId,
     entityType: "attachment",
@@ -225,6 +295,9 @@ export async function listAllAttachments({ userId }) {
        a.mime_type AS mimeType,
        a.size_bytes AS sizeBytes,
        a.storage_path AS storagePath,
+       a.thumbnail_path AS thumbnailPath,
+       a.thumbnail_mime_type AS thumbnailMimeType,
+       a.thumbnail_size_bytes AS thumbnailSizeBytes,
        a.checksum,
        a.created_at AS createdAt
      FROM attachments a
@@ -238,6 +311,8 @@ export async function listAllAttachments({ userId }) {
   return rows.map((row) => ({
     ...mapAttachment(row),
     storagePath: row.storagePath,
-    absolutePath: join(config.attachments.root, row.storagePath)
+    thumbnailPath: row.thumbnailPath,
+    absolutePath: join(config.attachments.root, row.storagePath),
+    thumbnailAbsolutePath: row.thumbnailPath ? join(config.attachments.root, row.thumbnailPath) : null
   }));
 }

@@ -71,6 +71,7 @@ export async function readMultipart(req, { limitBytes }) {
   const body = Buffer.concat(chunks);
   const parts = splitBuffer(body, Buffer.from(`--${boundary}`));
   const fields = {};
+  const files = {};
   let file = null;
 
   for (const rawPart of parts) {
@@ -98,18 +99,22 @@ export async function readMultipart(req, { limitBytes }) {
     const disposition = parseContentDisposition(headers["content-disposition"]);
 
     if (disposition.filename) {
-      file = {
+      const parsedFile = {
         fieldName: disposition.name,
         filename: disposition.filename,
         mimeType: headers["content-type"] || "application/octet-stream",
         buffer: content
       };
+      files[disposition.name] = parsedFile;
+      if (!file || disposition.name === "file") {
+        file = parsedFile;
+      }
     } else if (disposition.name) {
       fields[disposition.name] = content.toString("utf8");
     }
   }
 
-  return { fields, file };
+  return { fields, file, files };
 }
 
 export async function readJson(req) {

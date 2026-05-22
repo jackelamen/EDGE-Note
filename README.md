@@ -64,6 +64,7 @@ Manual AI actions currently support summarize, extract tasks, suggest tags, crea
 - `POST /api/notes/:id/attachments` uploads a file to Hostinger storage
 - `PUT /api/attachments/:id` replaces an attachment file
 - `DELETE /api/attachments/:id` deletes an attachment file
+- `GET /api/attachments/:id/thumbnail` lazily serves a generated attachment thumbnail when available
 - `GET /api/attachments/:id/download` lazily downloads one attachment
 - `POST /api/notes/:id/ai/:action` runs a cached manual AI action
 - `GET /api/notes` lists notes for the first owner account and supports `q`, `notebookId`, `tag`, `favorite`, `tasks`, and `archived` filters
@@ -81,6 +82,8 @@ mysql -u edge_note -p edge_note < database/schema.sql
 mysql -u edge_note -p edge_note < database/seed.sql
 ```
 
+For an existing database created before Batch 10, import `database/migrations/0010_attachment_thumbnails.sql` once before uploading new image attachments.
+
 Set `EDGE_NOTE_OWNER_USER_ID` to the seeded owner user id. The private first-user build defaults to `1`.
 Set `EDGE_NOTE_SESSION_SECRET` to a long random value before hosting the app.
 
@@ -90,7 +93,7 @@ The browser caches the latest note list, notebook list, tag list, selected note,
 
 ## Attachments
 
-Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload, and image attachments render as lightweight preview rows using the lazy download URL. Attachments can be replaced or deleted from the note panel. Archive export records missing attachment files in `manifest.json` instead of failing the whole backup.
+Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload and generates a small WebP thumbnail for image files before sending them to the server. Attachments can be replaced or deleted from the note panel. Archive export records missing attachment files or thumbnails in `manifest.json` instead of failing the whole backup.
 
 ## Sync Push
 
@@ -119,9 +122,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add generated attachment thumbnails.
-2. Add conflict resolution UI with side-by-side local/server text.
-3. Add saved searches.
+1. Add conflict resolution UI with side-by-side local/server text.
+2. Add saved searches.
+3. Add Evernote import mapping.
 
 ## Hostinger Notes
 

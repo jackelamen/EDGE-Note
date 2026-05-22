@@ -86,7 +86,7 @@ export async function buildJsonExport({ userId }) {
       notebooks,
       tags,
       notes,
-      attachments: attachments.map(({ absolutePath, ...attachment }) => attachment)
+      attachments: attachments.map(({ absolutePath, thumbnailAbsolutePath, ...attachment }) => attachment)
     }, null, 2)
   };
 }
@@ -118,8 +118,9 @@ export async function buildArchiveExport({ userId }) {
     notebooks,
     tags,
     notes,
-    attachments: attachments.map(({ absolutePath, ...attachment }) => attachment),
-    missingAttachments: []
+    attachments: attachments.map(({ absolutePath, thumbnailAbsolutePath, ...attachment }) => attachment),
+    missingAttachments: [],
+    missingThumbnails: []
   };
   const entries = [
     tarEntry("manifest.json", JSON.stringify(manifest, null, 2)),
@@ -137,6 +138,20 @@ export async function buildArchiveExport({ userId }) {
         filename: attachment.filename,
         storagePath: attachment.storagePath
       });
+    }
+
+    if (attachment.thumbnailAbsolutePath) {
+      const thumbName = `thumbnails/note-${attachment.noteId}/${attachment.id}-thumbnail`;
+      try {
+        entries.push(tarEntry(thumbName, await readFile(attachment.thumbnailAbsolutePath), attachment.createdAt));
+      } catch {
+        manifest.missingThumbnails.push({
+          id: attachment.id,
+          noteId: attachment.noteId,
+          filename: attachment.filename,
+          thumbnailPath: attachment.thumbnailPath
+        });
+      }
     }
   }
 

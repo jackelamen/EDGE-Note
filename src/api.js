@@ -15,6 +15,7 @@ import { buildArchiveExport, buildJsonExport, buildMarkdownExport } from "./expo
 import {
   deleteAttachment,
   getAttachment,
+  getAttachmentThumbnail,
   listAttachments,
   replaceAttachment,
   saveAttachment
@@ -67,6 +68,11 @@ function parseNoteAttachmentsPath(pathname) {
 
 function parseAttachmentDownloadPath(pathname) {
   const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseAttachmentThumbnailPath(pathname) {
+  const match = pathname.match(/^\/api\/attachments\/(\d+)\/thumbnail$/);
   return match ? Number(match[1]) : null;
 }
 
@@ -335,13 +341,14 @@ export async function handleApi(req, res, url) {
       }
 
       requireMethod(req, ["POST"]);
-      const { file } = await readMultipart(req, {
-        limitBytes: config.attachments.limitMb * 1024 * 1024
+      const { file, files } = await readMultipart(req, {
+        limitBytes: (config.attachments.limitMb * 1024 * 1024) + (512 * 1024)
       });
       const attachment = await saveAttachment({
         userId,
         noteId: noteAttachmentsId,
-        file
+        file,
+        thumbnail: files.thumbnail || null
       });
       sendJson(res, 201, { attachment });
     });
@@ -430,6 +437,29 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
+  const thumbnailAttachmentId = parseAttachmentThumbnailPath(url.pathname);
+  if (thumbnailAttachmentId) {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const attachment = await getAttachmentThumbnail({
+        userId,
+        attachmentId: thumbnailAttachmentId
+      });
+      if (!attachment) {
+        sendJson(res, 404, { error: "Thumbnail not found" });
+        return;
+      }
+
+      res.writeHead(200, {
+        "content-type": attachment.thumbnailMimeType,
+        "content-length": attachment.thumbnailSizeBytes,
+        "cache-control": "private, max-age=86400"
+      });
+      attachment.thumbnailStream().pipe(res);
+    });
+    return true;
+  }
+
   const managedAttachmentId = parseAttachmentPath(url.pathname);
   if (managedAttachmentId) {
     await safely(res, async () => {
@@ -440,13 +470,14 @@ export async function handleApi(req, res, url) {
       }
 
       if (req.method === "PUT") {
-        const { file } = await readMultipart(req, {
-          limitBytes: config.attachments.limitMb * 1024 * 1024
+        const { file, files } = await readMultipart(req, {
+          limitBytes: (config.attachments.limitMb * 1024 * 1024) + (512 * 1024)
         });
         const attachment = await replaceAttachment({
           userId,
           attachmentId: managedAttachmentId,
-          file
+          file,
+          thumbnail: files.thumbnail || null
         });
         sendJson(res, attachment ? 200 : 404, attachment ? { attachment } : { error: "Attachment not found" });
         return;

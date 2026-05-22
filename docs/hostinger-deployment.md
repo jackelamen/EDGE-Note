@@ -50,8 +50,9 @@ npm run verify:prod-env
 2. Open phpMyAdmin for that database.
 3. Import `database/schema.sql`.
 4. Import `database/seed.sql`.
-5. Confirm `users.id = 1` exists, unless you changed `EDGE_NOTE_OWNER_USER_ID`.
-6. Confirm the database user has select, insert, update, delete, create, and index permissions.
+5. If the database already existed before Batch 10, import `database/migrations/0010_attachment_thumbnails.sql` once.
+6. Confirm `users.id = 1` exists, unless you changed `EDGE_NOTE_OWNER_USER_ID`.
+7. Confirm the database user has select, insert, update, delete, create, alter, and index permissions.
 
 ## 4. File Storage
 
@@ -80,11 +81,12 @@ npm run verify:prod-env
 7. Refresh and confirm the note reloads.
 8. Favorite, archive, restore, and delete a test note.
 9. Upload and download a small attachment.
-10. Save an edit twice, then restore a prior History version.
-11. Export JSON.
-12. Export Markdown.
-13. Export Archive and confirm the `.tar.gz` downloads.
-14. Change the password and log back in.
+10. Upload a small image and confirm it shows a thumbnail.
+11. Save an edit twice, then restore a prior History version.
+12. Export JSON.
+13. Export Markdown.
+14. Export Archive and confirm the `.tar.gz` downloads.
+15. Change the password and log back in.
 
 ## 7. Rollback Plan
 
