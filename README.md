@@ -41,6 +41,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `POST /api/auth/setup` sets the first owner password
 - `POST /api/auth/login` logs in
 - `POST /api/auth/logout` logs out
+- `POST /api/auth/change-password` changes the owner password and logs out
 - `GET /api/notebooks` lists notebooks
 - `POST /api/notebooks` creates a notebook
 - `GET /api/tags` lists tags
@@ -49,6 +50,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `POST /api/sync/push` pushes note create/update/delete batches
 - `GET /api/export.json` downloads a portable JSON backup
 - `GET /api/export.md` downloads notes as Markdown
+- `GET /api/export.tgz` downloads a tar.gz archive with notes, manifest, and attachment files
 - `GET /api/notes/:id/attachments` lists note attachments
 - `POST /api/notes/:id/attachments` uploads a file to Hostinger storage
 - `GET /api/attachments/:id/download` lazily downloads one attachment
@@ -106,11 +108,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add export packaging for attachment files.
-2. Add password reset/change flow.
-3. Add hosted deployment checklist.
-4. Add mobile cache schema.
-5. Add generated attachment thumbnails.
+1. Add hosted deployment checklist.
+2. Add mobile cache schema.
+3. Add generated attachment thumbnails.
 
 ## Hostinger Notes
 

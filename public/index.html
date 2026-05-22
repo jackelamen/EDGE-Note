@@ -216,7 +216,24 @@
           <div class="backup-actions">
             <button type="button" data-export="json">JSON</button>
             <button type="button" data-export="markdown">Markdown</button>
+            <button type="button" data-export="archive">Archive</button>
           </div>
+        </section>
+
+        <section>
+          <h2>Security</h2>
+          <form class="security-form" data-password-form>
+            <label>
+              <span>Current</span>
+              <input type="password" autocomplete="current-password" data-current-password>
+            </label>
+            <label>
+              <span>New</span>
+              <input type="password" minlength="10" autocomplete="new-password" data-new-password>
+            </label>
+            <button type="submit">Change password</button>
+            <p data-password-status></p>
+          </form>
         </section>
       </aside>
     </main>

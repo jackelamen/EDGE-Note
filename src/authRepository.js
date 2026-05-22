@@ -140,6 +140,30 @@ export async function loginOwner({ password }) {
   return owner.id;
 }
 
+export async function changeOwnerPassword({ currentPassword, newPassword }) {
+  const owner = await getOwner();
+  if (!owner?.passwordHash || !(await verifyPassword(currentPassword, owner.passwordHash))) {
+    const error = new Error("Current password is incorrect.");
+    error.status = 401;
+    throw error;
+  }
+  if (String(newPassword || "").length < 10) {
+    const error = new Error("New password must be at least 10 characters.");
+    error.status = 400;
+    throw error;
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await query(
+    `UPDATE users
+     SET password_hash = :passwordHash
+     WHERE id = :userId`,
+    { userId: owner.id, passwordHash }
+  );
+
+  return owner.id;
+}
+
 export async function requireAuth(req) {
   const status = await authStatus(req);
   if (!status.authenticated) {

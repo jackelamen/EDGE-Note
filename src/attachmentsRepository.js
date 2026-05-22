@@ -144,3 +144,29 @@ export async function getAttachment({ userId, attachmentId }) {
     stream: () => createReadStream(join(config.attachments.root, row.storagePath))
   };
 }
+
+export async function listAllAttachments({ userId }) {
+  const rows = await query(
+    `SELECT
+       a.id,
+       a.note_id AS noteId,
+       a.filename,
+       a.mime_type AS mimeType,
+       a.size_bytes AS sizeBytes,
+       a.storage_path AS storagePath,
+       a.checksum,
+       a.created_at AS createdAt
+     FROM attachments a
+     JOIN notes n ON n.id = a.note_id
+     WHERE n.user_id = :userId
+       AND n.deleted_at IS NULL
+     ORDER BY a.note_id ASC, a.created_at ASC`,
+    { userId }
+  );
+
+  return rows.map((row) => ({
+    ...mapAttachment(row),
+    storagePath: row.storagePath,
+    absolutePath: join(config.attachments.root, row.storagePath)
+  }));
+}

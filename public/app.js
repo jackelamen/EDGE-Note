@@ -38,6 +38,7 @@ const elements = {
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
   exportJson: document.querySelector("[data-export='json']"),
+  exportArchive: document.querySelector("[data-export='archive']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
   list: document.querySelector("[data-notes-list]"),
   listEyebrow: document.querySelector("[data-list-eyebrow]"),
@@ -50,7 +51,11 @@ const elements = {
   notebookForm: document.querySelector("[data-notebook-form]"),
   notebookName: document.querySelector("[data-notebook-name]"),
   notebooksList: document.querySelector("[data-notebooks-list]"),
+  currentPassword: document.querySelector("[data-current-password]"),
   logout: document.querySelector("[data-action='logout']"),
+  newPassword: document.querySelector("[data-new-password]"),
+  passwordForm: document.querySelector("[data-password-form]"),
+  passwordStatus: document.querySelector("[data-password-status]"),
   saveNote: document.querySelector("[data-action='save-note']"),
   search: document.querySelector("[data-notes-search]"),
   tags: document.querySelector("[data-note-tags]"),
@@ -785,6 +790,27 @@ async function logout() {
   showAuth({ message: "Logged out." });
 }
 
+async function changePassword(event) {
+  event.preventDefault();
+  elements.passwordStatus.textContent = "Changing...";
+
+  try {
+    const payload = await requestJson("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        currentPassword: elements.currentPassword.value,
+        newPassword: elements.newPassword.value
+      })
+    });
+    elements.currentPassword.value = "";
+    elements.newPassword.value = "";
+    elements.passwordStatus.textContent = payload.message || "Password changed.";
+    showAuth({ message: "Password changed. Log in again." });
+  } catch (error) {
+    elements.passwordStatus.textContent = error.message;
+  }
+}
+
 async function hydrateConfig() {
   try {
     const response = await fetch("/api/config");
@@ -1108,6 +1134,12 @@ function bindEvents() {
   elements.exportMarkdown.addEventListener("click", () => {
     window.location.href = "/api/export.md";
   });
+
+  elements.exportArchive.addEventListener("click", () => {
+    window.location.href = "/api/export.tgz";
+  });
+
+  elements.passwordForm.addEventListener("submit", changePassword);
 
   elements.title.addEventListener("input", saveDraftCache);
   elements.body.addEventListener("input", () => {

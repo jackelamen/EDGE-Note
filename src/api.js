@@ -2,6 +2,7 @@ import { config } from "./config.js";
 import { runAiAction } from "./aiRepository.js";
 import {
   authStatus,
+  changeOwnerPassword,
   clearSessionCookie,
   loginOwner,
   requireAuth,
@@ -9,7 +10,7 @@ import {
   setupOwnerPassword
 } from "./authRepository.js";
 import { isDatabaseError } from "./db.js";
-import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
+import { buildArchiveExport, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
@@ -177,6 +178,16 @@ export async function handleApi(req, res, url) {
   }
   const userId = authUser.id;
 
+  if (url.pathname === "/api/auth/change-password") {
+    await safelyAuth(req, res, async () => {
+      requireMethod(req, ["POST"]);
+      await changeOwnerPassword(await readJson(req));
+      clearSessionCookie(res);
+      sendJson(res, 200, { authenticated: false, message: "Password changed. Log in again." });
+    });
+    return true;
+  }
+
   if (url.pathname === "/api/notebooks") {
     await safely(res, async () => {
       if (req.method === "GET") {
@@ -251,6 +262,14 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
       sendDownload(res, 200, await buildMarkdownExport({ userId }));
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/export.tgz") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendDownload(res, 200, await buildArchiveExport({ userId }));
     });
     return true;
   }
