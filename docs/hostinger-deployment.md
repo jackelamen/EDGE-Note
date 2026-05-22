@@ -74,23 +74,30 @@ Production hardening depends on `EDGE_NOTE_PUBLIC_URL` being the exact deployed 
 
 ## 6. Deployment Smoke Test
 
-1. Open `/api/health` and confirm `ok: true`.
-2. Open `/api/config` and confirm safe app settings render.
-3. Confirm the `/api/health` response includes security headers such as `content-security-policy` and `x-frame-options`.
-4. Create a notebook.
-5. Create a note in that notebook.
-6. Add tags and a checklist item.
-7. Save the note.
-8. Refresh and confirm the note reloads.
-9. Favorite, archive, restore, and delete a test note.
-10. Upload and download a small attachment.
-11. Upload a small image and confirm it shows a thumbnail.
-12. Save an edit twice, then restore a prior History version.
-13. Run Backup Check and confirm it passes.
-14. Export JSON.
-15. Export Markdown.
-16. Export Archive and confirm the `.tar.gz` downloads.
-17. Change the password and log back in.
+Run the automated smoke check against the deployed URL:
+
+```bash
+EDGE_NOTE_SMOKE_URL=https://your-edge-note-domain.example npm run smoke:prod
+```
+
+Then complete the browser workflow:
+
+1. Create a notebook.
+2. Create a note in that notebook.
+3. Add tags and a checklist item.
+4. Save the note.
+5. Refresh and confirm the note reloads.
+6. Favorite, archive, restore, and delete a test note.
+7. Upload and download a small attachment.
+8. Upload a small image and confirm it shows a thumbnail.
+9. Save an edit twice, then restore a prior History version.
+10. Run Backup Check and confirm it passes.
+11. Export JSON.
+12. Export Markdown.
+13. Export Archive and confirm the `.tar.gz` downloads.
+14. Change the password and log back in.
+
+Use [docs/smoke-test.md](smoke-test.md) for the fuller feature checklist.
 
 ## 7. Rollback Plan
 

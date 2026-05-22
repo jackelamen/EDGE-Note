@@ -30,7 +30,8 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `npm run check` verifies JavaScript syntax.
 - `npm run verify` checks syntax plus the expected env keys, database tables, and UI hooks.
 - `npm run verify:prod-env` checks required production environment variables.
-- Use [docs/smoke-test.md](docs/smoke-test.md) for the manual runtime checklist.
+- `npm run smoke:prod -- --url https://your-edge-note-domain.example` checks deployed public endpoints, security headers, database diagnostics, and production origin protection.
+- Use [docs/smoke-test.md](docs/smoke-test.md) for the full runtime checklist.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
 - Use [docs/mobile-sync.md](docs/mobile-sync.md) for the mobile/offline sync contract.
 
@@ -137,9 +138,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add mobile ergonomics.
-2. Add production deployment hardening.
-3. Run full production smoke test pass.
+1. Mobile sync readiness.
+2. AI endpoint production setup.
+3. Data safety tools.
 
 ## Hostinger Notes
 
