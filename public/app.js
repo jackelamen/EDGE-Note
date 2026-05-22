@@ -87,6 +87,8 @@ const elements = {
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
   formatButtons: document.querySelectorAll("[data-format]"),
+  formatColorInputs: document.querySelectorAll("[data-format-color]"),
+  formatSelects: document.querySelectorAll("[data-format-select]"),
   historyList: document.querySelector("[data-history-list]"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
@@ -112,6 +114,14 @@ const shortcutFormats = {
   i: "italic",
   u: "underline"
 };
+
+const toolbarFonts = {
+  sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+};
+
+const safeToolbarFontValues = new Set(Object.values(toolbarFonts).map((value) => value.toLowerCase()));
 
 function showApp() {
   elements.authPanel.hidden = true;
@@ -271,13 +281,52 @@ function isSafeUrl(value) {
   }
 }
 
+function sanitizeCssColor(value) {
+  const color = String(value || "").trim().toLowerCase();
+  if (!color) return "";
+  if (/^#[0-9a-f]{3,8}$/.test(color)) return color;
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(color)) return color;
+  if (color === "transparent") return color;
+  return "";
+}
+
+function sanitizeCssFontFamily(value) {
+  const font = String(value || "").trim();
+  if (!font || /[<>;{}]/.test(font) || /url\s*\(/i.test(font)) return "";
+  return safeToolbarFontValues.has(font.toLowerCase()) ? font : "";
+}
+
+function sanitizeCssFontSize(value) {
+  const size = String(value || "").trim().toLowerCase();
+  const match = size.match(/^(\d{1,2})px$/);
+  if (!match) return "";
+  const pixels = Number(match[1]);
+  return pixels >= 10 && pixels <= 36 ? `${pixels}px` : "";
+}
+
+function sanitizeInlineStyle(element) {
+  const declarations = [];
+  const color = sanitizeCssColor(element.style.color);
+  const backgroundColor = sanitizeCssColor(element.style.backgroundColor);
+  const fontFamily = sanitizeCssFontFamily(element.style.fontFamily);
+  const fontSize = sanitizeCssFontSize(element.style.fontSize);
+
+  if (color) declarations.push(`color: ${color}`);
+  if (backgroundColor) declarations.push(`background-color: ${backgroundColor}`);
+  if (fontFamily) declarations.push(`font-family: ${fontFamily}`);
+  if (fontSize) declarations.push(`font-size: ${fontSize}`);
+
+  return declarations.join("; ");
+}
+
 function sanitizeHtml(html) {
   const root = document.createElement("div");
   root.innerHTML = String(html || "");
   const allowedTags = new Set([
     "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "input",
-    "li", "ol", "p", "pre", "strong", "u", "ul"
+    "li", "ol", "p", "pre", "span", "strong", "u", "ul"
   ]);
+  const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span"]);
   const classAllowList = {
     li: new Set(["complete", "task-item"]),
     ul: new Set(["checklist"])
@@ -311,6 +360,7 @@ function sanitizeHtml(html) {
       ? Array.from(element.classList).filter((name) => classAllowList[tag].has(name))
       : [];
     const safeHref = tag === "a" ? element.getAttribute("href") : null;
+    const safeStyle = styleAllowedTags.has(tag) ? sanitizeInlineStyle(element) : "";
     const isCheckbox = tag === "input" && element.matches("input[type='checkbox']");
     const isChecked = isCheckbox && element.checked;
 
@@ -318,6 +368,10 @@ function sanitizeHtml(html) {
 
     if (safeClasses.length) {
       element.className = safeClasses.join(" ");
+    }
+
+    if (safeStyle) {
+      element.setAttribute("style", safeStyle);
     }
 
     if (tag === "a") {
@@ -952,6 +1006,66 @@ function toggleTaskAtIndex(taskIndex) {
   renderTasks();
 }
 
+function selectionIsInEditor(range) {
+  if (!range || !elements.body) return false;
+  const container = range.commonAncestorContainer;
+  return elements.body === container || elements.body.contains(container);
+}
+
+function applyInlineStyle(styles) {
+  elements.body.focus();
+  restoreSelection();
+
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return false;
+
+  const range = sel.getRangeAt(0);
+  if (!selectionIsInEditor(range) || range.collapsed) return false;
+
+  const span = document.createElement("span");
+  Object.entries(styles).forEach(([property, value]) => {
+    span.style[property] = value;
+  });
+  span.appendChild(range.extractContents());
+  range.insertNode(span);
+
+  const nextRange = document.createRange();
+  nextRange.selectNodeContents(span);
+  sel.removeAllRanges();
+  sel.addRange(nextRange);
+  saveSelection();
+  saveDraftCache();
+  renderTasks();
+  return true;
+}
+
+function applyToolbarSelect(kind, value) {
+  elements.body.focus();
+  restoreSelection();
+
+  if (kind === "block") {
+    document.execCommand("formatBlock", false, value || "p");
+    saveDraftCache();
+    renderTasks();
+    return;
+  }
+
+  if (kind === "font" && toolbarFonts[value]) {
+    applyInlineStyle({ fontFamily: toolbarFonts[value] });
+    return;
+  }
+
+  if (kind === "size" && sanitizeCssFontSize(value)) {
+    applyInlineStyle({ fontSize: value });
+  }
+}
+
+function applyToolbarColor(property, value) {
+  const color = sanitizeCssColor(value);
+  if (!color || !["color", "backgroundColor"].includes(property)) return;
+  applyInlineStyle({ [property]: color });
+}
+
 function applyWysiwygFormat(format) {
   elements.body.focus();
   restoreSelection();
@@ -995,6 +1109,9 @@ function applyWysiwygFormat(format) {
   }
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
+  }
+  else if (format === "clear") {
+    document.execCommand("removeFormat", false, null);
   }
 
   saveDraftCache();
@@ -2072,6 +2189,22 @@ function bindEvents() {
     button.addEventListener("click", () => {
       applyWysiwygFormat(button.dataset.format);
       // Keep toolbar visible after applying format if still a selection
+      updateFloatingToolbar();
+    });
+  });
+  elements.formatSelects.forEach((select) => {
+    select.addEventListener("mousedown", saveSelection);
+    select.addEventListener("change", () => {
+      applyToolbarSelect(select.dataset.formatSelect, select.value);
+      updateFloatingToolbar();
+    });
+  });
+  elements.formatColorInputs.forEach((input) => {
+    input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
+    input.addEventListener("mousedown", saveSelection);
+    input.addEventListener("change", () => {
+      input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
+      applyToolbarColor(input.dataset.formatColor, input.value);
       updateFloatingToolbar();
     });
   });

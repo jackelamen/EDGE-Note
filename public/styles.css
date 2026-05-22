@@ -948,14 +948,17 @@ svg {
   box-shadow: var(--shadow-lg);
   z-index: 1000;
   pointer-events: all;
+  max-width: min(94vw, 860px);
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
-.floating-toolbar button {
+.floating-toolbar button,
+.toolbar-select,
+.toolbar-color {
   display: grid;
   place-items: center;
-  min-width: 28px;
   height: 28px;
-  padding: 0 4px;
   border-radius: 5px;
   color: #c8cdd6;
   font-size: 0.78rem;
@@ -963,12 +966,84 @@ svg {
   transition: background var(--transition), color var(--transition);
 }
 
-.floating-toolbar button:hover {
+.floating-toolbar button {
+  min-width: 28px;
+  padding: 0 4px;
+}
+
+.floating-toolbar button:hover,
+.toolbar-color:hover {
   background: rgba(255,255,255,.12);
   color: #fff;
 }
 
 .floating-toolbar button svg { width: 13px; height: 13px; stroke: currentColor; }
+
+.toolbar-select {
+  display: block;
+  width: auto;
+  border: 0;
+  background: transparent;
+  color: #f2f5f8;
+  padding: 0 22px 0 8px;
+  outline: 0;
+  cursor: pointer;
+}
+
+.toolbar-select option {
+  color: #1f2933;
+  background: #fff;
+}
+
+.toolbar-select-block { min-width: 86px; }
+.toolbar-select-font { min-width: 86px; }
+.toolbar-select-size { min-width: 58px; }
+
+.toolbar-color {
+  position: relative;
+  width: 32px;
+  padding: 0;
+  cursor: pointer;
+  --toolbar-swatch: currentColor;
+}
+
+.toolbar-color-text { --toolbar-swatch: #1f2933; }
+.toolbar-color-highlight { --toolbar-swatch: #fff2a8; }
+
+.toolbar-color input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toolbar-color-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+.toolbar-color-icon::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 1px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--toolbar-swatch);
+}
+
+.toolbar-color-icon-highlight::after {
+  height: 7px;
+  bottom: 0;
+  background: var(--toolbar-swatch);
+  opacity: .9;
+}
 
 .toolbar-divider {
   width: 1px;
