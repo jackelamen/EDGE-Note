@@ -119,15 +119,10 @@ svg {
 .auth-brand strong { font-size: 1.1rem; }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius);
-  background: var(--ink);
-  color: #fff;
-  font-weight: 800;
-  font-size: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(21, 59, 51, .18);
   flex-shrink: 0;
 }
 

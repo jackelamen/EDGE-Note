@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">EDGE Note</title>
+  <desc id="desc">A folded note mark with an EDGE monogram.</desc>
+  <defs>
+    <linearGradient id="edge-note-bg" x1="10" y1="8" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#17362f"/>
+      <stop offset="0.52" stop-color="#2f7d6e"/>
+      <stop offset="1" stop-color="#0f1a17"/>
+    </linearGradient>
+    <linearGradient id="edge-note-paper" x1="20" y1="14" x2="46" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbfaf6"/>
+      <stop offset="1" stop-color="#d9efe7"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#edge-note-bg)"/>
+  <path d="M20 13h20l10 10v28H20V13Z" fill="url(#edge-note-paper)"/>
+  <path d="M40 13v10h10" fill="#a8d8c8"/>
+  <path d="M25 27h17M25 34h14M25 41h17" fill="none" stroke="#1d4d43" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M17 51h34" fill="none" stroke="#9ccbbb" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+  <path d="M14 16v34" fill="none" stroke="#f2b84b" stroke-width="4" stroke-linecap="round"/>
+</svg>
