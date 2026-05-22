@@ -760,13 +760,18 @@ textarea {
 
 .attachment-item {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 2px 10px;
-  align-items: center;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
   background: var(--panel);
+}
+
+.attachment-main {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
 }
 
 .attachment-item img,
@@ -796,6 +801,26 @@ textarea {
 
 .attachment-item small {
   color: var(--muted);
+}
+
+.attachment-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.attachment-tools button {
+  min-height: 32px;
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.attachment-tools button:hover {
+  background: var(--accent);
+  color: white;
 }
 
 .ai-result {

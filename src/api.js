@@ -10,8 +10,15 @@ import {
   setupOwnerPassword
 } from "./authRepository.js";
 import { isDatabaseError } from "./db.js";
+import { listDevices, registerDevice, updateDeviceCursor } from "./devicesRepository.js";
 import { buildArchiveExport, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
-import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
+import {
+  deleteAttachment,
+  getAttachment,
+  listAttachments,
+  replaceAttachment,
+  saveAttachment
+} from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import {
@@ -30,6 +37,11 @@ import { ensureTags, listTags } from "./tagsRepository.js";
 
 function parseNoteId(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseDeviceCursorPath(pathname) {
+  const match = pathname.match(/^\/api\/devices\/(\d+)\/cursor$/);
   return match ? Number(match[1]) : null;
 }
 
@@ -55,6 +67,11 @@ function parseNoteAttachmentsPath(pathname) {
 
 function parseAttachmentDownloadPath(pathname) {
   const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseAttachmentPath(pathname) {
+  const match = pathname.match(/^\/api\/attachments\/(\d+)$/);
   return match ? Number(match[1]) : null;
 }
 
@@ -225,6 +242,37 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
+  if (url.pathname === "/api/devices") {
+    await safely(res, async () => {
+      if (req.method === "GET") {
+        sendJson(res, 200, { devices: await listDevices({ userId }) });
+        return;
+      }
+
+      requireMethod(req, ["POST"]);
+      const device = await registerDevice({
+        userId,
+        input: await readJson(req)
+      });
+      sendJson(res, 201, { device });
+    });
+    return true;
+  }
+
+  const deviceCursorId = parseDeviceCursorPath(url.pathname);
+  if (deviceCursorId) {
+    await safely(res, async () => {
+      requireMethod(req, ["PUT"]);
+      const device = await updateDeviceCursor({
+        userId,
+        deviceId: deviceCursorId,
+        cursor: (await readJson(req)).cursor
+      });
+      sendJson(res, device ? 200 : 404, device ? { device } : { error: "Device not found" });
+    });
+    return true;
+  }
+
   if (url.pathname === "/api/sync/pull") {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
@@ -376,6 +424,33 @@ export async function handleApi(req, res, url) {
         "cache-control": "private, max-age=300"
       });
       attachment.stream().pipe(res);
+    });
+    return true;
+  }
+
+  const managedAttachmentId = parseAttachmentPath(url.pathname);
+  if (managedAttachmentId) {
+    await safely(res, async () => {
+      if (req.method === "DELETE") {
+        const deleted = await deleteAttachment({ userId, attachmentId: managedAttachmentId });
+        sendJson(res, deleted ? 200 : 404, deleted ? { ok: true } : { error: "Attachment not found" });
+        return;
+      }
+
+      if (req.method === "PUT") {
+        const { file } = await readMultipart(req, {
+          limitBytes: config.attachments.limitMb * 1024 * 1024
+        });
+        const attachment = await replaceAttachment({
+          userId,
+          attachmentId: managedAttachmentId,
+          file
+        });
+        sendJson(res, attachment ? 200 : 404, attachment ? { attachment } : { error: "Attachment not found" });
+        return;
+      }
+
+      requireMethod(req, ["DELETE", "PUT"]);
     });
     return true;
   }

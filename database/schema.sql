@@ -116,11 +116,13 @@ CREATE TABLE ai_outputs (
 CREATE TABLE devices (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
+  device_key VARCHAR(120) NULL,
   device_name VARCHAR(255) NOT NULL,
   last_sync_cursor BIGINT UNSIGNED NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY devices_user_idx (user_id),
+  UNIQUE KEY devices_user_key_unique (user_id, device_key),
   CONSTRAINT devices_user_fk FOREIGN KEY (user_id) REFERENCES users(id)
 );

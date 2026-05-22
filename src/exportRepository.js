@@ -118,7 +118,8 @@ export async function buildArchiveExport({ userId }) {
     notebooks,
     tags,
     notes,
-    attachments: attachments.map(({ absolutePath, ...attachment }) => attachment)
+    attachments: attachments.map(({ absolutePath, ...attachment }) => attachment),
+    missingAttachments: []
   };
   const entries = [
     tarEntry("manifest.json", JSON.stringify(manifest, null, 2)),
@@ -127,9 +128,19 @@ export async function buildArchiveExport({ userId }) {
 
   for (const attachment of attachments) {
     const filename = `attachments/note-${attachment.noteId}/${attachment.id}-${cleanFilename(attachment.filename)}`;
-    entries.push(tarEntry(filename, await readFile(attachment.absolutePath), attachment.createdAt));
+    try {
+      entries.push(tarEntry(filename, await readFile(attachment.absolutePath), attachment.createdAt));
+    } catch {
+      manifest.missingAttachments.push({
+        id: attachment.id,
+        noteId: attachment.noteId,
+        filename: attachment.filename,
+        storagePath: attachment.storagePath
+      });
+    }
   }
 
+  entries[0] = tarEntry("manifest.json", JSON.stringify(manifest, null, 2));
   const tar = Buffer.concat([...entries, Buffer.alloc(1024, 0)]);
   return {
     filename: `edge-note-archive-${dateStamp()}.tar.gz`,

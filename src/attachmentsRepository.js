@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "./config.js";
 import { query } from "./db.js";
@@ -143,6 +143,77 @@ export async function getAttachment({ userId, attachmentId }) {
     storagePath: row.storagePath,
     stream: () => createReadStream(join(config.attachments.root, row.storagePath))
   };
+}
+
+export async function deleteAttachment({ userId, attachmentId }) {
+  const attachment = await getAttachment({ userId, attachmentId });
+  if (!attachment) return false;
+
+  await query(
+    `DELETE a
+     FROM attachments a
+     JOIN notes n ON n.id = a.note_id
+     WHERE n.user_id = :userId
+       AND a.id = :attachmentId`,
+    { userId, attachmentId }
+  );
+  await unlink(join(config.attachments.root, attachment.storagePath)).catch(() => {});
+  await recordSyncChange({
+    userId,
+    entityType: "attachment",
+    entityId: attachmentId,
+    action: "delete"
+  });
+
+  return true;
+}
+
+export async function replaceAttachment({ userId, attachmentId, file }) {
+  const existing = await getAttachment({ userId, attachmentId });
+  if (!existing) return null;
+  if (!file?.buffer?.length) {
+    const error = new Error("Replacement file is required.");
+    error.status = 400;
+    throw error;
+  }
+
+  const checksum = createHash("sha256").update(file.buffer).digest("hex");
+  const filename = cleanFilename(file.filename);
+  const noteDir = join(config.attachments.root, String(existing.noteId));
+  const storageName = `${checksum.slice(0, 16)}-${filename}`;
+  const storagePath = join(String(existing.noteId), storageName);
+
+  await mkdir(noteDir, { recursive: true });
+  await writeFile(join(config.attachments.root, storagePath), file.buffer);
+  await query(
+    `UPDATE attachments a
+     JOIN notes n ON n.id = a.note_id
+     SET a.filename = :filename,
+         a.mime_type = :mimeType,
+         a.size_bytes = :sizeBytes,
+         a.storage_path = :storagePath,
+         a.checksum = :checksum
+     WHERE n.user_id = :userId
+       AND a.id = :attachmentId`,
+    {
+      userId,
+      attachmentId,
+      filename,
+      mimeType: file.mimeType,
+      sizeBytes: file.buffer.length,
+      storagePath,
+      checksum
+    }
+  );
+  await unlink(join(config.attachments.root, existing.storagePath)).catch(() => {});
+  await recordSyncChange({
+    userId,
+    entityType: "attachment",
+    entityId: attachmentId,
+    action: "update"
+  });
+
+  return getAttachment({ userId, attachmentId });
 }
 
 export async function listAllAttachments({ userId }) {

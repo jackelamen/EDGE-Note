@@ -2,6 +2,7 @@ const cacheKeys = {
   draft: "edge_note_draft_v1",
   notes: "edge_note_notes_v1",
   collections: "edge_note_collections_v1",
+  pendingChanges: "edge_note_pending_changes_v1",
   selectedId: "edge_note_selected_note_v1"
 };
 
@@ -19,6 +20,8 @@ const state = {
   selectedId: null,
   pendingSave: false
 };
+
+let pendingSyncTimer = null;
 
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
@@ -284,6 +287,25 @@ function clearDraftCache() {
   removeCache(cacheKeys.draft);
 }
 
+function pendingChanges() {
+  return readCache(cacheKeys.pendingChanges, []);
+}
+
+function writePendingChanges(changes) {
+  writeCache(cacheKeys.pendingChanges, changes);
+  setCacheStatus(changes.length ? "Sync queued" : "Synced locally", changes.length ? `${changes.length} pending changes` : `${state.notes.length} notes cached`);
+}
+
+function queuePendingChange(change) {
+  const changes = pendingChanges();
+  changes.push({
+    clientId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    queuedAt: new Date().toISOString(),
+    ...change
+  });
+  writePendingChanges(changes);
+}
+
 function restoreDraftCache() {
   const draft = readCache(cacheKeys.draft, null);
   if (!draft) return false;
@@ -496,11 +518,17 @@ function renderAttachments() {
   }
 
   elements.attachmentList.innerHTML = state.attachments.map((attachment) => `
-    <a class="attachment-item" href="${attachment.downloadUrl}">
-      ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
-      <span>${escapeHtml(attachment.filename)}</span>
-      <small>${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
-    </a>
+    <article class="attachment-item">
+      <a class="attachment-main" href="${attachment.downloadUrl}">
+        ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
+        <span>${escapeHtml(attachment.filename)}</span>
+        <small>${escapeHtml(attachment.mimeType || "file")} · ${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
+      </a>
+      <div class="attachment-tools">
+        <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
+        <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
+      </div>
+    </article>
   `).join("");
 }
 
@@ -935,6 +963,43 @@ async function loadNotes() {
   }
 }
 
+async function flushPendingChanges() {
+  const changes = pendingChanges();
+  if (!changes.length) return;
+
+  try {
+    const payload = await requestJson("/api/sync/push", {
+      method: "POST",
+      body: JSON.stringify({ changes })
+    });
+    const conflicts = payload.results?.filter((result) => result.status === "conflict") || [];
+    const failed = payload.results?.filter((result) => !["applied", "conflict"].includes(result.status)) || [];
+    const retryClientIds = new Set([...conflicts, ...failed].map((result) => result.clientId));
+    const retryChanges = changes.filter((change) => retryClientIds.has(change.clientId));
+    writePendingChanges(retryChanges);
+
+    if (conflicts.length) {
+      setStatus(`${conflicts.length} sync conflict${conflicts.length === 1 ? "" : "s"} need review`);
+      elements.aiResult.textContent = conflicts.map((conflict) => (
+        `Conflict: ${conflict.serverNote?.title || "Untitled note"}\nServer version ${conflict.serverNote?.syncVersion || "unknown"} changed before this edit synced.`
+      )).join("\n\n");
+      return;
+    }
+
+    if (payload.accepted) {
+      await loadNotes();
+      setStatus(`Synced ${payload.accepted} queued change${payload.accepted === 1 ? "" : "s"}`);
+    }
+  } catch {
+    writePendingChanges(changes);
+  }
+}
+
+function schedulePendingSync() {
+  window.clearTimeout(pendingSyncTimer);
+  pendingSyncTimer = window.setTimeout(flushPendingChanges, 500);
+}
+
 async function loadAttachments(noteId = state.selectedId) {
   if (!noteId) {
     state.attachments = [];
@@ -1004,6 +1069,13 @@ async function saveNote() {
     return saved;
   } catch (error) {
     setStatus(error.message);
+    queuePendingChange({
+      entityType: "note",
+      action: state.selectedId ? "update" : "create",
+      entityId: state.selectedId,
+      baseSyncVersion: currentNote()?.syncVersion,
+      data: currentDraft()
+    });
     saveDraftCache();
     return null;
   } finally {
@@ -1055,6 +1127,59 @@ async function uploadAttachment() {
     setStatus(error.message);
   } finally {
     elements.uploadAttachment.textContent = "Upload";
+  }
+}
+
+async function replaceSelectedAttachment(attachmentId) {
+  const file = elements.attachmentFile.files?.[0];
+  if (!file) {
+    setStatus("Choose a replacement file first");
+    return;
+  }
+  if (file.size > state.attachmentLimitMb * 1024 * 1024) {
+    setStatus(`Attachment exceeds ${state.attachmentLimitMb} MB`);
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  setStatus("Replacing attachment...");
+
+  try {
+    const response = await fetch(`/api/attachments/${attachmentId}`, {
+      method: "PUT",
+      body: form
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.message || payload.error || "Replace failed");
+    }
+    state.attachments = state.attachments.map((attachment) => (
+      attachment.id === attachmentId ? payload.attachment : attachment
+    ));
+    elements.attachmentFile.value = "";
+    renderAttachments();
+    setStatus(`Replaced ${payload.attachment.filename}`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function deleteSelectedAttachment(attachmentId) {
+  const attachment = state.attachments.find((item) => item.id === attachmentId);
+  if (!attachment) return;
+  if (!window.confirm(`Delete "${attachment.filename}"?`)) return;
+
+  try {
+    await requestJson(`/api/attachments/${attachmentId}`, {
+      method: "DELETE",
+      body: JSON.stringify({})
+    });
+    state.attachments = state.attachments.filter((item) => item.id !== attachmentId);
+    renderAttachments();
+    setStatus(`Deleted ${attachment.filename}`);
+  } catch (error) {
+    setStatus(error.message);
   }
 }
 
@@ -1198,11 +1323,25 @@ function bindEvents() {
     toggleTaskLine(Number(task.dataset.taskLine));
   });
 
+  elements.attachmentList.addEventListener("click", (event) => {
+    const replace = event.target.closest("[data-attachment-replace]");
+    const remove = event.target.closest("[data-attachment-delete]");
+    if (replace) {
+      replaceSelectedAttachment(Number(replace.dataset.attachmentReplace));
+      return;
+    }
+    if (remove) {
+      deleteSelectedAttachment(Number(remove.dataset.attachmentDelete));
+    }
+  });
+
   elements.historyList.addEventListener("click", (event) => {
     const restore = event.target.closest("[data-version-restore]");
     if (!restore) return;
     restoreVersion(Number(restore.dataset.versionRestore));
   });
+
+  window.addEventListener("online", schedulePendingSync);
 }
 
 async function init() {
@@ -1212,6 +1351,7 @@ async function init() {
   await loadCollections();
   const restoredDraft = restoreDraftCache();
   await loadNotes();
+  schedulePendingSync();
   if (restoredDraft) {
     setCacheStatus("Draft restored", "Sync when ready");
   }

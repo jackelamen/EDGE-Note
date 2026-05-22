@@ -32,6 +32,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `npm run verify:prod-env` checks required production environment variables.
 - Use [docs/smoke-test.md](docs/smoke-test.md) for the manual runtime checklist.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
+- Use [docs/mobile-sync.md](docs/mobile-sync.md) for the mobile/offline sync contract.
 
 ## Useful Routes
 
@@ -47,6 +48,9 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `POST /api/notebooks` creates a notebook
 - `GET /api/tags` lists tags
 - `POST /api/tags` creates tags
+- `GET /api/devices` lists registered sync devices
+- `POST /api/devices` registers or updates a sync device
+- `PUT /api/devices/:id/cursor` updates one device sync cursor
 - `GET /api/sync/pull?cursor=0` pulls incremental change records
 - `POST /api/sync/push` pushes note create/update/delete batches
 - `GET /api/export.json` downloads a portable JSON backup
@@ -54,6 +58,8 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `GET /api/export.tgz` downloads a tar.gz archive with notes, manifest, and attachment files
 - `GET /api/notes/:id/attachments` lists note attachments
 - `POST /api/notes/:id/attachments` uploads a file to Hostinger storage
+- `PUT /api/attachments/:id` replaces an attachment file
+- `DELETE /api/attachments/:id` deletes an attachment file
 - `GET /api/attachments/:id/download` lazily downloads one attachment
 - `POST /api/notes/:id/ai/:action` runs a cached manual AI action
 - `GET /api/notes` lists notes for the first owner account
@@ -80,7 +86,7 @@ The browser caches the latest note list, notebook list, tag list, selected note,
 
 ## Attachments
 
-Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload, and image attachments render as lightweight preview rows using the lazy download URL. Full generated thumbnails can come later without changing the metadata contract.
+Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The browser checks the limit before upload, and image attachments render as lightweight preview rows using the lazy download URL. Attachments can be replaced or deleted from the note panel. Archive export records missing attachment files in `manifest.json` instead of failing the whole backup.
 
 ## Sync Push
 
@@ -109,9 +115,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add mobile cache schema.
-2. Add generated attachment thumbnails.
-3. Add attachment delete/replace controls.
+1. Add generated attachment thumbnails.
+2. Add conflict resolution UI with side-by-side local/server text.
+3. Add attachment drag-and-drop upload.
 
 ## Hostinger Notes
 

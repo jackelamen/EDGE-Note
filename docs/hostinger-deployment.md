@@ -101,3 +101,4 @@ npm run verify:prod-env
 - Keep attachment sizes modest.
 - Keep sync request batches small.
 - Treat `/api/export.tgz` as a portable app backup, not a full infrastructure backup.
+- Use polling and `/api/sync/pull`; do not add realtime sync until mobile usage proves it is needed.

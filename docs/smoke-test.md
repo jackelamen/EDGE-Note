@@ -64,6 +64,8 @@ Run this checklist after schema import and before any deployment handoff.
 3. Download it from the attachment list.
 4. Upload a non-image file.
 5. Confirm the generic file row renders and downloads.
+6. Choose a new file and replace an existing attachment.
+7. Delete a temporary attachment and confirm it disappears.
 
 ## 8. Export
 
@@ -71,13 +73,17 @@ Run this checklist after schema import and before any deployment handoff.
 2. Run Markdown export.
 3. Run Archive export.
 4. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
+5. Confirm `manifest.json` includes `missingAttachments` when any attachment file is missing from storage.
 
 ## 9. Sync API
 
-1. `GET /api/sync/pull?cursor=0` returns sync changes.
-2. `POST /api/sync/push` can create a note.
-3. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
-4. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
+1. `POST /api/devices` registers a device.
+2. `GET /api/devices` returns the device.
+3. `GET /api/sync/pull?cursor=0` returns sync changes.
+4. `PUT /api/devices/:id/cursor` stores the latest applied cursor.
+5. `POST /api/sync/push` can create a note.
+6. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
+7. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
 
 ## 10. AI
 
