@@ -18,12 +18,12 @@ Set these values in Hostinger's Node app environment screen:
 ```bash
 EDGE_NOTE_ENV=production
 EDGE_NOTE_HOST=0.0.0.0
-EDGE_NOTE_PORT=<Hostinger provided port if required>
+EDGE_NOTE_PORT=<Hostinger provided port if required, otherwise omit if PORT is provided>
 EDGE_NOTE_PUBLIC_URL=https://your-edge-note-domain.example
 EDGE_NOTE_OWNER_USER_ID=1
 EDGE_NOTE_SESSION_SECRET=<long random secret, 32+ chars>
 
-MYSQL_HOST=<Hostinger MySQL host>
+MYSQL_HOST=<Hostinger MySQL host or 127.0.0.1>
 MYSQL_PORT=3306
 MYSQL_DATABASE=<database name>
 MYSQL_USER=<database user>
@@ -43,6 +43,8 @@ Run this locally with the same values exported before deploying, or through the 
 ```bash
 npm run verify:prod-env
 ```
+
+Production hardening depends on `EDGE_NOTE_PUBLIC_URL` being the exact deployed HTTPS origin. Cookie-backed write requests are rejected when their `Origin` or `Referer` does not match that value.
 
 ## 3. MySQL Setup
 
@@ -74,20 +76,21 @@ npm run verify:prod-env
 
 1. Open `/api/health` and confirm `ok: true`.
 2. Open `/api/config` and confirm safe app settings render.
-3. Create a notebook.
-4. Create a note in that notebook.
-5. Add tags and a checklist item.
-6. Save the note.
-7. Refresh and confirm the note reloads.
-8. Favorite, archive, restore, and delete a test note.
-9. Upload and download a small attachment.
-10. Upload a small image and confirm it shows a thumbnail.
-11. Save an edit twice, then restore a prior History version.
-12. Run Backup Check and confirm it passes.
-13. Export JSON.
-14. Export Markdown.
-15. Export Archive and confirm the `.tar.gz` downloads.
-16. Change the password and log back in.
+3. Confirm the `/api/health` response includes security headers such as `content-security-policy` and `x-frame-options`.
+4. Create a notebook.
+5. Create a note in that notebook.
+6. Add tags and a checklist item.
+7. Save the note.
+8. Refresh and confirm the note reloads.
+9. Favorite, archive, restore, and delete a test note.
+10. Upload and download a small attachment.
+11. Upload a small image and confirm it shows a thumbnail.
+12. Save an edit twice, then restore a prior History version.
+13. Run Backup Check and confirm it passes.
+14. Export JSON.
+15. Export Markdown.
+16. Export Archive and confirm the `.tar.gz` downloads.
+17. Change the password and log back in.
 
 ## 7. Rollback Plan
 
@@ -105,3 +108,4 @@ npm run verify:prod-env
 - Keep sync request batches small.
 - Treat `/api/export.tgz` as a portable app backup, not a full infrastructure backup.
 - Use polling and `/api/sync/pull`; do not add realtime sync until mobile usage proves it is needed.
+- Keep `EDGE_NOTE_PUBLIC_URL` aligned with the deployed HTTPS domain; production write requests use it for origin protection.

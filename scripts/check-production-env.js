@@ -47,6 +47,11 @@ if ((process.env.EDGE_NOTE_SESSION_SECRET || "").length < 32) {
   fail("EDGE_NOTE_SESSION_SECRET should be at least 32 characters.");
 }
 
+const appPort = Number(process.env.EDGE_NOTE_PORT || process.env.PORT || 0);
+if (!Number.isInteger(appPort) || appPort <= 0) {
+  fail("EDGE_NOTE_PORT or PORT must be a positive number.");
+}
+
 const port = Number(process.env.MYSQL_PORT || 0);
 if (!Number.isInteger(port) || port <= 0) {
   fail("MYSQL_PORT must be a positive number.");
@@ -55,6 +60,14 @@ if (!Number.isInteger(port) || port <= 0) {
 const ownerId = Number(process.env.EDGE_NOTE_OWNER_USER_ID || 0);
 if (!Number.isInteger(ownerId) || ownerId <= 0) {
   fail("EDGE_NOTE_OWNER_USER_ID must be a positive number.");
+}
+
+if (Number(process.env.ATTACHMENT_LIMIT_MB || 25) <= 0) {
+  fail("ATTACHMENT_LIMIT_MB must be greater than zero.");
+}
+
+if (process.env.MYSQL_HOST === "localhost") {
+  fail("MYSQL_HOST should be an explicit Hostinger host or 127.0.0.1, not localhost.");
 }
 
 if (!process.exitCode) {

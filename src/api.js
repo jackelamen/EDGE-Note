@@ -20,7 +20,7 @@ import {
   replaceAttachment,
   saveAttachment
 } from "./attachmentsRepository.js";
-import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
+import { readJson, readMultipart, requireMethod, sendDownload, sendJson, withSecurityHeaders } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
 import {
   createNote,
@@ -96,6 +96,27 @@ function sendDatabaseUnavailable(res, error) {
   });
 }
 
+function originAllowed(req) {
+  if (config.env !== "production") return true;
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return true;
+
+  const requestOrigin = req.headers.origin || "";
+  const referer = req.headers.referer || "";
+
+  try {
+    const publicOrigin = new URL(config.publicUrl).origin;
+    if (requestOrigin) {
+      return requestOrigin === publicOrigin;
+    }
+    if (referer) {
+      return new URL(referer).origin === publicOrigin;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 async function safely(res, action) {
   try {
     await action();
@@ -128,6 +149,11 @@ async function safelyAuth(req, res, action) {
 }
 
 export async function handleApi(req, res, url) {
+  if (!originAllowed(req)) {
+    sendJson(res, 403, { error: "Request origin is not allowed." });
+    return true;
+  }
+
   if (url.pathname === "/api/health") {
     sendJson(res, 200, {
       ok: true,
@@ -440,12 +466,12 @@ export async function handleApi(req, res, url) {
         return;
       }
 
-      res.writeHead(200, {
+      res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.mimeType,
         "content-disposition": `attachment; filename="${attachment.filename}"`,
         "content-length": attachment.sizeBytes,
         "cache-control": "private, max-age=300"
-      });
+      }));
       attachment.stream().pipe(res);
     });
     return true;
@@ -464,11 +490,11 @@ export async function handleApi(req, res, url) {
         return;
       }
 
-      res.writeHead(200, {
+      res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.thumbnailMimeType,
         "content-length": attachment.thumbnailSizeBytes,
         "cache-control": "private, max-age=86400"
-      });
+      }));
       attachment.thumbnailStream().pipe(res);
     });
     return true;

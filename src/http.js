@@ -1,20 +1,47 @@
 const maxJsonBytes = 1024 * 1024;
 
+export const securityHeaders = {
+  "content-security-policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'"
+  ].join("; "),
+  "cross-origin-opener-policy": "same-origin",
+  "cross-origin-resource-policy": "same-origin",
+  "referrer-policy": "same-origin",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY"
+};
+
+export function withSecurityHeaders(headers = {}) {
+  return {
+    ...securityHeaders,
+    ...headers
+  };
+}
+
 export function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
-  res.writeHead(status, {
+  res.writeHead(status, withSecurityHeaders({
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store"
-  });
+  }));
   res.end(body);
 }
 
 export function sendDownload(res, status, { filename, contentType, body }) {
-  res.writeHead(status, {
+  res.writeHead(status, withSecurityHeaders({
     "content-type": contentType,
     "content-disposition": `attachment; filename="${filename}"`,
     "cache-control": "no-store"
-  });
+  }));
   res.end(body);
 }
 
