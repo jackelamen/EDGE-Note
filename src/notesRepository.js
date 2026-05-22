@@ -200,3 +200,31 @@ export async function deleteNote({ userId, noteId }) {
 
   return deleted;
 }
+
+export async function setNoteArchived({ userId, noteId, archived }) {
+  const result = await query(
+    `UPDATE notes
+     SET archived_at = ${archived ? "CURRENT_TIMESTAMP" : "NULL"},
+         sync_version = sync_version + 1,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = :userId
+       AND id = :noteId
+       AND deleted_at IS NULL`,
+    { userId, noteId }
+  );
+
+  if (!result.affectedRows) {
+    return null;
+  }
+
+  const note = await getNote({ userId, noteId });
+  await recordSyncChange({
+    userId,
+    entityType: "note",
+    entityId: noteId,
+    action: archived ? "archive" : "restore",
+    syncVersion: note.syncVersion
+  });
+
+  return note;
+}

@@ -13,7 +13,7 @@ import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
-import { createNote, deleteNote, getNote, listNotes, updateNote } from "./notesRepository.js";
+import { createNote, deleteNote, getNote, listNotes, setNoteArchived, updateNote } from "./notesRepository.js";
 import { pullSyncChanges } from "./syncRepository.js";
 import { pushSyncChanges } from "./syncPushRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
@@ -21,6 +21,11 @@ import { ensureTags, listTags } from "./tagsRepository.js";
 function parseNoteId(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)$/);
   return match ? Number(match[1]) : null;
+}
+
+function parseNoteArchivePath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/(archive|restore)$/);
+  return match ? { noteId: Number(match[1]), action: match[2] } : null;
 }
 
 function parseNoteAttachmentsPath(pathname) {
@@ -253,6 +258,20 @@ export async function handleApi(req, res, url) {
         file
       });
       sendJson(res, 201, { attachment });
+    });
+    return true;
+  }
+
+  const noteArchive = parseNoteArchivePath(url.pathname);
+  if (noteArchive) {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const note = await setNoteArchived({
+        userId,
+        noteId: noteArchive.noteId,
+        archived: noteArchive.action === "archive"
+      });
+      sendJson(res, note ? 200 : 404, note ? { note } : { error: "Note not found" });
     });
     return true;
   }

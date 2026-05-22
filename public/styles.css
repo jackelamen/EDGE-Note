@@ -124,6 +124,10 @@ a {
   border: 1px solid var(--line);
 }
 
+.danger-action {
+  background: #8f2f2f;
+}
+
 .primary-action:hover,
 .secondary-action:hover,
 .context-panel button:hover {
@@ -132,6 +136,10 @@ a {
 
 .quiet-action:hover {
   background: var(--soft);
+}
+
+.danger-action:hover {
+  background: #742424;
 }
 
 .auth-panel {
@@ -301,6 +309,12 @@ h1 {
   border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
+}
+
+.icon-button.active {
+  border-color: rgba(183, 121, 31, 0.4);
+  background: rgba(183, 121, 31, 0.12);
+  color: var(--gold);
 }
 
 .icon-button svg {

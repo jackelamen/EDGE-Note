@@ -9,7 +9,9 @@ const state = {
   attachments: [],
   attachmentLimitMb: 25,
   authMode: "login",
+  filter: "all",
   notebooks: [],
+  notebookFilter: null,
   notes: [],
   tags: [],
   localDraftRestored: false,
@@ -37,6 +39,9 @@ const elements = {
   exportJson: document.querySelector("[data-export='json']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
   list: document.querySelector("[data-notes-list]"),
+  listEyebrow: document.querySelector("[data-list-eyebrow]"),
+  listTitle: document.querySelector("[data-list-title]"),
+  mainNav: document.querySelector("[data-main-nav]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
   notebook: document.querySelector("[data-note-notebook]"),
@@ -49,6 +54,9 @@ const elements = {
   taskList: document.querySelector("[data-task-list]"),
   taskSummary: document.querySelector("[data-task-summary]"),
   title: document.querySelector("[data-note-title]"),
+  archiveNote: document.querySelector("[data-action='archive-note']"),
+  deleteNote: document.querySelector("[data-action='delete-note']"),
+  toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
 };
@@ -137,6 +145,10 @@ function setStatus(text) {
   elements.meta.textContent = `${state.selectedId ? `Note ${state.selectedId}` : "Draft"} · ${text}`;
 }
 
+function currentNote() {
+  return state.notes.find((note) => note.id === state.selectedId) || null;
+}
+
 function splitTags(value) {
   return String(value || "")
     .split(",")
@@ -160,11 +172,13 @@ function parseChecklistTasks(body) {
 }
 
 function currentDraft() {
+  const note = currentNote();
   return {
     notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
     title: elements.title.value,
     body: elements.body.value,
     bodyFormat: "markdown",
+    favorite: note?.favorite || false,
     tags: splitTags(elements.tags.value)
   };
 }
@@ -207,6 +221,7 @@ function selectNote(note) {
   elements.body.value = note?.body || "";
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
   renderTasks();
+  renderEditorActions(note);
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
     loadAttachments(note.id);
@@ -215,6 +230,54 @@ function selectNote(note) {
     renderAttachments();
   }
   renderNotes();
+}
+
+function renderEditorActions(note = currentNote()) {
+  const hasSavedNote = Boolean(note?.id);
+  elements.toggleFavorite.classList.toggle("active", Boolean(note?.favorite));
+  elements.toggleFavorite.setAttribute("aria-pressed", note?.favorite ? "true" : "false");
+  elements.archiveNote.textContent = note?.archivedAt ? "Restore" : "Archive";
+  elements.toggleFavorite.disabled = !hasSavedNote;
+  elements.archiveNote.disabled = !hasSavedNote;
+  elements.deleteNote.disabled = !hasSavedNote;
+}
+
+function viewLabel() {
+  if (state.notebookFilter) {
+    const notebook = state.notebooks.find((item) => item.id === state.notebookFilter);
+    return notebook?.name || "Notebook";
+  }
+
+  return {
+    all: "All notes",
+    favorites: "Favorites",
+    tasks: "Tasks",
+    archive: "Archive"
+  }[state.filter] || "All notes";
+}
+
+function visibleNotes() {
+  return state.notes.filter((note) => {
+    if (state.notebookFilter && note.notebookId !== state.notebookFilter) return false;
+    if (state.filter === "archive") return Boolean(note.archivedAt);
+    if (note.archivedAt) return false;
+    if (state.filter === "favorites") return note.favorite;
+    if (state.filter === "tasks") return parseChecklistTasks(note.body).length > 0;
+    return true;
+  });
+}
+
+function updateNavigationState() {
+  elements.listTitle.textContent = viewLabel();
+  elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : "Notes";
+
+  elements.mainNav.querySelectorAll("[data-view-filter]").forEach((link) => {
+    link.classList.toggle("active", !state.notebookFilter && link.dataset.viewFilter === state.filter);
+  });
+
+  elements.notebooksList.querySelectorAll("[data-notebook-filter]").forEach((link) => {
+    link.classList.toggle("active", Number(link.dataset.notebookFilter) === state.notebookFilter);
+  });
 }
 
 function renderTasks() {
@@ -329,27 +392,31 @@ function renderCollections() {
   elements.tagsList.innerHTML = state.tags.map((tag) => (
     `<option value="${escapeHtml(tag.name)}"></option>`
   )).join("");
+  updateNavigationState();
 }
 
 function renderNotes() {
-  if (!state.notes.length) {
+  const notes = visibleNotes();
+  updateNavigationState();
+
+  if (!notes.length) {
     elements.list.innerHTML = `
       <article class="note-card active">
         <span class="tag">Empty</span>
-        <h2>No notes yet</h2>
-        <p>Create the first note, then sync it to MySQL.</p>
+        <h2>No matching notes</h2>
+        <p>Create a note or switch views to see more.</p>
         <footer>
           <span>Ready</span>
-          <span>0 notes</span>
+          <span>${escapeHtml(viewLabel())}</span>
         </footer>
       </article>
     `;
     return;
   }
 
-  elements.list.innerHTML = state.notes.map((note) => `
+  elements.list.innerHTML = notes.map((note) => `
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}">
-      <span class="tag">${escapeHtml(note.tags?.[0] || note.notebookName || "Note")}</span>
+      <span class="tag">${escapeHtml(note.favorite ? "Favorite" : note.tags?.[0] || note.notebookName || "Note")}</span>
       <h2>${escapeHtml(note.title || "Untitled note")}</h2>
       <p>${escapeHtml(notePreview(note))}</p>
       <footer>
@@ -358,6 +425,86 @@ function renderNotes() {
       </footer>
     </article>
   `).join("");
+}
+
+async function updateCurrentNote(patch) {
+  const note = currentNote();
+  if (!note) {
+    setStatus("Save the note before changing note actions");
+    return null;
+  }
+
+  const payload = await requestJson(`/api/notes/${note.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
+      title: elements.title.value,
+      body: elements.body.value,
+      bodyFormat: "markdown",
+      tags: splitTags(elements.tags.value),
+      favorite: patch.favorite ?? note.favorite
+    })
+  });
+  const updated = payload.note;
+  const index = state.notes.findIndex((item) => item.id === updated.id);
+  if (index >= 0) state.notes[index] = updated;
+  selectNote(updated);
+  writeCache(cacheKeys.notes, {
+    notes: state.notes,
+    cachedAt: new Date().toISOString()
+  });
+  return updated;
+}
+
+async function toggleFavoriteNote() {
+  const note = currentNote();
+  const updated = await updateCurrentNote({ favorite: !note?.favorite });
+  if (updated) {
+    setStatus(updated.favorite ? "Added to favorites" : "Removed from favorites");
+  }
+}
+
+async function archiveCurrentNote() {
+  const note = currentNote();
+  if (!note) {
+    setStatus("Save the note before archiving");
+    return;
+  }
+
+  const action = note.archivedAt ? "restore" : "archive";
+  const payload = await requestJson(`/api/notes/${note.id}/${action}`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+  const updated = payload.note;
+  const index = state.notes.findIndex((item) => item.id === updated.id);
+  if (index >= 0) state.notes[index] = updated;
+  selectNote(updated);
+  setStatus(action === "archive" ? "Archived" : "Restored");
+}
+
+async function deleteCurrentNote() {
+  const note = currentNote();
+  if (!note) {
+    setStatus("No saved note to delete");
+    return;
+  }
+
+  if (!window.confirm(`Delete "${note.title || "Untitled note"}"?`)) return;
+
+  await requestJson(`/api/notes/${note.id}`, {
+    method: "DELETE",
+    body: JSON.stringify({})
+  });
+  state.notes = state.notes.filter((item) => item.id !== note.id);
+  state.selectedId = null;
+  clearDraftCache();
+  writeCache(cacheKeys.notes, {
+    notes: state.notes,
+    cachedAt: new Date().toISOString()
+  });
+  selectNote(visibleNotes()[0] || null);
+  setStatus("Deleted");
 }
 
 async function requestJson(url, options = {}) {
@@ -679,11 +826,15 @@ function bindEvents() {
     elements.body.value = "";
     setStatus("New draft");
     renderTasks();
+    renderEditorActions(null);
     renderNotes();
     elements.title.focus();
   });
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
+  elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
+  elements.archiveNote.addEventListener("click", archiveCurrentNote);
+  elements.deleteNote.addEventListener("click", deleteCurrentNote);
   elements.saveNote.addEventListener("click", saveNote);
   elements.uploadAttachment.addEventListener("click", uploadAttachment);
   elements.aiActions.forEach((button) => {
@@ -709,6 +860,24 @@ function bindEvents() {
   elements.search.addEventListener("input", () => {
     window.clearTimeout(elements.search.searchTimer);
     elements.search.searchTimer = window.setTimeout(loadNotes, 250);
+  });
+
+  elements.mainNav.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-view-filter]");
+    if (!link) return;
+    event.preventDefault();
+    state.filter = link.dataset.viewFilter;
+    state.notebookFilter = null;
+    renderNotes();
+  });
+
+  elements.notebooksList.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-notebook-filter]");
+    if (!link) return;
+    event.preventDefault();
+    state.notebookFilter = Number(link.dataset.notebookFilter);
+    state.filter = "all";
+    renderNotes();
   });
 
   elements.list.addEventListener("click", (event) => {

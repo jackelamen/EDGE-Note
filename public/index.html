@@ -47,11 +47,11 @@
         </button>
         <button class="secondary-action quiet-action" type="button" data-action="logout">Log out</button>
 
-        <nav class="nav-group" aria-label="Main">
-          <a class="active" href="#all-notes">All notes</a>
-          <a href="#favorites">Favorites</a>
-          <a href="#tasks">Tasks</a>
-          <a href="#archive">Archive</a>
+        <nav class="nav-group" aria-label="Main" data-main-nav>
+          <a class="active" href="#all-notes" data-view-filter="all">All notes</a>
+          <a href="#favorites" data-view-filter="favorites">Favorites</a>
+          <a href="#tasks" data-view-filter="tasks">Tasks</a>
+          <a href="#archive" data-view-filter="archive">Archive</a>
         </nav>
 
         <section class="nav-section" aria-labelledby="notebook-heading" data-notebooks-list>
@@ -73,8 +73,8 @@
       <section class="note-list" aria-label="Notes">
         <header class="list-header">
           <div>
-            <p class="eyebrow">Today</p>
-            <h1>All notes</h1>
+            <p class="eyebrow" data-list-eyebrow>Today</p>
+            <h1 data-list-title>All notes</h1>
           </div>
           <button class="icon-button" type="button" aria-label="Search notes" title="Search notes">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -106,12 +106,14 @@
         <header class="editor-toolbar">
           <div class="crumbs">Daily / Planning</div>
           <div class="toolbar-actions" aria-label="Editor actions">
-            <button class="icon-button" type="button" aria-label="Favorite" title="Favorite">
+            <button class="icon-button" type="button" aria-label="Favorite" title="Favorite" data-action="toggle-favorite">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"></path>
               </svg>
             </button>
             <button class="secondary-action" type="button" data-action="insert-checklist">Checklist</button>
+            <button class="secondary-action quiet-action" type="button" data-action="archive-note">Archive</button>
+            <button class="secondary-action danger-action" type="button" data-action="delete-note">Delete</button>
             <button class="secondary-action" type="button" data-action="save-note">Sync</button>
           </div>
         </header>
