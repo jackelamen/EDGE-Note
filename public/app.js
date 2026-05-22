@@ -55,7 +55,6 @@ const elements = {
   listEyebrow: document.querySelector("[data-list-eyebrow]"),
   listTitle: document.querySelector("[data-list-title]"),
   mainNav: document.querySelector("[data-main-nav]"),
-  markdownPreview: document.querySelector("[data-markdown-preview]"),
   meta: document.querySelector("[data-note-meta]"),
   newNote: document.querySelector("[data-action='new-note']"),
   notebook: document.querySelector("[data-note-notebook]"),
@@ -84,7 +83,6 @@ const elements = {
   deleteNote: document.querySelector("[data-action='delete-note']"),
   formatButtons: document.querySelectorAll("[data-format]"),
   historyList: document.querySelector("[data-history-list]"),
-  togglePreview: document.querySelector("[data-action='toggle-preview']"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
@@ -92,7 +90,8 @@ const elements = {
 
 const shortcutFormats = {
   b: "bold",
-  i: "italic"
+  i: "italic",
+  u: "underline"
 };
 
 function showApp() {
@@ -150,14 +149,20 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function stripHtml(html) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = String(html || "");
+  return (tmp.textContent || tmp.innerText || "").replace(/\s+/g, " ").trim();
+}
+
 function notePreview(note) {
-  const preview = String(note.body || "").replace(/\s+/g, " ").trim();
+  const preview = stripHtml(note.body);
   return preview || "No body yet";
 }
 
 function searchSnippet(note) {
   const term = elements.search.value.trim().toLowerCase();
-  const body = String(note.body || "").replace(/\s+/g, " ").trim();
+  const body = stripHtml(note.body);
   if (!term || !body.toLowerCase().includes(term)) {
     return notePreview(note);
   }
@@ -247,6 +252,7 @@ function isSafeUrl(value) {
   }
 }
 
+// Converts legacy Markdown body (body_format=markdown) to HTML for display in the WYSIWYG editor.
 function renderInlineMarkdown(value) {
   let html = escapeHtml(value);
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -258,15 +264,17 @@ function renderInlineMarkdown(value) {
   return html;
 }
 
-function renderMarkdown(body) {
+function markdownToHtml(body) {
   const lines = String(body || "").split("\n");
   const output = [];
   let listOpen = false;
+  let listOrdered = false;
 
   function closeList() {
     if (listOpen) {
-      output.push("</ul>");
+      output.push(listOrdered ? "</ol>" : "</ul>");
       listOpen = false;
+      listOrdered = false;
     }
   }
 
@@ -292,15 +300,31 @@ function renderMarkdown(body) {
       continue;
     }
 
-    const listItem = trimmed.match(/^-\s+(?:\[([ xX])]\s+)?(.+)$/);
-    if (listItem) {
-      if (!listOpen) {
-        output.push("<ul>");
-        listOpen = true;
-      }
-      const checked = listItem[1]?.toLowerCase() === "x";
-      const checkbox = listItem[1] ? `<span class="preview-check">${checked ? "[x]" : "[ ]"}</span>` : "";
-      output.push(`<li class="${checked ? "complete" : ""}">${checkbox}${renderInlineMarkdown(listItem[2])}</li>`);
+    const checkItem = trimmed.match(/^-\s+\[([ xX])]\s+(.+)$/);
+    if (checkItem) {
+      if (!listOpen || listOrdered) { closeList(); output.push('<ul class="checklist">'); listOpen = true; listOrdered = false; }
+      const checked = checkItem[1].toLowerCase() === "x";
+      output.push(`<li class="task-item${checked ? " complete" : ""}"><input type="checkbox"${checked ? " checked" : ""} data-task-check> ${renderInlineMarkdown(checkItem[2])}</li>`);
+      continue;
+    }
+
+    const bulletItem = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bulletItem) {
+      if (!listOpen || listOrdered) { closeList(); output.push("<ul>"); listOpen = true; listOrdered = false; }
+      output.push(`<li>${renderInlineMarkdown(bulletItem[1])}</li>`);
+      continue;
+    }
+
+    const orderedItem = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (orderedItem) {
+      if (!listOpen || !listOrdered) { closeList(); output.push("<ol>"); listOpen = true; listOrdered = true; }
+      output.push(`<li>${renderInlineMarkdown(orderedItem[1])}</li>`);
+      continue;
+    }
+
+    if (trimmed === "---" || trimmed === "***") {
+      closeList();
+      output.push("<hr>");
       continue;
     }
 
@@ -309,22 +333,35 @@ function renderMarkdown(body) {
   }
 
   closeList();
-  return output.join("") || '<p class="empty-state">Nothing to preview yet.</p>';
+  return output.join("") || "<p></p>";
 }
 
-function parseChecklistTasks(body) {
-  return String(body || "")
-    .split("\n")
-    .map((line, index) => {
-      const match = line.match(/^(\s*)-\s+\[([ xX])]\s+(.*)$/);
-      if (!match) return null;
-      return {
-        lineIndex: index,
-        checked: match[2].toLowerCase() === "x",
-        text: match[3].trim() || "Untitled task"
-      };
-    })
-    .filter(Boolean);
+// Parse checklist tasks from the WYSIWYG editor's HTML content.
+function parseChecklistTasks(html) {
+  const div = document.createElement("div");
+  div.innerHTML = String(html || "");
+  const tasks = [];
+  div.querySelectorAll("li.task-item, li.complete, input[data-task-check]").forEach((el) => {
+    // Walk up to find the li if we landed on the checkbox
+    const li = el.tagName === "LI" ? el : el.closest("li");
+    if (!li) return;
+    const checkbox = li.querySelector("input[type='checkbox']");
+    const checked = checkbox ? checkbox.checked : li.classList.contains("complete");
+    const text = (li.textContent || "").trim().replace(/^\[.\]\s*/, "") || "Untitled task";
+    // Avoid duplicates (both li and its checkbox would match)
+    if (!tasks.find((t) => t.li === li)) {
+      tasks.push({ li, checked, text });
+    }
+  });
+  return tasks;
+}
+
+function getEditorHtml() {
+  return elements.body.innerHTML || "";
+}
+
+function setEditorHtml(html) {
+  elements.body.innerHTML = String(html || "");
 }
 
 function currentDraft() {
@@ -332,8 +369,8 @@ function currentDraft() {
   return {
     notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
     title: elements.title.value,
-    body: elements.body.value,
-    bodyFormat: "markdown",
+    body: getEditorHtml(),
+    bodyFormat: "html",
     favorite: note?.favorite || false,
     tags: splitTags(elements.tags.value)
   };
@@ -431,9 +468,9 @@ function restoreDraftCache() {
   elements.notebook.value = draft.notebookId || "";
   elements.tags.value = (draft.tags || []).join(", ");
   elements.title.value = draft.title || "Untitled note";
-  elements.body.value = draft.body || "";
+  const html = draft.bodyFormat === "html" ? draft.body : markdownToHtml(draft.body);
+  setEditorHtml(html);
   renderTasks();
-  renderPreview();
   setStatus(`Restored local draft from ${formatDate(draft.cachedAt)}`);
   setCacheStatus("Draft restored", "Review and sync when ready");
   return true;
@@ -444,10 +481,12 @@ function selectNote(note) {
   elements.notebook.value = note?.notebookId || "";
   elements.tags.value = (note?.tags || []).join(", ");
   elements.title.value = note?.title || "Untitled note";
-  elements.body.value = note?.body || "";
+  const bodyHtml = note?.bodyFormat === "markdown"
+    ? markdownToHtml(note.body)
+    : (note?.body || "");
+  setEditorHtml(bodyHtml);
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
   renderTasks();
-  renderPreview();
   renderEditorActions(note);
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
@@ -586,7 +625,7 @@ function visibleNotes() {
     if (state.filter === "archive") return Boolean(note.archivedAt);
     if (note.archivedAt) return false;
     if (state.filter === "favorites") return note.favorite;
-    if (state.filter === "tasks") return parseChecklistTasks(note.body).length > 0;
+    if (state.filter === "tasks") return parseChecklistTasks(note.body).length > 0 || /<input[^>]+type="checkbox"/i.test(note.body);
     return true;
   });
 }
@@ -624,7 +663,7 @@ function updateNavigationState() {
 }
 
 function renderTasks() {
-  const tasks = parseChecklistTasks(elements.body.value);
+  const tasks = parseChecklistTasks(getEditorHtml());
   const complete = tasks.filter((task) => task.checked).length;
   elements.taskSummary.textContent = tasks.length
     ? `${complete} of ${tasks.length} complete`
@@ -635,96 +674,120 @@ function renderTasks() {
     return;
   }
 
-  elements.taskList.innerHTML = tasks.map((task) => `
-    <button class="task-item ${task.checked ? "complete" : ""}" type="button" data-task-line="${task.lineIndex}">
+  elements.taskList.innerHTML = tasks.map((task, index) => `
+    <button class="task-item ${task.checked ? "complete" : ""}" type="button" data-task-index="${index}">
       <span aria-hidden="true">${task.checked ? "[x]" : "[ ]"}</span>
       <span>${escapeHtml(task.text)}</span>
     </button>
   `).join("");
 }
 
-function renderPreview() {
-  elements.markdownPreview.innerHTML = renderMarkdown(elements.body.value);
+// Save the selection so toolbar button clicks don't lose it.
+let savedSelection = null;
+
+function saveSelection() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    savedSelection = sel.getRangeAt(0).cloneRange();
+  }
+}
+
+function restoreSelection() {
+  if (!savedSelection) return;
+  const sel = window.getSelection();
+  if (sel) {
+    sel.removeAllRanges();
+    sel.addRange(savedSelection);
+  }
+}
+
+function editorExec(command, value = null) {
+  elements.body.focus();
+  restoreSelection();
+  document.execCommand(command, false, value);
+  saveDraftCache();
+  renderTasks();
 }
 
 function insertChecklistItem() {
-  const textarea = elements.body;
-  const { selectionStart, selectionEnd, value } = textarea;
-  const needsLeadingLine = selectionStart > 0 && value[selectionStart - 1] !== "\n";
-  const needsTrailingLine = selectionEnd < value.length && value[selectionEnd] !== "\n";
-  const insertion = `${needsLeadingLine ? "\n" : ""}- [ ] ${needsTrailingLine ? "\n" : ""}`;
+  elements.body.focus();
+  restoreSelection();
 
-  textarea.setRangeText(insertion, selectionStart, selectionEnd, "end");
-  const cursorOffset = needsTrailingLine ? insertion.length - 1 : insertion.length;
-  textarea.selectionStart = selectionStart + cursorOffset;
-  textarea.selectionEnd = textarea.selectionStart;
-  textarea.focus();
+  // Insert a new list item with a checkbox using execCommand insertHTML.
+  const html = '<ul class="checklist"><li class="task-item"><input type="checkbox" data-task-check> </li></ul>';
+  document.execCommand("insertHTML", false, html);
   saveDraftCache();
   renderTasks();
-  renderPreview();
 }
 
-function toggleTaskLine(lineIndex) {
-  const lines = elements.body.value.split("\n");
-  const line = lines[lineIndex];
-  if (!line) return;
+function toggleTaskAtIndex(taskIndex) {
+  const tasks = parseChecklistTasks(getEditorHtml());
+  const task = tasks[taskIndex];
+  if (!task || !task.li) return;
 
-  lines[lineIndex] = line.replace(/^(\s*-\s+\[)([ xX])(\]\s+.*)$/, (_, prefix, checked, suffix) => (
-    `${prefix}${checked.toLowerCase() === "x" ? " " : "x"}${suffix}`
-  ));
-  elements.body.value = lines.join("\n");
-  saveDraftCache();
-  renderTasks();
-  renderPreview();
-}
+  // Find the matching li in the live DOM
+  const allLis = elements.body.querySelectorAll("li.task-item, li.complete");
+  const liveLi = allLis[taskIndex];
+  if (!liveLi) return;
 
-function applyMarkdownFormat(format) {
-  const textarea = elements.body;
-  const { selectionStart, selectionEnd, value } = textarea;
-  const selected = value.slice(selectionStart, selectionEnd);
-  const fallback = {
-    heading: "Heading",
-    bold: "bold text",
-    italic: "italic text",
-    bullet: "List item",
-    quote: "Quoted text",
-    code: "code",
-    link: "link text"
-  }[format] || "";
-  const text = selected || fallback;
-  const replacements = {
-    heading: `## ${text}`,
-    bold: `**${text}**`,
-    italic: `*${text}*`,
-    bullet: `- ${text}`,
-    quote: `> ${text}`,
-    code: `\`${text}\``,
-    link: `[${text}](https://)`
-  };
-  const replacement = replacements[format] || text;
-  const needsLeadingLine = ["heading", "bullet", "quote"].includes(format)
-    && selectionStart > 0
-    && value[selectionStart - 1] !== "\n";
-  const insertion = `${needsLeadingLine ? "\n" : ""}${replacement}`;
-
-  textarea.setRangeText(insertion, selectionStart, selectionEnd, "select");
-  textarea.focus();
-  saveDraftCache();
-  renderTasks();
-  renderPreview();
-}
-
-function togglePreview() {
-  const showing = elements.markdownPreview.hidden;
-  elements.markdownPreview.hidden = !showing;
-  elements.body.hidden = showing;
-  elements.togglePreview.classList.toggle("active", showing);
-  elements.togglePreview.textContent = showing ? "Write" : "Preview";
-  if (showing) {
-    renderPreview();
-  } else {
-    elements.body.focus();
+  const checkbox = liveLi.querySelector("input[type='checkbox']");
+  const isChecked = checkbox ? checkbox.checked : liveLi.classList.contains("complete");
+  if (checkbox) {
+    checkbox.checked = !isChecked;
   }
+  liveLi.classList.toggle("complete", !isChecked);
+  liveLi.classList.toggle("task-item", isChecked);
+  saveDraftCache();
+  renderTasks();
+}
+
+function applyWysiwygFormat(format) {
+  elements.body.focus();
+  restoreSelection();
+
+  if (format === "bold") { document.execCommand("bold", false, null); }
+  else if (format === "italic") { document.execCommand("italic", false, null); }
+  else if (format === "underline") { document.execCommand("underline", false, null); }
+  else if (format === "heading") {
+    // Toggle between h2 and normal paragraph
+    const sel = window.getSelection();
+    const block = sel?.anchorNode ? sel.anchorNode.parentElement?.closest("h2, h3, h4, p, div") : null;
+    if (block && /^H[2-4]$/.test(block.tagName)) {
+      document.execCommand("formatBlock", false, "p");
+    } else {
+      document.execCommand("formatBlock", false, "h2");
+    }
+  }
+  else if (format === "bullet") { document.execCommand("insertUnorderedList", false, null); }
+  else if (format === "ordered") { document.execCommand("insertOrderedList", false, null); }
+  else if (format === "quote") { document.execCommand("formatBlock", false, "blockquote"); }
+  else if (format === "code") {
+    const sel = window.getSelection();
+    const selected = sel?.toString() || "";
+    if (selected) {
+      document.execCommand("insertHTML", false, `<code>${escapeHtml(selected)}</code>`);
+    } else {
+      document.execCommand("insertHTML", false, "<code>code</code>");
+    }
+  }
+  else if (format === "link") {
+    const sel = window.getSelection();
+    const selected = sel?.toString() || "";
+    const url = window.prompt("URL:", "https://");
+    if (url && isSafeUrl(url)) {
+      if (selected) {
+        document.execCommand("createLink", false, url);
+      } else {
+        document.execCommand("insertHTML", false, `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`);
+      }
+    }
+  }
+  else if (format === "hr") {
+    document.execCommand("insertHTML", false, "<hr><p></p>");
+  }
+
+  saveDraftCache();
+  renderTasks();
 }
 
 function renderAttachments() {
@@ -888,8 +951,8 @@ async function updateCurrentNote(patch) {
     body: JSON.stringify({
       notebookId: elements.notebook.value ? Number(elements.notebook.value) : null,
       title: elements.title.value,
-      body: elements.body.value,
-      bodyFormat: "markdown",
+      body: getEditorHtml(),
+      bodyFormat: "html",
       tags: splitTags(elements.tags.value),
       favorite: patch.favorite ?? note.favorite
     })
@@ -1523,10 +1586,9 @@ function createNewNote() {
   elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
   elements.tags.value = "";
   elements.title.value = "Untitled note";
-  elements.body.value = "";
+  setEditorHtml("");
   setStatus("New draft");
   renderTasks();
-  renderPreview();
   renderEditorActions(null);
   renderNotes();
   elements.title.focus();
@@ -1573,12 +1635,6 @@ function handleGlobalShortcuts(event) {
     return;
   }
 
-  if (modifierPressed(event) && key === "p") {
-    event.preventDefault();
-    togglePreview();
-    return;
-  }
-
   if (modifierPressed(event) && key === "enter") {
     event.preventDefault();
     insertChecklistItem();
@@ -1586,8 +1642,11 @@ function handleGlobalShortcuts(event) {
   }
 
   if (modifierPressed(event) && shortcutFormats[key]) {
+    // Let the browser handle bold/italic/underline natively in the editor
+    // when the editor is focused; only intercept when editor is NOT focused.
+    if (document.activeElement === elements.body) return;
     event.preventDefault();
-    applyMarkdownFormat(shortcutFormats[key]);
+    applyWysiwygFormat(shortcutFormats[key]);
     return;
   }
 
@@ -1654,9 +1713,13 @@ function bindEvents() {
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
   elements.formatButtons.forEach((button) => {
-    button.addEventListener("click", () => applyMarkdownFormat(button.dataset.format));
+    // mousedown fires before the editor loses focus, so we save the selection first
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault(); // prevent editor losing focus
+      saveSelection();
+    });
+    button.addEventListener("click", () => applyWysiwygFormat(button.dataset.format));
   });
-  elements.togglePreview.addEventListener("click", togglePreview);
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
   elements.deleteNote.addEventListener("click", deleteCurrentNote);
@@ -1686,7 +1749,17 @@ function bindEvents() {
   elements.body.addEventListener("input", () => {
     saveDraftCache();
     renderTasks();
-    renderPreview();
+  });
+  // Track selection so toolbar knows where to insert formatting.
+  elements.body.addEventListener("keyup", saveSelection);
+  elements.body.addEventListener("mouseup", saveSelection);
+  elements.body.addEventListener("selectionchange", saveSelection);
+  // Handle checkbox clicks inside the editor directly.
+  elements.body.addEventListener("click", (event) => {
+    if (event.target.matches("input[data-task-check]")) {
+      saveDraftCache();
+      renderTasks();
+    }
   });
   elements.notebook.addEventListener("change", saveDraftCache);
   elements.tags.addEventListener("input", saveDraftCache);
@@ -1770,9 +1843,9 @@ function bindEvents() {
   });
 
   elements.taskList.addEventListener("click", (event) => {
-    const task = event.target.closest("[data-task-line]");
+    const task = event.target.closest("[data-task-index]");
     if (!task) return;
-    toggleTaskLine(Number(task.dataset.taskLine));
+    toggleTaskAtIndex(Number(task.dataset.taskIndex));
   });
 
   elements.attachmentList.addEventListener("click", (event) => {

@@ -31,7 +31,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+[contenteditable] {
   font: inherit;
 }
 
@@ -497,7 +498,8 @@ h1 {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+[contenteditable]:focus-visible {
   outline: 3px solid rgba(62, 128, 109, 0.28);
   outline-offset: 2px;
 }
@@ -619,72 +621,127 @@ textarea:focus-visible {
   background: var(--soft);
 }
 
-textarea {
+/* WYSIWYG editor */
+.wysiwyg-editor {
   width: 100%;
   min-height: 58vh;
-  resize: vertical;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--ink);
   font-size: 1.04rem;
   line-height: 1.75;
+  cursor: text;
 }
 
-.markdown-preview {
-  min-height: 58vh;
-  color: var(--ink);
-  font-size: 1.04rem;
-  line-height: 1.75;
+.wysiwyg-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
 }
 
-.markdown-preview h2,
-.markdown-preview h3,
-.markdown-preview h4 {
+.wysiwyg-editor:focus {
+  outline: none;
+}
+
+/* Rich text content styles */
+.wysiwyg-editor h2,
+.wysiwyg-editor h3,
+.wysiwyg-editor h4 {
   margin: 1.2rem 0 0.45rem;
   line-height: 1.2;
 }
 
-.markdown-preview p,
-.markdown-preview ul,
-.markdown-preview blockquote {
-  margin: 0 0 1rem;
+.wysiwyg-editor p {
+  margin: 0 0 0.75rem;
 }
 
-.markdown-preview ul {
-  padding-left: 1.25rem;
+.wysiwyg-editor p:last-child {
+  margin-bottom: 0;
 }
 
-.markdown-preview li.complete {
+.wysiwyg-editor ul,
+.wysiwyg-editor ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.wysiwyg-editor li {
+  margin: 0.2rem 0;
+}
+
+.wysiwyg-editor ul.checklist {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+
+.wysiwyg-editor ul.checklist li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wysiwyg-editor ul.checklist input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.wysiwyg-editor li.complete {
   color: var(--muted);
   text-decoration: line-through;
 }
 
-.markdown-preview blockquote {
-  border-left: 3px solid var(--line);
-  padding-left: 12px;
+.wysiwyg-editor blockquote {
+  margin: 0 0 0.75rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
   color: var(--muted);
+  font-style: italic;
 }
 
-.markdown-preview code {
+.wysiwyg-editor code {
   border-radius: 6px;
-  padding: 2px 5px;
+  padding: 2px 6px;
   background: var(--soft);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.92em;
+  font-size: 0.9em;
+  color: var(--accent-strong);
 }
 
-.markdown-preview a {
-  color: var(--blue);
-  font-weight: 700;
-}
-
-.preview-check {
-  margin-right: 8px;
-  color: var(--accent);
+.wysiwyg-editor pre {
+  margin: 0 0 0.75rem;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--soft);
+  overflow-x: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.88rem;
+  font-size: 0.9em;
+  line-height: 1.55;
+}
+
+.wysiwyg-editor a {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wysiwyg-editor hr {
+  margin: 1.25rem 0;
+  border: 0;
+  border-top: 2px solid var(--line);
+}
+
+.wysiwyg-editor strong {
   font-weight: 800;
+}
+
+.wysiwyg-editor em {
+  font-style: italic;
 }
 
 .context-panel {
@@ -1140,7 +1197,7 @@ kbd {
     padding: 20px;
   }
 
-  textarea {
+  .wysiwyg-editor {
     min-height: 42vh;
   }
 

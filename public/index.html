@@ -139,7 +139,6 @@
             <button class="secondary-action" type="button" data-action="insert-checklist">Checklist</button>
             <button class="secondary-action quiet-action" type="button" data-action="archive-note">Archive</button>
             <button class="secondary-action danger-action" type="button" data-action="delete-note">Delete</button>
-            <button class="secondary-action quiet-action" type="button" data-action="toggle-preview">Preview</button>
             <button class="secondary-action" type="button" data-action="save-note">Sync</button>
           </div>
         </header>
@@ -166,21 +165,25 @@
             <span data-note-meta>Not saved yet</span>
           </div>
           <div class="format-toolbar" aria-label="Text formatting">
+            <button type="button" data-format="bold"><strong>B</strong></button>
+            <button type="button" data-format="italic"><em>I</em></button>
+            <button type="button" data-format="underline"><u>U</u></button>
             <button type="button" data-format="heading">H2</button>
-            <button type="button" data-format="bold">B</button>
-            <button type="button" data-format="italic">I</button>
             <button type="button" data-format="bullet">List</button>
+            <button type="button" data-format="ordered">1.</button>
             <button type="button" data-format="quote">Quote</button>
             <button type="button" data-format="code">Code</button>
             <button type="button" data-format="link">Link</button>
+            <button type="button" data-format="hr">Line</button>
           </div>
-          <textarea aria-label="Note body" data-note-body>The notes API is ready for MySQL-backed create, update, search, and soft delete.
-
-- Import database/schema.sql
-- Copy .env.example to .env
-- Fill in your MySQL credentials
-- Run npm install before starting the app</textarea>
-          <div class="markdown-preview" data-markdown-preview hidden></div>
+          <div
+            class="wysiwyg-editor"
+            contenteditable="true"
+            aria-label="Note body"
+            aria-multiline="true"
+            data-note-body
+            data-placeholder="Start writing…"
+          ></div>
         </article>
       </section>
 
@@ -250,8 +253,12 @@
           <div class="shortcut-list" data-shortcuts-list>
             <span><kbd>Cmd/Ctrl</kbd><kbd>S</kbd> Sync</span>
             <span><kbd>Cmd/Ctrl</kbd><kbd>K</kbd> Search</span>
-            <span><kbd>Cmd/Ctrl</kbd><kbd>N</kbd> New</span>
-            <span><kbd>Cmd/Ctrl</kbd><kbd>Down</kbd> Next note</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>N</kbd> New note</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>B</kbd> Bold</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>I</kbd> Italic</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>U</kbd> Underline</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>Enter</kbd> Checklist</span>
+            <span><kbd>Cmd/Ctrl</kbd><kbd>↓</kbd> Next note</span>
           </div>
         </section>
 
