@@ -17,12 +17,20 @@ This first shell includes:
 ```bash
 cp .env.example .env
 npm install
+npm run verify
 npm run dev
 ```
 
 Open `http://localhost:3000`.
 
 For hosting environments that expect the app to bind to all interfaces, set `EDGE_NOTE_HOST=0.0.0.0`.
+
+## Verification
+
+- `npm run check` verifies JavaScript syntax.
+- `npm run verify` checks syntax plus the expected env keys, database tables, and UI hooks.
+- Use [docs/smoke-test.md](docs/smoke-test.md) for the manual runtime checklist.
+- Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
 
 ## Useful Routes
 
