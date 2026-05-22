@@ -20,6 +20,7 @@ const state = {
   tags: [],
   conflicts: [],
   localDraftRestored: false,
+  mobilePanel: "home",
   selectedId: null,
   pendingSave: false
 };
@@ -97,6 +98,7 @@ const elements = {
   noteListPanel: document.querySelector("[data-note-list-panel]"),
   editorPanel: document.querySelector(".editor"),
   contextPanel: document.querySelector(".context-panel"),
+  mobileTabs: document.querySelector("[data-mobile-tabs]"),
   searchBar: document.querySelector("[data-search-bar]"),
   noteListFocusSearch: document.querySelector("[data-action='focus-search']"),
   confirmSaveSearch: document.querySelector("[data-action='confirm-save-search']")
@@ -266,6 +268,95 @@ function isSafeUrl(value) {
   }
 }
 
+function sanitizeHtml(html) {
+  const root = document.createElement("div");
+  root.innerHTML = String(html || "");
+  const allowedTags = new Set([
+    "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "input",
+    "li", "ol", "p", "pre", "strong", "u", "ul"
+  ]);
+  const classAllowList = {
+    li: new Set(["complete", "task-item"]),
+    ul: new Set(["checklist"])
+  };
+
+  function unwrap(element) {
+    element.replaceWith(...Array.from(element.childNodes));
+  }
+
+  function sanitizeElement(element) {
+    const tag = element.tagName.toLowerCase();
+    Array.from(element.childNodes).forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        sanitizeElement(child);
+      } else if (child.nodeType !== Node.TEXT_NODE) {
+        child.remove();
+      }
+    });
+
+    if (tag === "script" || tag === "style" || tag === "iframe" || tag === "object") {
+      element.remove();
+      return;
+    }
+
+    if (!allowedTags.has(tag)) {
+      unwrap(element);
+      return;
+    }
+
+    const safeClasses = classAllowList[tag]
+      ? Array.from(element.classList).filter((name) => classAllowList[tag].has(name))
+      : [];
+    const safeHref = tag === "a" ? element.getAttribute("href") : null;
+    const isCheckbox = tag === "input" && element.matches("input[type='checkbox']");
+    const isChecked = isCheckbox && element.checked;
+
+    Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name));
+
+    if (safeClasses.length) {
+      element.className = safeClasses.join(" ");
+    }
+
+    if (tag === "a") {
+      if (safeHref && isSafeUrl(safeHref)) {
+        element.setAttribute("href", safeHref);
+        element.setAttribute("rel", "noopener noreferrer");
+      } else {
+        unwrap(element);
+      }
+      return;
+    }
+
+    if (tag === "input") {
+      if (!isCheckbox) {
+        element.remove();
+        return;
+      }
+      element.setAttribute("type", "checkbox");
+      element.setAttribute("data-task-check", "");
+      if (isChecked) element.setAttribute("checked", "");
+    }
+  }
+
+  Array.from(root.childNodes).forEach((child) => {
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      sanitizeElement(child);
+    } else if (child.nodeType !== Node.TEXT_NODE) {
+      child.remove();
+    }
+  });
+
+  return root.innerHTML;
+}
+
+function syncEditorCheckboxAttributes(root = elements.body) {
+  root.querySelectorAll("input[data-task-check], input[type='checkbox']").forEach((input) => {
+    input.setAttribute("type", "checkbox");
+    input.setAttribute("data-task-check", "");
+    input.toggleAttribute("checked", input.checked);
+  });
+}
+
 // Converts legacy Markdown body (body_format=markdown) to HTML for display in the WYSIWYG editor.
 function renderInlineMarkdown(value) {
   let html = escapeHtml(value);
@@ -371,11 +462,16 @@ function parseChecklistTasks(html) {
 }
 
 function getEditorHtml() {
-  return elements.body.innerHTML || "";
+  syncEditorCheckboxAttributes();
+  const cleanHtml = sanitizeHtml(elements.body.innerHTML || "");
+  if (cleanHtml !== elements.body.innerHTML) {
+    elements.body.innerHTML = cleanHtml;
+  }
+  return cleanHtml;
 }
 
 function setEditorHtml(html) {
-  elements.body.innerHTML = String(html || "");
+  elements.body.innerHTML = sanitizeHtml(html);
 }
 
 function currentDraft() {
@@ -492,6 +588,7 @@ function restoreDraftCache() {
 
 function selectNote(note) {
   state.selectedId = note?.id || null;
+  if (note) setMobilePanel("editor");
   elements.notebook.value = note?.notebookId || "";
   elements.tags.value = (note?.tags || []).join(", ");
   elements.title.value = note?.title || "Untitled note";
@@ -696,6 +793,19 @@ function updateNavigationState() {
 
   elements.tagsNav.querySelectorAll("[data-tag-filter]").forEach((link) => {
     link.classList.toggle("active", link.dataset.tagFilter === state.tagFilter);
+  });
+
+  setMobilePanel(isHome ? "home" : state.mobilePanel === "home" ? "list" : state.mobilePanel);
+}
+
+function setMobilePanel(panel) {
+  const allowedPanels = new Set(["home", "list", "editor", "tools"]);
+  state.mobilePanel = allowedPanels.has(panel) ? panel : "list";
+  document.body.dataset.mobilePanel = state.mobilePanel;
+  elements.mobileTabs?.querySelectorAll("[data-mobile-panel]").forEach((button) => {
+    const active = button.dataset.mobilePanel === state.mobilePanel;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
   });
 }
 
@@ -1712,6 +1822,11 @@ async function checkExportStatus() {
 function createNewNote() {
   state.localDraftRestored = true;
   state.selectedId = null;
+  if (state.filter === "home") {
+    state.filter = "all";
+    updateNavigationState();
+  }
+  setMobilePanel("editor");
   elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
   elements.tags.value = "";
   elements.title.value = "Untitled note";
@@ -1847,6 +1962,36 @@ function bindEvents() {
       }
       createNewNote();
     });
+  });
+
+  elements.mobileTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-mobile-panel]");
+    if (!button) return;
+    const panel = button.dataset.mobilePanel;
+
+    if (panel === "home") {
+      state.filter = "home";
+      state.notebookFilter = null;
+      state.tagFilter = null;
+      updateNavigationState();
+      renderHomeView();
+      return;
+    }
+
+    if (state.filter === "home") {
+      state.filter = "all";
+      state.notebookFilter = null;
+      state.tagFilter = null;
+      updateNavigationState();
+      loadNotes();
+    }
+
+    if (panel === "editor" && !state.selectedId && !state.localDraftRestored) {
+      createNewNote();
+      return;
+    }
+
+    setMobilePanel(panel);
   });
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
