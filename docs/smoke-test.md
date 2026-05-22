@@ -2,7 +2,7 @@
 
 Run this checklist after schema import and before any deployment handoff.
 
-## Setup
+## 1. Setup
 
 1. Run `npm install`.
 2. Copy `.env.example` to `.env`.
@@ -10,32 +10,85 @@ Run this checklist after schema import and before any deployment handoff.
 4. Import `database/schema.sql`.
 5. Import `database/seed.sql`.
 6. Run `npm run verify`.
-7. Run `npm run dev`.
+7. For production values, run `npm run verify:prod-env`.
+8. Run `npm run dev` locally or restart the Hostinger Node app in production.
 
-## Browser Flow
-
-1. Open `http://localhost:3000`.
-2. Set the owner password if prompted.
-3. Log out and log back in.
-4. Create a note.
-5. Edit the note title and body.
-6. Add a notebook and tags.
-7. Sync/save the note.
-8. Refresh the page and confirm the note reloads.
-9. Upload a small attachment.
-10. Download the attachment from the attachment list.
-11. Run JSON export.
-12. Run Markdown export.
-13. If `AI_ENDPOINT_URL` is configured, run Summarize and Suggest tags.
-
-## API Flow
+## 2. Basic API
 
 1. `GET /api/health` returns `ok: true`.
-2. `GET /api/auth/status` returns authenticated state.
-3. `GET /api/notes` returns the saved note.
-4. `GET /api/sync/pull?cursor=0` returns sync changes.
-5. `POST /api/sync/push` returns applied or conflict results for note changes.
+2. `GET /api/config` returns attachment limit, sync mode, and AI state.
+3. `GET /api/auth/status` returns either setup required or authenticated state.
+
+## 3. Auth
+
+1. Open the app root.
+2. Set the owner password if prompted.
+3. Log out and log back in.
+4. Open Security.
+5. Change the password.
+6. Confirm the app logs out.
+7. Log in with the new password.
+
+## 4. Notes And Organization
+
+1. Create a notebook.
+2. Create a note inside that notebook.
+3. Add a title, body, tags, and at least one checklist item.
+4. Save the note.
+5. Refresh the page and confirm the note reloads.
+6. Click notebook and tag filters.
+7. Click Favorites, Tasks, and Archive views.
+8. Favorite the note.
+9. Archive and restore the note.
+10. Delete a temporary note and confirm it disappears.
+
+## 5. Editor
+
+1. Use H2, bold, italic, list, quote, code, and link formatting controls.
+2. Toggle Preview.
+3. Confirm headings, inline formatting, links, quotes, lists, and checklist items render.
+4. Toggle back to Write mode and continue editing.
+
+## 6. History
+
+1. Save a note.
+2. Edit the body and save again.
+3. Confirm the History panel shows a prior version.
+4. Restore the prior version.
+5. Confirm the current version is also preserved in History.
+
+## 7. Attachments
+
+1. Upload a small image.
+2. Confirm it appears in the attachment list.
+3. Download it from the attachment list.
+4. Upload a non-image file.
+5. Confirm the generic file row renders and downloads.
+
+## 8. Export
+
+1. Run JSON export.
+2. Run Markdown export.
+3. Run Archive export.
+4. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
+
+## 9. Sync API
+
+1. `GET /api/sync/pull?cursor=0` returns sync changes.
+2. `POST /api/sync/push` can create a note.
+3. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
+4. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
+
+## 10. AI
+
+Only run this section when `AI_ENDPOINT_URL` is configured.
+
+1. Run Summarize.
+2. Run Extract tasks.
+3. Run Suggest tags.
+4. Run Create title.
+5. Confirm repeated actions can return cached output.
 
 ## Expected Result
 
-The app can create, edit, reload, search, export, attach files, and preserve cached drafts without errors.
+The app can authenticate, create, edit, organize, search, version, export, attach files, change password, and preserve cached drafts without visible errors.

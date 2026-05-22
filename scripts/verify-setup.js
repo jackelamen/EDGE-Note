@@ -39,6 +39,8 @@ const requiredUiHooks = [
   "data-note-notebook",
   "data-note-tags",
   "data-attachment-file",
+  "data-history-list",
+  "data-password-form",
   "data-ai-action",
   "data-export"
 ];

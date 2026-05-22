@@ -14,6 +14,7 @@
     "start": "node src/server.js",
     "dev": "EDGE_NOTE_ENV=development node src/server.js",
     "check": "for file in src/*.js public/*.js scripts/*.js; do node --check \"$file\"; done",
-    "verify": "npm run check && node scripts/verify-setup.js"
+    "verify": "npm run check && node scripts/verify-setup.js",
+    "verify:prod-env": "node scripts/check-production-env.js"
   }
 }

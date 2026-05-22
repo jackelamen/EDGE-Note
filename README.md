@@ -29,6 +29,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 
 - `npm run check` verifies JavaScript syntax.
 - `npm run verify` checks syntax plus the expected env keys, database tables, and UI hooks.
+- `npm run verify:prod-env` checks required production environment variables.
 - Use [docs/smoke-test.md](docs/smoke-test.md) for the manual runtime checklist.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
 
@@ -108,9 +109,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add hosted deployment checklist.
-2. Add mobile cache schema.
-3. Add generated attachment thumbnails.
+1. Add mobile cache schema.
+2. Add generated attachment thumbnails.
+3. Add attachment delete/replace controls.
 
 ## Hostinger Notes
 
