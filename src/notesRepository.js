@@ -68,29 +68,88 @@ function noteParams(userId, input) {
   };
 }
 
-export async function listNotes({ userId, search = "", limit = 50 }) {
+export async function listNotes({
+  userId,
+  search = "",
+  limit = 50,
+  notebookId = null,
+  tag = "",
+  favorite = false,
+  tasks = false,
+  archived = "all"
+}) {
   const cleanLimit = Math.min(Math.max(Number(limit) || 50, 1), 1000);
   const term = String(search || "").trim();
+  const cleanTag = String(tag || "").trim().replace(/^#/, "").toLowerCase();
+  const params = {
+    userId,
+    likeTerm: `%${term}%`,
+    notebookId: Number(notebookId) || null,
+    tag: cleanTag,
+    booleanTerm: term ? `${term.split(/\s+/).map((word) => `${word}*`).join(" ")}` : ""
+  };
+  const where = [
+    "n.user_id = :userId",
+    "n.deleted_at IS NULL"
+  ];
+
+  if (params.notebookId) {
+    where.push("n.notebook_id = :notebookId");
+  }
+
+  if (cleanTag) {
+    where.push("FIND_IN_SET(:tag, ts.tagsCsv)");
+  }
+
+  if (favorite) {
+    where.push("n.favorite = 1");
+  }
+
+  if (tasks) {
+    where.push("(n.body LIKE '%- [ ]%' OR n.body LIKE '%- [x]%' OR n.body LIKE '%- [X]%')");
+  }
+
+  if (archived === "only") {
+    where.push("n.archived_at IS NOT NULL");
+  } else if (archived === "active") {
+    where.push("n.archived_at IS NULL");
+  }
+
+  if (term) {
+    where.push("(n.title LIKE :likeTerm OR n.body LIKE :likeTerm OR ts.tagsCsv LIKE :likeTerm)");
+  }
+  const whereSql = where.join("\n       AND ");
 
   if (term) {
     return query(
       `${listSelect}
-       WHERE n.user_id = :userId
-         AND n.deleted_at IS NULL
-         AND (n.title LIKE :likeTerm OR n.body LIKE :likeTerm OR ts.tagsCsv LIKE :likeTerm)
-       ORDER BY n.updated_at DESC
+       WHERE ${whereSql}
+       ORDER BY
+         CASE
+           WHEN n.title = :searchTerm THEN 100
+           WHEN n.title LIKE :prefixTerm THEN 80
+           WHEN n.title LIKE :likeTerm THEN 60
+           WHEN ts.tagsCsv LIKE :likeTerm THEN 45
+           WHEN n.body LIKE :likeTerm THEN 20
+           ELSE 0
+         END DESC,
+         MATCH(n.title, n.body) AGAINST(:booleanTerm IN BOOLEAN MODE) DESC,
+         n.updated_at DESC
        LIMIT ${cleanLimit}`,
-      { userId, likeTerm: `%${term}%` }
+      {
+        ...params,
+        searchTerm: term,
+        prefixTerm: `${term}%`
+      }
     ).then((rows) => rows.map(mapNote));
   }
 
   return query(
     `${listSelect}
-     WHERE n.user_id = :userId
-       AND n.deleted_at IS NULL
+     WHERE ${whereSql}
      ORDER BY n.updated_at DESC
      LIMIT ${cleanLimit}`,
-    { userId }
+    params
   ).then((rows) => rows.map(mapNote));
 }
 

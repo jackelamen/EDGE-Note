@@ -37,10 +37,13 @@ Run this checklist after schema import and before any deployment handoff.
 4. Save the note.
 5. Refresh the page and confirm the note reloads.
 6. Click notebook and tag filters.
-7. Click Favorites, Tasks, and Archive views.
-8. Favorite the note.
-9. Archive and restore the note.
-10. Delete a temporary note and confirm it disappears.
+7. Search for a title word and confirm the result count changes.
+8. Search for a body word and confirm the note preview shows matching context.
+9. Clear search.
+10. Click Favorites, Tasks, and Archive views.
+11. Favorite the note.
+12. Archive and restore the note.
+13. Delete a temporary note and confirm it disappears.
 
 ## 5. Editor
 

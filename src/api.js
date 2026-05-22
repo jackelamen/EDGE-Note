@@ -461,6 +461,11 @@ export async function handleApi(req, res, url) {
         const notes = await listNotes({
           userId,
           search: url.searchParams.get("q") || "",
+          notebookId: url.searchParams.get("notebookId") || null,
+          tag: url.searchParams.get("tag") || "",
+          favorite: url.searchParams.get("favorite") === "1",
+          tasks: url.searchParams.get("tasks") === "1",
+          archived: url.searchParams.get("archived") || "all",
           limit: url.searchParams.get("limit") || 50
         });
         sendJson(res, 200, { notes, cursor: null });

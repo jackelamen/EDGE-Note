@@ -34,6 +34,7 @@ const requiredUiHooks = [
   "data-auth-panel",
   "data-app-shell",
   "data-notes-list",
+  "data-search-summary",
   "data-note-title",
   "data-note-body",
   "data-note-notebook",

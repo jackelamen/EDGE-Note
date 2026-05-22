@@ -62,7 +62,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `DELETE /api/attachments/:id` deletes an attachment file
 - `GET /api/attachments/:id/download` lazily downloads one attachment
 - `POST /api/notes/:id/ai/:action` runs a cached manual AI action
-- `GET /api/notes` lists notes for the first owner account
+- `GET /api/notes` lists notes for the first owner account and supports `q`, `notebookId`, `tag`, `favorite`, `tasks`, and `archived` filters
 - `POST /api/notes` creates a note
 - `GET /api/notes/:id` reads one note
 - `PUT /api/notes/:id` updates a note and stores the previous body as a version
@@ -117,7 +117,7 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 1. Add generated attachment thumbnails.
 2. Add conflict resolution UI with side-by-side local/server text.
-3. Add attachment drag-and-drop upload.
+3. Add saved searches.
 
 ## Hostinger Notes
 

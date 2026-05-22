@@ -61,6 +61,8 @@ const elements = {
   passwordStatus: document.querySelector("[data-password-status]"),
   saveNote: document.querySelector("[data-action='save-note']"),
   search: document.querySelector("[data-notes-search]"),
+  searchSummary: document.querySelector("[data-search-summary]"),
+  clearSearch: document.querySelector("[data-action='clear-search']"),
   tags: document.querySelector("[data-note-tags]"),
   tagsList: document.querySelector("[data-tags-list]"),
   tagsNav: document.querySelector("[data-tags-nav]"),
@@ -135,6 +137,19 @@ function escapeHtml(value) {
 function notePreview(note) {
   const preview = String(note.body || "").replace(/\s+/g, " ").trim();
   return preview || "No body yet";
+}
+
+function searchSnippet(note) {
+  const term = elements.search.value.trim().toLowerCase();
+  const body = String(note.body || "").replace(/\s+/g, " ").trim();
+  if (!term || !body.toLowerCase().includes(term)) {
+    return notePreview(note);
+  }
+
+  const index = body.toLowerCase().indexOf(term);
+  const start = Math.max(index - 45, 0);
+  const end = Math.min(index + term.length + 75, body.length);
+  return `${start ? "... " : ""}${body.slice(start, end)}${end < body.length ? " ..." : ""}`;
 }
 
 function formatDate(value) {
@@ -385,6 +400,17 @@ function visibleNotes() {
   });
 }
 
+function noteMatchesSearch(note) {
+  const term = elements.search.value.trim().toLowerCase();
+  if (!term) return true;
+  return [
+    note.title,
+    note.body,
+    note.notebookName,
+    ...(note.tags || [])
+  ].some((value) => String(value || "").toLowerCase().includes(term));
+}
+
 function updateNavigationState() {
   elements.listTitle.textContent = viewLabel();
   elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
@@ -611,15 +637,19 @@ function renderCollections() {
 }
 
 function renderNotes() {
-  const notes = visibleNotes();
+  const notes = visibleNotes().filter(noteMatchesSearch);
+  const search = elements.search.value.trim();
   updateNavigationState();
+  elements.searchSummary.textContent = search
+    ? `${notes.length} result${notes.length === 1 ? "" : "s"} for "${search}"`
+    : `${notes.length} note${notes.length === 1 ? "" : "s"} in ${viewLabel()}`;
 
   if (!notes.length) {
     elements.list.innerHTML = `
       <article class="note-card active">
         <span class="tag">Empty</span>
         <h2>No matching notes</h2>
-        <p>Create a note or switch views to see more.</p>
+        <p>${search ? "Try a different search or clear the search field." : "Create a note or switch views to see more."}</p>
         <footer>
           <span>Ready</span>
           <span>${escapeHtml(viewLabel())}</span>
@@ -633,7 +663,7 @@ function renderNotes() {
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}">
       <span class="tag">${escapeHtml(note.favorite ? "Favorite" : note.tags?.[0] || note.notebookName || "Note")}</span>
       <h2>${escapeHtml(note.title || "Untitled note")}</h2>
-      <p>${escapeHtml(notePreview(note))}</p>
+      <p>${escapeHtml(searchSnippet(note))}</p>
       <footer>
         <span>${escapeHtml(formatDate(note.updatedAt))}</span>
         <span>v${note.syncVersion || 1}</span>
@@ -913,6 +943,15 @@ async function loadNotes() {
   const params = new URLSearchParams();
   const search = elements.search.value.trim();
   if (search) params.set("q", search);
+  if (state.notebookFilter) params.set("notebookId", state.notebookFilter);
+  if (state.tagFilter) params.set("tag", state.tagFilter);
+  if (state.filter === "favorites") params.set("favorite", "1");
+  if (state.filter === "tasks") params.set("tasks", "1");
+  if (state.filter === "archive") {
+    params.set("archived", "only");
+  } else {
+    params.set("archived", "active");
+  }
 
   try {
     const payload = await requestJson(`/api/notes${params.size ? `?${params}` : ""}`);
@@ -1280,6 +1319,11 @@ function bindEvents() {
     elements.search.searchTimer = window.setTimeout(loadNotes, 250);
   });
 
+  elements.clearSearch.addEventListener("click", () => {
+    elements.search.value = "";
+    loadNotes();
+  });
+
   elements.mainNav.addEventListener("click", (event) => {
     const link = event.target.closest("[data-view-filter]");
     if (!link) return;
@@ -1287,7 +1331,7 @@ function bindEvents() {
     state.filter = link.dataset.viewFilter;
     state.notebookFilter = null;
     state.tagFilter = null;
-    renderNotes();
+    loadNotes();
   });
 
   elements.notebooksList.addEventListener("click", (event) => {
@@ -1297,7 +1341,7 @@ function bindEvents() {
     state.notebookFilter = Number(link.dataset.notebookFilter);
     state.tagFilter = null;
     state.filter = "all";
-    renderNotes();
+    loadNotes();
   });
 
   elements.tagsNav.addEventListener("click", (event) => {
@@ -1307,7 +1351,7 @@ function bindEvents() {
     state.tagFilter = link.dataset.tagFilter;
     state.notebookFilter = null;
     state.filter = "all";
-    renderNotes();
+    loadNotes();
   });
 
   elements.list.addEventListener("click", (event) => {
