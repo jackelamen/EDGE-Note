@@ -460,6 +460,7 @@ svg {
   padding: 40px 48px;
   background: var(--surface-2);
   overflow-y: auto;
+  min-height: 100vh;
 }
 
 .home-header {

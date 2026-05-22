@@ -95,6 +95,8 @@ const elements = {
   floatingToolbar: document.querySelector("[data-floating-toolbar]"),
   editorBreadcrumb: document.querySelector("[data-editor-breadcrumb]"),
   noteListPanel: document.querySelector("[data-note-list-panel]"),
+  editorPanel: document.querySelector(".editor"),
+  contextPanel: document.querySelector(".context-panel"),
   searchBar: document.querySelector("[data-search-bar]"),
   noteListFocusSearch: document.querySelector("[data-action='focus-search']"),
   confirmSaveSearch: document.querySelector("[data-action='confirm-save-search']")
@@ -670,9 +672,11 @@ function noteMatchesSearch(note) {
 function updateNavigationState() {
   const isHome = state.filter === "home";
 
-  // Show/hide home view vs note list + editor
+  // Show/hide home view vs note list + editor + context panel
   elements.homeView.hidden = !isHome;
   elements.noteListPanel.hidden = isHome;
+  if (elements.editorPanel) elements.editorPanel.hidden = isHome;
+  if (elements.contextPanel) elements.contextPanel.hidden = isHome;
 
   elements.listTitle.textContent = viewLabel();
   elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
