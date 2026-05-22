@@ -54,6 +54,12 @@ Run this checklist after schema import and before any deployment handoff.
 2. Toggle Preview.
 3. Confirm headings, inline formatting, links, quotes, lists, and checklist items render.
 4. Toggle back to Write mode and continue editing.
+5. Use `Cmd/Ctrl+S` to sync.
+6. Use `Cmd/Ctrl+K` to focus search.
+7. Use `Cmd/Ctrl+N` to start a new note.
+8. Use `Cmd/Ctrl+P` to toggle preview.
+9. Use `Cmd/Ctrl+B`, `Cmd/Ctrl+I`, and `Cmd/Ctrl+Enter` in the editor.
+10. Use `Cmd/Ctrl+Up` and `Cmd/Ctrl+Down` to move through visible notes.
 
 ## 6. History
 

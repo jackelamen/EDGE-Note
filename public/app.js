@@ -90,6 +90,11 @@ const elements = {
   uploadAttachment: document.querySelector("[data-action='upload-attachment']")
 };
 
+const shortcutFormats = {
+  b: "bold",
+  i: "italic"
+};
+
 function showApp() {
   elements.authPanel.hidden = true;
   elements.appShell.hidden = false;
@@ -586,6 +591,10 @@ function visibleNotes() {
   });
 }
 
+function filteredNotes() {
+  return visibleNotes().filter(noteMatchesSearch);
+}
+
 function noteMatchesSearch(note) {
   const term = elements.search.value.trim().toLowerCase();
   if (!term) return true;
@@ -832,7 +841,7 @@ function renderCollections() {
 }
 
 function renderNotes() {
-  const notes = visibleNotes().filter(noteMatchesSearch);
+  const notes = filteredNotes();
   const search = elements.search.value.trim();
   updateNavigationState();
   elements.searchSummary.textContent = search
@@ -855,7 +864,7 @@ function renderNotes() {
   }
 
   elements.list.innerHTML = notes.map((note) => `
-    <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}">
+    <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}" tabindex="0">
       <span class="tag">${escapeHtml(note.favorite ? "Favorite" : note.tags?.[0] || note.notebookName || "Note")}</span>
       <h2>${escapeHtml(note.title || "Untitled note")}</h2>
       <p>${escapeHtml(searchSnippet(note))}</p>
@@ -1508,6 +1517,92 @@ async function checkExportStatus() {
   }
 }
 
+function createNewNote() {
+  state.localDraftRestored = true;
+  state.selectedId = null;
+  elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
+  elements.tags.value = "";
+  elements.title.value = "Untitled note";
+  elements.body.value = "";
+  setStatus("New draft");
+  renderTasks();
+  renderPreview();
+  renderEditorActions(null);
+  renderNotes();
+  elements.title.focus();
+}
+
+function focusSelectedNoteCard() {
+  const card = elements.list.querySelector(`[data-note-id="${state.selectedId}"]`);
+  card?.focus();
+}
+
+function selectRelativeNote(direction) {
+  const notes = filteredNotes();
+  if (!notes.length) return;
+  const currentIndex = Math.max(0, notes.findIndex((note) => note.id === state.selectedId));
+  const nextIndex = Math.min(Math.max(currentIndex + direction, 0), notes.length - 1);
+  selectNote(notes[nextIndex]);
+  focusSelectedNoteCard();
+}
+
+function modifierPressed(event) {
+  return event.metaKey || event.ctrlKey;
+}
+
+function handleGlobalShortcuts(event) {
+  if (elements.appShell.hidden || event.altKey) return;
+  const key = event.key.toLowerCase();
+
+  if (modifierPressed(event) && key === "s") {
+    event.preventDefault();
+    saveNote();
+    return;
+  }
+
+  if (modifierPressed(event) && key === "k") {
+    event.preventDefault();
+    elements.search.focus();
+    elements.search.select();
+    return;
+  }
+
+  if (modifierPressed(event) && key === "n") {
+    event.preventDefault();
+    createNewNote();
+    return;
+  }
+
+  if (modifierPressed(event) && key === "p") {
+    event.preventDefault();
+    togglePreview();
+    return;
+  }
+
+  if (modifierPressed(event) && key === "enter") {
+    event.preventDefault();
+    insertChecklistItem();
+    return;
+  }
+
+  if (modifierPressed(event) && shortcutFormats[key]) {
+    event.preventDefault();
+    applyMarkdownFormat(shortcutFormats[key]);
+    return;
+  }
+
+  if (modifierPressed(event) && event.key === "ArrowDown") {
+    event.preventDefault();
+    selectRelativeNote(1);
+    return;
+  }
+
+  if (modifierPressed(event) && event.key === "ArrowUp") {
+    event.preventDefault();
+    selectRelativeNote(-1);
+  }
+}
+
 async function runAiAction(action) {
   const question = elements.aiQuestion?.value.trim() || "";
   if (action === "ask-note" && !question) {
@@ -1555,20 +1650,7 @@ function bindEvents() {
   elements.logout.addEventListener("click", logout);
   elements.notebookForm.addEventListener("submit", createNotebookFromForm);
 
-  elements.newNote.addEventListener("click", () => {
-    state.localDraftRestored = true;
-    state.selectedId = null;
-    elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
-    elements.tags.value = "";
-    elements.title.value = "Untitled note";
-    elements.body.value = "";
-    setStatus("New draft");
-    renderTasks();
-    renderPreview();
-    renderEditorActions(null);
-    renderNotes();
-    elements.title.focus();
-  });
+  elements.newNote.addEventListener("click", createNewNote);
 
   elements.insertChecklist.addEventListener("click", insertChecklistItem);
   elements.formatButtons.forEach((button) => {
@@ -1677,6 +1759,16 @@ function bindEvents() {
     if (note) selectNote(note);
   });
 
+  elements.list.addEventListener("keydown", (event) => {
+    const card = event.target.closest("[data-note-id]");
+    if (!card) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
+      if (note) selectNote(note);
+    }
+  });
+
   elements.taskList.addEventListener("click", (event) => {
     const task = event.target.closest("[data-task-line]");
     if (!task) return;
@@ -1702,6 +1794,7 @@ function bindEvents() {
   });
 
   window.addEventListener("online", schedulePendingSync);
+  window.addEventListener("keydown", handleGlobalShortcuts);
 }
 
 async function init() {

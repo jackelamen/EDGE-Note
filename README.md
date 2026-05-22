@@ -100,6 +100,16 @@ Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The brows
 
 Use the Backup panel's Check button before downloading exports. It calls `/api/export/status` and reports note counts, attachment counts, total attachment size, and any missing attachment or thumbnail files. JSON and archive exports include the same summary, and archive manifests include per-file checksums for notes, attachments, and thumbnails.
 
+## Keyboard Shortcuts
+
+- `Cmd/Ctrl+S` syncs the current note.
+- `Cmd/Ctrl+K` focuses search.
+- `Cmd/Ctrl+N` starts a new note.
+- `Cmd/Ctrl+P` toggles preview.
+- `Cmd/Ctrl+B` and `Cmd/Ctrl+I` format selected text.
+- `Cmd/Ctrl+Enter` inserts a checklist item.
+- `Cmd/Ctrl+Up` and `Cmd/Ctrl+Down` move through the visible note list.
+
 ## Sync Push
 
 `POST /api/sync/push` accepts up to 50 note changes per request:
@@ -127,9 +137,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Add richer keyboard navigation.
-2. Add mobile ergonomics.
-3. Add production deployment hardening.
+1. Add mobile ergonomics.
+2. Add production deployment hardening.
+3. Run full production smoke test pass.
 
 ## Hostinger Notes
 
