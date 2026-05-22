@@ -1,4 +1,5 @@
 import { createNote, deleteNote, getNote, updateNote } from "./notesRepository.js";
+import { latestSyncCursor } from "./syncRepository.js";
 
 const supportedEntities = new Set(["note"]);
 const supportedActions = new Set(["create", "update", "delete"]);
@@ -99,6 +100,8 @@ export async function pushSyncChanges({ userId, changes = [] }) {
   return {
     accepted: results.filter((result) => result.status === "applied").length,
     rejected: results.filter((result) => result.status !== "applied").length,
+    cursor: await latestSyncCursor({ userId }),
+    serverTime: new Date().toISOString(),
     results
   };
 }

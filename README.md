@@ -56,6 +56,7 @@ Manual AI actions currently support summarize, extract tasks, suggest tags, crea
 - `GET /api/devices` lists registered sync devices
 - `POST /api/devices` registers or updates a sync device
 - `PUT /api/devices/:id/cursor` updates one device sync cursor
+- `GET /api/sync/bootstrap` returns mobile-ready initial cache payloads
 - `GET /api/sync/pull?cursor=0` pulls incremental change records
 - `POST /api/sync/push` pushes note create/update/delete batches
 - `GET /api/export/status` checks export counts and missing attachment files
@@ -113,6 +114,8 @@ Use the Backup panel's Check button before downloading exports. It calls `/api/e
 
 ## Sync Push
 
+`POST /api/devices` requires a stable `deviceKey` for each mobile install. `GET /api/sync/bootstrap` returns the initial notes, notebooks, tags, attachment metadata, and cursor for a local mobile cache.
+
 `POST /api/sync/push` accepts up to 50 note changes per request:
 
 ```json
@@ -134,13 +137,13 @@ Use the Backup panel's Check button before downloading exports. It calls `/api/e
 }
 ```
 
-Updates with a stale `baseSyncVersion` return `conflict` and include the current server note. The server does not silently overwrite conflicting note bodies.
+Updates with a stale `baseSyncVersion` return `conflict` and include the current server note. The server does not silently overwrite conflicting note bodies. Successful push responses include a fresh `cursor` that the mobile client can store after applying all results.
 
 ## Next Build Steps
 
-1. Mobile sync readiness.
-2. AI endpoint production setup.
-3. Data safety tools.
+1. AI endpoint production setup.
+2. Data safety tools.
+3. Daily use QA.
 
 ## Hostinger Notes
 

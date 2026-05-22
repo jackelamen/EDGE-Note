@@ -32,7 +32,7 @@ import {
   setNoteArchived,
   updateNote
 } from "./notesRepository.js";
-import { pullSyncChanges } from "./syncRepository.js";
+import { buildSyncBootstrap, pullSyncChanges } from "./syncRepository.js";
 import { pushSyncChanges } from "./syncPushRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
 
@@ -317,9 +317,22 @@ export async function handleApi(req, res, url) {
       const payload = await pullSyncChanges({
         userId,
         cursor: url.searchParams.get("cursor") || 0,
-        limit: url.searchParams.get("limit") || 100
+        limit: url.searchParams.get("limit") || 100,
+        includeEntities: url.searchParams.get("include") === "entities"
+          || url.searchParams.get("includeEntities") === "1"
       });
       sendJson(res, 200, payload);
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/sync/bootstrap") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await buildSyncBootstrap({
+        userId,
+        limit: url.searchParams.get("limit") || 1000
+      }));
     });
     return true;
   }

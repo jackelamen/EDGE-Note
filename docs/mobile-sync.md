@@ -1,6 +1,6 @@
 # Mobile And Offline Sync Contract
 
-Batch 6 defines the sync contract for a future mobile app without adding realtime infrastructure.
+Batch 18 defines the sync contract for a future mobile app without adding realtime infrastructure.
 
 ## Device Registration
 
@@ -19,13 +19,44 @@ POST /api/devices
 
 The response returns the server `device.id` and `lastSyncCursor`.
 
+`deviceKey` is required and should be stable for one app install. Use an install UUID stored in the mobile keychain or equivalent durable local storage.
+
+If the same `deviceKey` registers again, the server updates the device name and returns the existing device.
+
+## Initial Bootstrap
+
+After login and device registration, mobile clients should fill their local cache with:
+
+```http
+GET /api/sync/bootstrap
+```
+
+The response includes the current cursor and entity payloads:
+
+```json
+{
+  "cursor": 123,
+  "serverTime": "2026-05-23T00:00:00.000Z",
+  "entities": {
+    "notes": [],
+    "notebooks": [],
+    "tags": [],
+    "attachments": []
+  }
+}
+```
+
+Store `cursor` as the device's local `last_sync_cursor` only after the entities are successfully written to the local database.
+
 ## Cursor Tracking
 
 Clients pull changes from their last known cursor:
 
 ```http
-GET /api/sync/pull?cursor=0
+GET /api/sync/pull?cursor=0&include=entities
 ```
+
+`include=entities` returns current entity payloads for create, update, archive, restore, and attachment changes. Delete changes intentionally have no entity payload; remove the local row matching `entityType` and `entityId`.
 
 After a successful local apply, clients update their cursor:
 
@@ -108,6 +139,20 @@ POST /api/sync/push
 }
 ```
 
+The response includes a fresh server cursor:
+
+```json
+{
+  "accepted": 1,
+  "rejected": 0,
+  "cursor": 124,
+  "serverTime": "2026-05-23T00:00:00.000Z",
+  "results": []
+}
+```
+
+If every queued change is either applied or intentionally discarded by the user, update the device cursor to the returned `cursor`.
+
 ## Conflict Rule
 
 If `baseSyncVersion` is stale, the server returns `status: "conflict"` and includes `serverNote`.
@@ -117,6 +162,29 @@ The client should not overwrite automatically. Show:
 1. Local queued edit.
 2. Current server note.
 3. Choices: keep server, overwrite server, copy local text into a new note.
+
+## Client Apply Order
+
+For bootstrap and pull payloads, apply entities in this order:
+
+1. Notebooks.
+2. Notes.
+3. Tags and note tag lists from each note.
+4. Attachment metadata.
+5. Delete changes from the `changes` array.
+
+Attachments sync as metadata first. Download file bytes lazily through each attachment's `downloadUrl`; download thumbnails through `thumbnailUrl` when present.
+
+## Polling
+
+The first mobile version should poll rather than use realtime:
+
+1. Pull on app open.
+2. Pull after a successful push.
+3. Pull when the app returns to foreground.
+4. Poll every 60 to 120 seconds while the app is open and online.
+
+Keep each pull under `limit=250`. If `hasMore` is true, pull again with `nextCursor`.
 
 ## Web Offline Queue
 

@@ -110,15 +110,16 @@ If the automated smoke check fails at the origin-protection step, confirm the de
 
 ## 9. Sync API
 
-1. `POST /api/devices` registers a device.
+1. `POST /api/devices` with a stable `deviceKey` registers a device.
 2. `GET /api/devices` returns the device.
-3. `GET /api/sync/pull?cursor=0` returns sync changes.
-4. `PUT /api/devices/:id/cursor` stores the latest applied cursor.
-5. `POST /api/sync/push` can create a note.
-6. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
-7. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
-8. Trigger or simulate a queued stale edit and confirm the conflict panel shows server and local text side by side.
-9. Resolve one conflict with Keep server, one with Use local, and one with Edit local.
+3. `GET /api/sync/bootstrap` returns `entities` and a numeric `cursor`.
+4. `GET /api/sync/pull?cursor=0&include=entities` returns sync changes and matching entity payloads.
+5. `PUT /api/devices/:id/cursor` stores the latest applied cursor.
+6. `POST /api/sync/push` can create a note and returns a fresh `cursor`.
+7. `POST /api/sync/push` can update a note with the correct `baseSyncVersion`.
+8. `POST /api/sync/push` returns `conflict` when `baseSyncVersion` is stale.
+9. Trigger or simulate a queued stale edit and confirm the conflict panel shows server and local text side by side.
+10. Resolve one conflict with Keep server, one with Use local, and one with Edit local.
 
 ## 10. AI
 

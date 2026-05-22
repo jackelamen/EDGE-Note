@@ -19,6 +19,16 @@ function cleanDeviceKey(value) {
   return String(value || "").trim().slice(0, 120) || null;
 }
 
+function requireDeviceKey(value) {
+  const deviceKey = cleanDeviceKey(value);
+  if (!deviceKey || deviceKey.length < 12) {
+    const error = new Error("A stable deviceKey of at least 12 characters is required.");
+    error.status = 400;
+    throw error;
+  }
+  return deviceKey;
+}
+
 export async function listDevices({ userId }) {
   const rows = await query(
     `SELECT
@@ -39,34 +49,26 @@ export async function listDevices({ userId }) {
 
 export async function registerDevice({ userId, input }) {
   const deviceName = cleanDeviceName(input.deviceName || input.name);
-  const deviceKey = cleanDeviceKey(input.deviceKey || input.key);
+  const deviceKey = requireDeviceKey(input.deviceKey || input.key);
 
-  if (deviceKey) {
-    await query(
-      `INSERT INTO devices (user_id, device_key, device_name)
-       VALUES (:userId, :deviceKey, :deviceName)
-       ON DUPLICATE KEY UPDATE
-         device_name = VALUES(device_name),
-         updated_at = CURRENT_TIMESTAMP`,
-      { userId, deviceKey, deviceName }
-    );
-  } else {
-    await query(
-      `INSERT INTO devices (user_id, device_name)
-       VALUES (:userId, :deviceName)`,
-      { userId, deviceName }
-    );
-  }
+  await query(
+    `INSERT INTO devices (user_id, device_key, device_name)
+     VALUES (:userId, :deviceKey, :deviceName)
+     ON DUPLICATE KEY UPDATE
+       device_name = VALUES(device_name),
+       updated_at = CURRENT_TIMESTAMP`,
+    { userId, deviceKey, deviceName }
+  );
 
   const devices = await listDevices({ userId });
-  return deviceKey ? devices.find((device) => device.deviceKey === deviceKey) : devices[0];
+  return devices.find((device) => device.deviceKey === deviceKey);
 }
 
 export async function updateDeviceCursor({ userId, deviceId, cursor }) {
   const cleanCursor = Math.max(Number(cursor) || 0, 0);
   const result = await query(
     `UPDATE devices
-     SET last_sync_cursor = :cursor,
+     SET last_sync_cursor = GREATEST(last_sync_cursor, :cursor),
          updated_at = CURRENT_TIMESTAMP
      WHERE user_id = :userId
        AND id = :deviceId`,
