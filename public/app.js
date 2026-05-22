@@ -62,6 +62,7 @@ const elements = {
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
   formatButtons: document.querySelectorAll("[data-format]"),
+  historyList: document.querySelector("[data-history-list]"),
   togglePreview: document.querySelector("[data-action='toggle-preview']"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
@@ -308,9 +309,11 @@ function selectNote(note) {
   if (note?.id) {
     writeCache(cacheKeys.selectedId, note.id);
     loadAttachments(note.id);
+    loadHistory(note.id);
   } else {
     state.attachments = [];
     renderAttachments();
+    renderHistory([]);
   }
   renderNotes();
 }
@@ -496,6 +499,29 @@ function renderAttachments() {
   `).join("");
 }
 
+function historyPreview(version) {
+  const preview = String(version.body || "").replace(/\s+/g, " ").trim();
+  return preview.slice(0, 120) || "No body";
+}
+
+function renderHistory(versions) {
+  if (!versions.length) {
+    elements.historyList.innerHTML = '<div class="empty-state">Save edits to build version history.</div>';
+    return;
+  }
+
+  elements.historyList.innerHTML = versions.map((version) => `
+    <article class="history-item">
+      <div>
+        <strong>${escapeHtml(version.title || "Untitled note")}</strong>
+        <span>${escapeHtml(formatDate(version.createdAt))}</span>
+        <p>${escapeHtml(historyPreview(version))}</p>
+      </div>
+      <button type="button" data-version-restore="${version.id}">Restore</button>
+    </article>
+  `).join("");
+}
+
 function renderAiOutput(payload) {
   const output = payload.output || {};
   const action = payload.action?.replaceAll("-", " ") || "AI";
@@ -655,12 +681,37 @@ async function deleteCurrentNote() {
   state.notes = state.notes.filter((item) => item.id !== note.id);
   state.selectedId = null;
   clearDraftCache();
+  renderHistory([]);
   writeCache(cacheKeys.notes, {
     notes: state.notes,
     cachedAt: new Date().toISOString()
   });
   selectNote(visibleNotes()[0] || null);
   setStatus("Deleted");
+}
+
+async function restoreVersion(versionId) {
+  const note = currentNote();
+  if (!note) {
+    setStatus("Select a saved note before restoring history");
+    return;
+  }
+
+  if (!window.confirm("Restore this version? Your current version will be saved to history first.")) return;
+
+  const payload = await requestJson(`/api/notes/${note.id}/versions/${versionId}/restore`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+  const restored = payload.note;
+  const index = state.notes.findIndex((item) => item.id === restored.id);
+  if (index >= 0) state.notes[index] = restored;
+  selectNote(restored);
+  writeCache(cacheKeys.notes, {
+    notes: state.notes,
+    cachedAt: new Date().toISOString()
+  });
+  setStatus("Version restored");
 }
 
 async function requestJson(url, options = {}) {
@@ -874,6 +925,20 @@ async function loadAttachments(noteId = state.selectedId) {
   renderAttachments();
 }
 
+async function loadHistory(noteId = state.selectedId) {
+  if (!noteId) {
+    renderHistory([]);
+    return;
+  }
+
+  try {
+    const payload = await requestJson(`/api/notes/${noteId}/versions`);
+    renderHistory(payload.versions || []);
+  } catch {
+    renderHistory([]);
+  }
+}
+
 async function saveNote() {
   if (state.pendingSave) return;
   state.pendingSave = true;
@@ -907,6 +972,7 @@ async function saveNote() {
       cachedAt: new Date().toISOString()
     });
     await loadCollections();
+    await loadHistory(saved.id);
     setStatus(`Saved ${formatDate(saved.updatedAt)}`);
     setCacheStatus("Synced locally", "Server note cached");
     return saved;
@@ -1098,6 +1164,12 @@ function bindEvents() {
     const task = event.target.closest("[data-task-line]");
     if (!task) return;
     toggleTaskLine(Number(task.dataset.taskLine));
+  });
+
+  elements.historyList.addEventListener("click", (event) => {
+    const restore = event.target.closest("[data-version-restore]");
+    if (!restore) return;
+    restoreVersion(Number(restore.dataset.versionRestore));
   });
 }
 

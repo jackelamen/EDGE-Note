@@ -45,6 +45,17 @@ function mapNote(row) {
   };
 }
 
+function mapVersion(row) {
+  return {
+    id: row.id,
+    noteId: row.noteId,
+    title: row.title,
+    body: row.body,
+    bodyFormat: row.bodyFormat,
+    createdAt: row.createdAt
+  };
+}
+
 function noteParams(userId, input) {
   return {
     userId,
@@ -227,4 +238,69 @@ export async function setNoteArchived({ userId, noteId, archived }) {
   });
 
   return note;
+}
+
+export async function listNoteVersions({ userId, noteId, limit = 20 }) {
+  const cleanLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const versions = await query(
+    `SELECT
+       nv.id,
+       nv.note_id AS noteId,
+       nv.title,
+       nv.body,
+       nv.body_format AS bodyFormat,
+       nv.created_at AS createdAt
+     FROM note_versions nv
+     JOIN notes n ON n.id = nv.note_id
+     WHERE n.user_id = :userId
+       AND n.id = :noteId
+       AND n.deleted_at IS NULL
+     ORDER BY nv.created_at DESC, nv.id DESC
+     LIMIT ${cleanLimit}`,
+    { userId, noteId }
+  );
+
+  return versions.map(mapVersion);
+}
+
+export async function restoreNoteVersion({ userId, noteId, versionId }) {
+  const existing = await getNote({ userId, noteId });
+  if (!existing) {
+    return null;
+  }
+
+  const versions = await query(
+    `SELECT
+       nv.id,
+       nv.note_id AS noteId,
+       nv.title,
+       nv.body,
+       nv.body_format AS bodyFormat,
+       nv.created_at AS createdAt
+     FROM note_versions nv
+     JOIN notes n ON n.id = nv.note_id
+     WHERE n.user_id = :userId
+       AND n.id = :noteId
+       AND nv.id = :versionId
+       AND n.deleted_at IS NULL
+     LIMIT 1`,
+    { userId, noteId, versionId }
+  );
+  const version = versions[0] ? mapVersion(versions[0]) : null;
+  if (!version) {
+    return null;
+  }
+
+  return updateNote({
+    userId,
+    noteId,
+    input: {
+      notebookId: existing.notebookId,
+      title: version.title,
+      body: version.body,
+      bodyFormat: version.bodyFormat,
+      favorite: existing.favorite,
+      tags: existing.tags
+    }
+  });
 }

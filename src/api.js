@@ -13,7 +13,16 @@ import { buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
 import { getAttachment, listAttachments, saveAttachment } from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson } from "./http.js";
 import { createNotebook, listNotebooks } from "./notebooksRepository.js";
-import { createNote, deleteNote, getNote, listNotes, setNoteArchived, updateNote } from "./notesRepository.js";
+import {
+  createNote,
+  deleteNote,
+  getNote,
+  listNotes,
+  listNoteVersions,
+  restoreNoteVersion,
+  setNoteArchived,
+  updateNote
+} from "./notesRepository.js";
 import { pullSyncChanges } from "./syncRepository.js";
 import { pushSyncChanges } from "./syncPushRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
@@ -26,6 +35,16 @@ function parseNoteId(pathname) {
 function parseNoteArchivePath(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)\/(archive|restore)$/);
   return match ? { noteId: Number(match[1]), action: match[2] } : null;
+}
+
+function parseNoteVersionsPath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/versions$/);
+  return match ? Number(match[1]) : null;
+}
+
+function parseNoteVersionRestorePath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/versions\/(\d+)\/restore$/);
+  return match ? { noteId: Number(match[1]), versionId: Number(match[2]) } : null;
 }
 
 function parseNoteAttachmentsPath(pathname) {
@@ -272,6 +291,34 @@ export async function handleApi(req, res, url) {
         archived: noteArchive.action === "archive"
       });
       sendJson(res, note ? 200 : 404, note ? { note } : { error: "Note not found" });
+    });
+    return true;
+  }
+
+  const noteVersionsId = parseNoteVersionsPath(url.pathname);
+  if (noteVersionsId) {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const versions = await listNoteVersions({
+        userId,
+        noteId: noteVersionsId,
+        limit: url.searchParams.get("limit") || 20
+      });
+      sendJson(res, 200, { versions });
+    });
+    return true;
+  }
+
+  const noteVersionRestore = parseNoteVersionRestorePath(url.pathname);
+  if (noteVersionRestore) {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const note = await restoreNoteVersion({
+        userId,
+        noteId: noteVersionRestore.noteId,
+        versionId: noteVersionRestore.versionId
+      });
+      sendJson(res, note ? 200 : 404, note ? { note } : { error: "Version not found" });
     });
     return true;
   }

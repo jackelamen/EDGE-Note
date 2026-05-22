@@ -646,6 +646,47 @@ textarea {
   text-decoration: line-through;
 }
 
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.history-item strong,
+.history-item span {
+  display: block;
+}
+
+.history-item span,
+.history-item p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.history-item p {
+  margin: 4px 0 0;
+  line-height: 1.35;
+}
+
+.history-item button {
+  min-height: 34px;
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.history-item button:hover {
+  background: var(--accent);
+  color: white;
+}
+
 .attachment-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
