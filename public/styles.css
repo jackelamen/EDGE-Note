@@ -1432,7 +1432,7 @@ svg {
 
 .backup-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
 }
 
@@ -1448,6 +1448,36 @@ svg {
 }
 
 .backup-actions button:hover { background: var(--surface-3); }
+
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  color: var(--ink-2);
+}
+
+.backup-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.backup-item small {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
 
 /* ─── Shortcuts ──────────────────────────────────────────────── */
 .shortcut-list {

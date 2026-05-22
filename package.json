@@ -17,6 +17,7 @@
     "verify": "npm run check && node scripts/verify-setup.js",
     "verify:prod-env": "node scripts/check-production-env.js",
     "verify:ai": "node scripts/check-ai-endpoint.js",
+    "verify:data": "node scripts/check-data-safety.js",
     "smoke:prod": "node scripts/smoke-production.js"
   }
 }

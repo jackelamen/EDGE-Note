@@ -11,7 +11,15 @@ import {
 } from "./authRepository.js";
 import { databaseDiagnostics, isDatabaseError } from "./db.js";
 import { listDevices, registerDevice, updateDeviceCursor } from "./devicesRepository.js";
-import { buildArchiveExport, buildExportStatus, buildJsonExport, buildMarkdownExport } from "./exportRepository.js";
+import {
+  buildArchiveExport,
+  buildExportStatus,
+  buildJsonExport,
+  buildMarkdownExport,
+  buildStoredBackupDownload,
+  createStoredBackup,
+  listStoredBackups
+} from "./exportRepository.js";
 import {
   deleteAttachment,
   getAttachment,
@@ -69,6 +77,11 @@ function parseNoteAttachmentsPath(pathname) {
 function parseAttachmentDownloadPath(pathname) {
   const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
   return match ? Number(match[1]) : null;
+}
+
+function parseBackupDownloadPath(pathname) {
+  const match = pathname.match(/^\/api\/backups\/([^/]+)\/download$/);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 function parseAttachmentThumbnailPath(pathname) {
@@ -385,6 +398,33 @@ export async function handleApi(req, res, url) {
     await safely(res, async () => {
       requireMethod(req, ["GET"]);
       sendDownload(res, 200, await buildArchiveExport({ userId }));
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/backups") {
+    await safely(res, async () => {
+      if (req.method === "GET") {
+        sendJson(res, 200, { backups: await listStoredBackups() });
+        return;
+      }
+
+      requireMethod(req, ["POST"]);
+      sendJson(res, 201, { backup: await createStoredBackup({ userId }) });
+    });
+    return true;
+  }
+
+  const backupDownloadFilename = parseBackupDownloadPath(url.pathname);
+  if (backupDownloadFilename) {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const backup = await buildStoredBackupDownload({ filename: backupDownloadFilename });
+      if (!backup) {
+        sendJson(res, 404, { error: "Backup not found" });
+        return;
+      }
+      sendDownload(res, 200, backup);
     });
     return true;
   }

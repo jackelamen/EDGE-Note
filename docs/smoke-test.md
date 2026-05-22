@@ -102,11 +102,14 @@ If the automated smoke check fails at the origin-protection step, confirm the de
 ## 8. Export
 
 1. Run the Backup Check action and confirm counts match the current workspace.
-2. Run JSON export and confirm it includes `summary`.
-3. Run Markdown export.
-4. Run Archive export.
-5. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
-6. Confirm `manifest.json` includes `summary`, `files`, and missing-file reporting when any attachment file is missing from storage.
+2. Click Save and confirm a saved backup is created.
+3. Click List and confirm the saved backup appears with a download link.
+4. Download the newest saved backup.
+5. Run JSON export and confirm it includes `summary`.
+6. Run Markdown export.
+7. Run Archive export.
+8. Confirm the archive contains `manifest.json`, `notes/`, and `attachments/` when attachments exist.
+9. Confirm `manifest.json` includes `summary`, `files`, and missing-file reporting when any attachment file is missing from storage.
 
 ## 9. Sync API
 

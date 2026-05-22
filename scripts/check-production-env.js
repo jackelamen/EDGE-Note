@@ -9,7 +9,8 @@ const required = [
   "MYSQL_DATABASE",
   "MYSQL_USER",
   "MYSQL_PASSWORD",
-  "ATTACHMENT_ROOT"
+  "ATTACHMENT_ROOT",
+  "BACKUP_ROOT"
 ];
 
 const placeholderValues = new Set([

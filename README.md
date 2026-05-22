@@ -31,6 +31,7 @@ For hosting environments that expect the app to bind to all interfaces, set `EDG
 - `npm run verify` checks syntax plus the expected env keys, database tables, and UI hooks.
 - `npm run verify:prod-env` checks required production environment variables.
 - `npm run verify:ai` checks the configured OpenAI-compatible AI endpoint.
+- `npm run verify:data` checks that attachment and backup directories are writable.
 - `npm run smoke:prod -- --url https://your-edge-note-domain.example` checks deployed public endpoints, security headers, database diagnostics, and production origin protection.
 - Use [docs/smoke-test.md](docs/smoke-test.md) for the full runtime checklist.
 - Use [docs/hostinger-deployment.md](docs/hostinger-deployment.md) for Hostinger setup.
@@ -74,6 +75,9 @@ Keep `AI_API_KEY` in Hostinger environment variables only.
 - `GET /api/export.json` downloads a portable JSON backup
 - `GET /api/export.md` downloads notes as Markdown
 - `GET /api/export.tgz` downloads a tar.gz archive with notes, manifest, and attachment files
+- `GET /api/backups` lists saved server-side backup archives
+- `POST /api/backups` creates a saved server-side backup archive under `BACKUP_ROOT`
+- `GET /api/backups/:filename/download` downloads one saved backup archive
 - `GET /api/notes/:id/attachments` lists note attachments
 - `POST /api/notes/:id/attachments` uploads a file to Hostinger storage
 - `PUT /api/attachments/:id` replaces an attachment file
@@ -114,6 +118,8 @@ Attachments are limited by `ATTACHMENT_LIMIT_MB`, defaulting to 25 MB. The brows
 
 Use the Backup panel's Check button before downloading exports. It calls `/api/export/status` and reports note counts, attachment counts, total attachment size, and any missing attachment or thumbnail files. JSON and archive exports include the same summary, and archive manifests include per-file checksums for notes, attachments, and thumbnails.
 
+Use the Backup panel's Save button before schema changes, deployment changes, or bulk cleanup. It writes a server-side `.tar.gz` archive under `BACKUP_ROOT`, keeps the archive out of Git, and makes recent saved backups downloadable from the same panel.
+
 ## Keyboard Shortcuts
 
 - `Cmd/Ctrl+S` syncs the current note.
@@ -153,9 +159,9 @@ Updates with a stale `baseSyncVersion` return `conflict` and include the current
 
 ## Next Build Steps
 
-1. Data safety tools.
-2. Daily use QA.
-3. Post-MVP nice-to-haves.
+1. Daily use QA.
+2. Post-MVP nice-to-haves.
+3. Native mobile client planning.
 
 ## Hostinger Notes
 

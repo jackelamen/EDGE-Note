@@ -13,6 +13,7 @@ const requiredEnv = [
   "MYSQL_USER",
   "MYSQL_PASSWORD",
   "ATTACHMENT_ROOT",
+  "BACKUP_ROOT",
   "AI_ENDPOINT_URL",
   "AI_MODEL_NAME",
   "AI_API_KEY",

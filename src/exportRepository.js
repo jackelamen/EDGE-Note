@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { listAllAttachments } from "./attachmentsRepository.js";
+import { config } from "./config.js";
 import { listNotebooks } from "./notebooksRepository.js";
 import { listNotes } from "./notesRepository.js";
 import { listTags } from "./tagsRepository.js";
@@ -258,5 +259,72 @@ export async function buildArchiveExport({ userId }) {
     filename: `edge-note-archive-${dateStamp()}.tar.gz`,
     contentType: "application/gzip",
     body: gzipSync(tar)
+  };
+}
+
+function safeBackupFilename(filename) {
+  const clean = basename(String(filename || ""));
+  return /^edge-note-archive-[\w.-]+\.tar\.gz$/.test(clean) ? clean : null;
+}
+
+export async function createStoredBackup({ userId }) {
+  await mkdir(config.backups.root, { recursive: true });
+
+  const archive = await buildArchiveExport({ userId });
+  const filename = archive.filename;
+  const filePath = join(config.backups.root, filename);
+  await writeFile(filePath, archive.body);
+
+  const checksum = sha256(archive.body);
+  const info = {
+    filename,
+    createdAt: new Date().toISOString(),
+    sizeBytes: archive.body.length,
+    checksum,
+    downloadUrl: `/api/backups/${encodeURIComponent(filename)}/download`
+  };
+  await writeFile(`${filePath}.json`, JSON.stringify(info, null, 2));
+
+  return info;
+}
+
+export async function listStoredBackups() {
+  await mkdir(config.backups.root, { recursive: true });
+  const files = await readdir(config.backups.root);
+  const backups = [];
+
+  for (const filename of files.filter((file) => safeBackupFilename(file))) {
+    const filePath = join(config.backups.root, filename);
+    const fileStat = await stat(filePath).catch(() => null);
+    if (!fileStat?.isFile()) continue;
+
+    const metadata = await readFile(`${filePath}.json`, "utf8")
+      .then((value) => JSON.parse(value))
+      .catch(() => ({}));
+
+    backups.push({
+      filename,
+      createdAt: metadata.createdAt || fileStat.mtime.toISOString(),
+      sizeBytes: fileStat.size,
+      checksum: metadata.checksum || null,
+      downloadUrl: `/api/backups/${encodeURIComponent(filename)}/download`
+    });
+  }
+
+  return backups.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+export async function buildStoredBackupDownload({ filename }) {
+  const safeFilename = safeBackupFilename(filename);
+  if (!safeFilename) return null;
+
+  const filePath = join(config.backups.root, safeFilename);
+  const body = await readFile(filePath).catch(() => null);
+  if (!body) return null;
+
+  return {
+    filename: safeFilename,
+    contentType: "application/gzip",
+    body
   };
 }

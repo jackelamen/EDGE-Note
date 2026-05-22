@@ -47,8 +47,11 @@ const elements = {
   cacheTitle: document.querySelector("[data-cache-title]"),
   conflictList: document.querySelector("[data-conflict-list]"),
   conflictPanel: document.querySelector("[data-conflict-panel]"),
+  backupList: document.querySelector("[data-backup-list]"),
   exportStatus: document.querySelector("[data-export-status]"),
   exportVerify: document.querySelector("[data-export='status']"),
+  exportCreateBackup: document.querySelector("[data-export='create-backup']"),
+  exportListBackups: document.querySelector("[data-export='list-backups']"),
   exportJson: document.querySelector("[data-export='json']"),
   exportArchive: document.querySelector("[data-export='archive']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
@@ -1819,6 +1822,50 @@ async function checkExportStatus() {
   }
 }
 
+function renderStoredBackups(backups = []) {
+  if (!elements.backupList) return;
+  if (!backups.length) {
+    elements.backupList.innerHTML = '<div class="empty-state">No saved backups yet.</div>';
+    return;
+  }
+
+  elements.backupList.innerHTML = backups.slice(0, 5).map((backup) => `
+    <a class="backup-item" href="${escapeHtml(backup.downloadUrl)}">
+      <span>${escapeHtml(formatDate(backup.createdAt))}</span>
+      <small>${escapeHtml(formatBytes(backup.sizeBytes || 0))}</small>
+    </a>
+  `).join("");
+}
+
+async function listStoredBackups() {
+  if (!elements.backupList) return;
+  elements.backupList.innerHTML = '<div class="empty-state">Loading backups...</div>';
+  try {
+    const payload = await requestJson("/api/backups");
+    renderStoredBackups(payload.backups || []);
+    setStatus("Backup list refreshed");
+  } catch (error) {
+    elements.backupList.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    setStatus("Could not list backups");
+  }
+}
+
+async function createStoredBackup() {
+  elements.exportStatus.textContent = "Creating saved backup...";
+  try {
+    const payload = await requestJson("/api/backups", {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    elements.exportStatus.textContent = `Saved backup: ${formatBytes(payload.backup?.sizeBytes || 0)}`;
+    await listStoredBackups();
+    setStatus("Saved backup created");
+  } catch (error) {
+    elements.exportStatus.textContent = error.message;
+    setStatus("Saved backup failed");
+  }
+}
+
 function createNewNote() {
   state.localDraftRestored = true;
   state.selectedId = null;
@@ -2029,6 +2076,8 @@ function bindEvents() {
   });
 
   elements.exportVerify.addEventListener("click", checkExportStatus);
+  elements.exportCreateBackup.addEventListener("click", createStoredBackup);
+  elements.exportListBackups.addEventListener("click", listStoredBackups);
 
   elements.passwordForm.addEventListener("submit", changePassword);
 

@@ -31,6 +31,7 @@ MYSQL_PASSWORD=<database password>
 MYSQL_CONNECTION_LIMIT=5
 
 ATTACHMENT_ROOT=./uploads
+BACKUP_ROOT=./backups
 ATTACHMENT_LIMIT_MB=25
 
 AI_ENDPOINT_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
@@ -44,6 +45,7 @@ Run this locally with the same values exported before deploying, or through the 
 
 ```bash
 npm run verify:prod-env
+npm run verify:data
 npm run verify:ai
 ```
 
@@ -65,7 +67,11 @@ Production hardening depends on `EDGE_NOTE_PUBLIC_URL` being the exact deployed 
 2. Confirm the Node app can write to `uploads`.
 3. Keep `uploads` out of Git.
 4. Include `uploads` in manual Hostinger backups.
-5. Use `/api/export.tgz` for app-level backups that include attachment files.
+5. Create the `backups` directory at the deployed app root.
+6. Confirm the Node app can write to `backups`.
+7. Keep `backups` out of Git.
+8. Use the Backup panel's Save button or `POST /api/backups` for server-side app backups.
+9. Use `/api/export.tgz` for immediate download backups that include attachment files.
 
 ## 5. First Login
 
@@ -95,10 +101,11 @@ Then complete the browser workflow:
 8. Upload a small image and confirm it shows a thumbnail.
 9. Save an edit twice, then restore a prior History version.
 10. Run Backup Check and confirm it passes.
-11. Export JSON.
-12. Export Markdown.
-13. Export Archive and confirm the `.tar.gz` downloads.
-14. Change the password and log back in.
+11. Save a server-side backup and confirm it appears in the Backup list.
+12. Export JSON.
+13. Export Markdown.
+14. Export Archive and confirm the `.tar.gz` downloads.
+15. Change the password and log back in.
 
 Use [docs/smoke-test.md](smoke-test.md) for the fuller feature checklist.
 Use [docs/ai-production.md](ai-production.md) for AI key rotation and endpoint verification.
@@ -108,8 +115,9 @@ Use [docs/ai-production.md](ai-production.md) for AI key rotation and endpoint v
 1. Keep the previous working deployment files until the new deployment passes the smoke test.
 2. Before schema changes, export MySQL from phpMyAdmin.
 3. Before attachment changes, copy the `uploads` directory.
-4. If deployment fails, restore the previous app files and restart the Node app.
-5. If database import fails, restore the prior MySQL export before trying again.
+4. Before deployment changes, create a server-side backup from the app.
+5. If deployment fails, restore the previous app files and restart the Node app.
+6. If database import fails, restore the prior MySQL export before trying again.
 
 ## 8. Known Constraints
 
@@ -118,5 +126,6 @@ Use [docs/ai-production.md](ai-production.md) for AI key rotation and endpoint v
 - Keep attachment sizes modest.
 - Keep sync request batches small.
 - Treat `/api/export.tgz` as a portable app backup, not a full infrastructure backup.
+- Treat `BACKUP_ROOT` archives as recovery points, not as a substitute for Hostinger account-level backups.
 - Use polling and `/api/sync/pull`; do not add realtime sync until mobile usage proves it is needed.
 - Keep `EDGE_NOTE_PUBLIC_URL` aligned with the deployed HTTPS domain; production write requests use it for origin protection.

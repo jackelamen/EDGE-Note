@@ -16,6 +16,9 @@ export const config = {
     root: process.env.ATTACHMENT_ROOT || "./uploads",
     limitMb: Number(process.env.ATTACHMENT_LIMIT_MB || 25)
   },
+  backups: {
+    root: process.env.BACKUP_ROOT || "./backups"
+  },
   auth: {
     sessionSecret: process.env.EDGE_NOTE_SESSION_SECRET || "change-this-session-secret"
   },
