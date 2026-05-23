@@ -1550,64 +1550,63 @@ p { margin: 0; }
   font-style: italic;
 }
 
-/* ─── Floating toolbar — Bear bottom bar style ───────────────── */
-.floating-toolbar {
-  position: fixed;
+/* ─── Static format toolbar — sticky below editor header ────── */
+.format-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 1px;
-  padding: 4px 6px;
-  background: #1c1c1e;
-  border-radius: 12px;
-  box-shadow: var(--shadow-float);
-  z-index: 1000;
-  pointer-events: all;
-  max-width: min(96vw, 820px);
+  padding: 4px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 
-.floating-toolbar::-webkit-scrollbar { display: none; }
+.format-toolbar::-webkit-scrollbar { display: none; }
 
-.floating-toolbar button,
+.format-toolbar button,
 .toolbar-select,
 .toolbar-color {
   display: grid;
   place-items: center;
   height: 30px;
-  border-radius: 7px;
-  color: #b0b8c4;
+  border-radius: 6px;
+  color: var(--ink-2);
   font-size: 0.8rem;
   font-weight: 700;
   transition: background var(--transition), color var(--transition);
 }
 
-.floating-toolbar button {
+.format-toolbar button {
   min-width: 30px;
   padding: 0 5px;
 }
 
-.floating-toolbar button:hover,
+.format-toolbar button:hover,
 .toolbar-color:hover {
-  background: rgba(255,255,255,.14);
-  color: #fff;
+  background: var(--surface-3);
+  color: var(--ink);
 }
 
-.floating-toolbar button svg { width: 13px; height: 13px; stroke: currentColor; }
+.format-toolbar button svg { width: 13px; height: 13px; stroke: currentColor; }
 
 .toolbar-select {
   display: block;
   width: auto;
   border: 0;
   background: transparent;
-  color: #d0d8e4;
+  color: var(--ink-2);
   padding: 0 20px 0 8px;
   outline: 0;
   cursor: pointer;
   appearance: auto;
 }
 
-.toolbar-select option { color: #1f2933; background: #fff; }
+.toolbar-select option { color: var(--ink); background: var(--surface); }
 
 .toolbar-select-block { min-width: 80px; }
 .toolbar-select-font  { min-width: 82px; }
@@ -1661,7 +1660,7 @@ p { margin: 0; }
 .toolbar-divider {
   width: 1px;
   height: 16px;
-  background: rgba(255,255,255,.1);
+  background: var(--line);
   margin: 0 3px;
   flex-shrink: 0;
 }

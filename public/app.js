@@ -1000,45 +1000,8 @@ function restoreSelection() {
   }
 }
 
-function updateFloatingToolbar() {
-  const toolbar = elements.floatingToolbar;
-  if (!toolbar) return;
-
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-    toolbar.hidden = true;
-    return;
-  }
-
-  // Only show when the selection is inside the editor
-  const range = sel.getRangeAt(0);
-  if (!elements.body.contains(range.commonAncestorContainer)) {
-    toolbar.hidden = true;
-    return;
-  }
-
-  const rect = range.getBoundingClientRect();
-  if (!rect || rect.width === 0) {
-    toolbar.hidden = true;
-    return;
-  }
-
-  // Position the toolbar centered above the selection
-  toolbar.hidden = false;
-  const toolbarWidth = toolbar.offsetWidth || 320;
-  const gap = 8;
-  let left = rect.left + rect.width / 2 - toolbarWidth / 2;
-  let top = rect.top - toolbar.offsetHeight - gap;
-
-  // Clamp within viewport
-  left = Math.max(8, Math.min(left, window.innerWidth - toolbarWidth - 8));
-  if (top < 8) {
-    top = rect.bottom + gap;
-  }
-
-  toolbar.style.left = `${Math.round(left)}px`;
-  toolbar.style.top = `${Math.round(top)}px`;
-}
+// Format toolbar is now a static sticky bar — no positioning needed.
+function updateFloatingToolbar() { /* no-op — toolbar is always visible */ }
 
 function editorExec(command, value = null) {
   elements.body.focus();
@@ -2942,18 +2905,7 @@ function bindEvents() {
     files.forEach((file) => insertImageFileIntoEditor(file));
   });
 
-  // Floating toolbar — show/hide on selection changes inside the editor.
-  document.addEventListener("selectionchange", () => {
-    updateFloatingToolbar();
-  });
-
-  // Hide floating toolbar when clicking outside editor and toolbar
-  document.addEventListener("mousedown", (event) => {
-    const toolbar = elements.floatingToolbar;
-    if (!toolbar || toolbar.hidden) return;
-    if (toolbar.contains(event.target) || elements.body.contains(event.target)) return;
-    toolbar.hidden = true;
-  });
+  // (Toolbar is now a static sticky bar — no show/hide listeners needed.)
   elements.notebook.addEventListener("change", saveDraftCache);
   elements.tags.addEventListener("input", saveDraftCache);
 
