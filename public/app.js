@@ -2533,7 +2533,7 @@ function modifierPressed(event) {
 }
 
 function handleGlobalShortcuts(event) {
-  if (elements.appShell.hidden || event.altKey) return;
+  if (!event.key || elements.appShell.hidden || event.altKey) return;
   const key = event.key.toLowerCase();
 
   // Escape exits focus mode
