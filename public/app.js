@@ -4,8 +4,7 @@ const cacheKeys = {
   collections: "edge_note_collections_v1",
   pendingChanges: "edge_note_pending_changes_v1",
   selectedId: "edge_note_selected_note_v1",
-  savedSearches: "edge_note_saved_searches_v1",
-  contextCollapsed: "edge_note_context_collapsed_v1"
+  savedSearches: "edge_note_saved_searches_v1"
 };
 
 const state = {
@@ -23,7 +22,6 @@ const state = {
   localDraftRestored: false,
   mobilePanel: "home",
   selectedId: null,
-  contextCollapsed: localStorage.getItem(cacheKeys.contextCollapsed) === "true",
   pendingSave: false
 };
 
@@ -33,6 +31,8 @@ const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
   attachmentLimit: document.querySelector("[data-attachment-limit]"),
   attachmentList: document.querySelector("[data-attachments-list]"),
+  inlineAttachments: document.querySelector("[data-inline-attachments]"),
+  attachmentCount: document.querySelector("[data-attachment-count]"),
   appShell: document.querySelector("[data-app-shell]"),
   authForm: document.querySelector("[data-auth-form]"),
   authMessage: document.querySelector("[data-auth-message]"),
@@ -41,9 +41,6 @@ const elements = {
   authPassword: document.querySelector("[data-auth-password]"),
   authSubmit: document.querySelector("[data-auth-submit]"),
   setupHelp: document.querySelector("[data-setup-help]"),
-  aiActions: document.querySelectorAll("[data-ai-action]"),
-  aiQuestion: document.querySelector("[data-ai-question]"),
-  aiResult: document.querySelector("[data-ai-result]"),
   body: document.querySelector("[data-note-body]"),
   cacheStatus: document.querySelector("[data-cache-status]"),
   cacheTitle: document.querySelector("[data-cache-title]"),
@@ -105,15 +102,13 @@ const elements = {
   title: document.querySelector("[data-note-title]"),
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
-  toggleContext: document.querySelector("[data-action='toggle-context']"),
   formatButtons: document.querySelectorAll("[data-format]"),
   formatColorInputs: document.querySelectorAll("[data-format-color]"),
   formatSelects: document.querySelectorAll("[data-format-select]"),
   historyList: document.querySelector("[data-history-list]"),
   toggleFavorite: document.querySelector("[data-action='toggle-favorite']"),
   insertChecklist: document.querySelector("[data-action='insert-checklist']"),
-  uploadAttachment: document.querySelector("[data-action='upload-attachment']"),
-  // New redesign elements
+  settingsPanel: document.querySelector("[data-settings-panel]"),
   homeView: document.querySelector("[data-home-view]"),
   homeRecent: document.querySelector("[data-home-recent]"),
   homeNotebooks: document.querySelector("[data-home-notebooks]"),
@@ -122,7 +117,6 @@ const elements = {
   editorBreadcrumb: document.querySelector("[data-editor-breadcrumb]"),
   noteListPanel: document.querySelector("[data-note-list-panel]"),
   editorPanel: document.querySelector(".editor"),
-  contextPanel: document.querySelector(".context-panel"),
   mobileTabs: document.querySelector("[data-mobile-tabs]"),
   searchBar: document.querySelector("[data-search-bar]"),
   noteListFocusSearch: document.querySelector("[data-action='focus-search']"),
@@ -887,20 +881,6 @@ function filteredNotes() {
   return visibleNotes().filter(noteMatchesSearch);
 }
 
-function applyContextPanelState() {
-  elements.appShell?.classList.toggle("context-collapsed", state.contextCollapsed);
-  if (elements.toggleContext) {
-    elements.toggleContext.setAttribute("aria-pressed", state.contextCollapsed ? "false" : "true");
-    elements.toggleContext.setAttribute("aria-label", state.contextCollapsed ? "Show note tools" : "Hide note tools");
-    elements.toggleContext.title = state.contextCollapsed ? "Show note tools" : "Hide note tools";
-  }
-}
-
-function toggleContextPanel() {
-  state.contextCollapsed = !state.contextCollapsed;
-  localStorage.setItem(cacheKeys.contextCollapsed, String(state.contextCollapsed));
-  applyContextPanelState();
-}
 
 function updateWordCount() {
   if (!elements.wordCount) return;
@@ -940,12 +920,10 @@ function noteMatchesSearch(note) {
 function updateNavigationState() {
   const isHome = state.filter === "home";
 
-  // Show/hide home view vs note list + editor + context panel
+  // Show/hide home view vs note list + editor
   elements.homeView.hidden = !isHome;
   elements.noteListPanel.hidden = isHome;
   if (elements.editorPanel) elements.editorPanel.hidden = isHome;
-  if (elements.contextPanel) elements.contextPanel.hidden = isHome;
-  applyContextPanelState();
 
   elements.listTitle.textContent = viewLabel();
   elements.listEyebrow.textContent = state.notebookFilter ? "Notebook" : state.tagFilter ? "Tag" : "Notes";
@@ -1224,32 +1202,56 @@ function applyWysiwygFormat(format) {
 }
 
 function renderAttachments() {
-  if (!state.selectedId) {
-    elements.attachmentList.innerHTML = '<div class="empty-state">Save a note before adding attachments.</div>';
-    return;
+  if (!elements.attachmentList) return;
+
+  // Show/hide the whole attachments section
+  if (elements.inlineAttachments) {
+    elements.inlineAttachments.hidden = !state.attachments.length;
+  }
+  if (elements.attachmentCount) {
+    elements.attachmentCount.textContent = state.attachments.length
+      ? `${state.attachments.length} file${state.attachments.length === 1 ? "" : "s"}`
+      : "";
   }
 
   if (!state.attachments.length) {
-    elements.attachmentList.innerHTML = '<div class="empty-state">No attachments yet.</div>';
+    elements.attachmentList.innerHTML = "";
     return;
   }
 
   elements.attachmentList.innerHTML = state.attachments.map((attachment) => {
     const isImage = (attachment.mimeType || "").startsWith("image/");
+    if (isImage) {
+      return `
+      <article class="attachment-item is-image">
+        <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener" aria-label="${escapeHtml(attachment.filename)}">
+          <img src="${attachment.thumbnailUrl || attachment.downloadUrl}" alt="${escapeHtml(attachment.filename)}" loading="lazy">
+        </a>
+        <div class="attachment-overlay">
+          <span>${escapeHtml(attachment.filename)}</span>
+          <div class="attachment-overlay-actions">
+            <button type="button" data-attachment-embed="${attachment.id}">Embed</button>
+            <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
+            <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
+          </div>
+        </div>
+      </article>`;
+    }
     return `
-    <article class="attachment-item">
+    <article class="attachment-item is-file">
       <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener">
-        ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="" loading="lazy">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
-        <span>${escapeHtml(attachment.filename)}</span>
-        <small>${escapeHtml(attachment.mimeType || "file")} · ${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
+        <span class="attachment-icon" aria-hidden="true">${escapeHtml((attachment.mimeType || "FILE").split("/").pop().toUpperCase().slice(0, 4))}</span>
+        <div class="attachment-file-info">
+          <span>${escapeHtml(attachment.filename)}</span>
+          <small>${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
+        </div>
       </a>
       <div class="attachment-tools">
-        ${isImage ? `<button type="button" data-attachment-embed="${attachment.id}">Embed</button>` : ""}
         <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
         <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
       </div>
-    </article>
-  `}).join("");
+    </article>`;
+  }).join("");
 }
 
 function historyPreview(version) {
@@ -1273,97 +1275,6 @@ function renderHistory(versions) {
       <button type="button" data-version-restore="${version.id}">Restore</button>
     </article>
   `).join("");
-}
-
-// Holds the most recent AI payload so the apply button can act on it.
-let lastAiPayload = null;
-
-function renderAiOutput(payload) {
-  lastAiPayload = payload;
-  const output = payload.output || {};
-  const action = payload.action?.replaceAll("-", " ") || "AI";
-  let body = output.text || "";
-
-  if (Array.isArray(output.summary)) {
-    body = output.summary.map((item) => `- ${item}`).join("\n");
-  } else if (Array.isArray(output.tasks)) {
-    body = output.tasks.map((item) => `- [ ] ${item}`).join("\n");
-  } else if (Array.isArray(output.tags)) {
-    body = output.tags.map((item) => `#${item}`).join(" ");
-  } else if (output.title) {
-    body = output.title;
-  } else if (output.answer) {
-    body = output.answer;
-  } else if (Array.isArray(output.related)) {
-    body = output.related.length
-      ? output.related.map((note) => {
-        const tags = note.tags?.length ? ` #${note.tags.join(" #")}` : "";
-        return `- ${note.title || "Untitled note"}${note.notebookName ? ` (${note.notebookName})` : ""}${tags}`;
-      }).join("\n")
-      : "No related notes found.";
-  } else if (!body) {
-    body = JSON.stringify(output, null, 2);
-  }
-
-  elements.aiResult.textContent = `${action}${payload.cached ? " (cached)" : ""}\n${body}`;
-
-  // Show the apply button only for actions that can write back to the editor
-  const applyBtn = document.querySelector("[data-ai-apply]");
-  if (!applyBtn) return;
-  if (payload.action === "clean-up" && output.text) {
-    applyBtn.textContent = "Apply to note";
-    applyBtn.hidden = false;
-  } else if (payload.action === "extract-tasks" && Array.isArray(output.tasks) && output.tasks.length) {
-    applyBtn.textContent = "Insert into note";
-    applyBtn.hidden = false;
-  } else {
-    applyBtn.hidden = true;
-  }
-}
-
-function applyAiResult() {
-  if (!lastAiPayload) return;
-  const output = lastAiPayload.output || {};
-  const applyBtn = document.querySelector("[data-ai-apply]");
-
-  if (lastAiPayload.action === "clean-up" && output.text) {
-    // Replace editor content — convert double-newlines to paragraphs
-    const html = output.text
-      .split(/\n{2,}/)
-      .map((para) => `<p>${escapeHtml(para.trim())}</p>`)
-      .join("");
-    setEditorHtml(html || `<p>${escapeHtml(output.text)}</p>`);
-    saveDraftCache();
-    renderTasks();
-    setStatus("Clean-up applied — review and Sync when ready");
-    elements.aiResult.textContent = "Clean-up applied to note.";
-    if (applyBtn) applyBtn.hidden = true;
-    lastAiPayload = null;
-    return;
-  }
-
-  if (lastAiPayload.action === "extract-tasks" && Array.isArray(output.tasks)) {
-    // Append tasks as a checklist at the end of the editor
-    const checklistHtml = `<ul class="checklist">${
-      output.tasks.map((task) => (
-        `<li class="task-item"><input type="checkbox" data-task-check> ${escapeHtml(task)}</li>`
-      )).join("")
-    }</ul><p></p>`;
-    elements.body.focus();
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(elements.body);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    document.execCommand("insertHTML", false, checklistHtml);
-    saveDraftCache();
-    renderTasks();
-    setStatus("Tasks inserted — review and Sync when ready");
-    elements.aiResult.textContent = "Tasks inserted into note.";
-    if (applyBtn) applyBtn.hidden = true;
-    lastAiPayload = null;
-  }
 }
 
 // Track which notebook groups are collapsed (persisted in localStorage)
@@ -1820,11 +1731,12 @@ async function hydrateConfig() {
     const response = await fetch("/api/config");
     if (!response.ok) return;
     const config = await response.json();
-    document.documentElement.dataset.ai = config.aiEnabled ? "enabled" : "disabled";
     state.attachmentLimitMb = config.attachmentLimitMb || 25;
-    elements.attachmentLimit.textContent = `Limit ${state.attachmentLimitMb} MB`;
+    if (elements.attachmentLimit) {
+      elements.attachmentLimit.textContent = `Limit ${state.attachmentLimitMb} MB per file`;
+    }
   } catch {
-    document.documentElement.dataset.ai = "offline";
+    // non-fatal
   }
 }
 
@@ -2114,7 +2026,6 @@ async function flushPendingChanges() {
       }));
       renderConflictPanel();
       setStatus(`${conflicts.length} sync conflict${conflicts.length === 1 ? "" : "s"} need review`);
-      elements.aiResult.textContent = "Review the sync conflict panel above the editor.";
       return;
     }
 
@@ -2380,56 +2291,52 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
   }
 }
 
-async function uploadAttachment() {
-  let noteId = state.selectedId;
-  const file = elements.attachmentFile.files?.[0];
-  if (!file) {
-    setStatus("Choose a file first");
-    return;
-  }
-  if (file.size > state.attachmentLimitMb * 1024 * 1024) {
-    setStatus(`Attachment exceeds ${state.attachmentLimitMb} MB`);
-    return;
-  }
+// Upload one or more files from the inline attach bar file input.
+async function uploadAttachmentFiles(files) {
+  if (!files || !files.length) return;
 
+  let noteId = state.selectedId;
   if (!noteId) {
     const saved = await saveNote();
     noteId = saved?.id;
   }
-
   if (!noteId) {
-    setStatus("Save the note before uploading attachments");
+    setStatus("Save the note before adding attachments");
     return;
   }
 
-  const form = new FormData();
-  form.append("file", file);
-  const thumbnail = await createAttachmentThumbnail(file);
-  if (thumbnail) {
-    form.append("thumbnail", thumbnail, "thumbnail.webp");
-  }
-  elements.uploadAttachment.textContent = "Uploading";
+  const label = elements.attachmentFile?.closest("label");
+  const originalText = label?.querySelector("span")?.textContent || "Add photo or file";
+  if (label) label.querySelector("span") && (label.querySelector("span").textContent = "Uploading…");
 
-  try {
-    const response = await fetch(`/api/notes/${noteId}/attachments`, {
-      method: "POST",
-      body: form
-    });
-    let payload;
-    try { payload = await response.json(); } catch { payload = {}; }
-    if (!response.ok) {
-      throw new Error(payload.message || payload.error || `Upload failed (HTTP ${response.status})`);
+  for (const file of Array.from(files)) {
+    if (file.size > state.attachmentLimitMb * 1024 * 1024) {
+      setStatus(`"${file.name}" exceeds ${state.attachmentLimitMb} MB limit`);
+      continue;
     }
-    state.attachments.unshift(payload.attachment);
-    elements.attachmentFile.value = "";
-    renderAttachments();
-    setStatus(`Attached ${payload.attachment.filename}`);
-  } catch (error) {
-    console.error("Attachment upload error:", error);
-    setStatus(`Upload error: ${error.message}`);
-  } finally {
-    elements.uploadAttachment.textContent = "Upload";
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const thumbnail = await createAttachmentThumbnail(file);
+      if (thumbnail) form.append("thumbnail", thumbnail, "thumbnail.webp");
+
+      const response = await fetch(`/api/notes/${noteId}/attachments`, {
+        method: "POST",
+        body: form
+      });
+      let payload;
+      try { payload = await response.json(); } catch { payload = {}; }
+      if (!response.ok) throw new Error(payload.message || payload.error || `Upload failed (HTTP ${response.status})`);
+      state.attachments.unshift(payload.attachment);
+      renderAttachments();
+      setStatus(`Added ${payload.attachment.filename}`);
+    } catch (error) {
+      setStatus(`Upload error: ${error.message}`);
+    }
   }
+
+  if (elements.attachmentFile) elements.attachmentFile.value = "";
+  if (label?.querySelector("span")) label.querySelector("span").textContent = originalText;
 }
 
 function pickReplacementFile() {
@@ -2695,47 +2602,6 @@ function handleGlobalShortcuts(event) {
   }
 }
 
-async function runAiAction(action) {
-  const question = elements.aiQuestion?.value.trim() || "";
-  if (action === "ask-note" && !question) {
-    elements.aiResult.textContent = "Ask a question first.";
-    elements.aiQuestion?.focus();
-    return;
-  }
-
-  let noteId = state.selectedId;
-  if (!noteId) {
-    const saved = await saveNote();
-    noteId = saved?.id;
-  }
-
-  if (!noteId) {
-    elements.aiResult.textContent = "Save the note before running AI.";
-    return;
-  }
-
-  elements.aiResult.textContent = "Thinking...";
-
-  try {
-    const payload = await requestJson(`/api/notes/${noteId}/ai/${action}`, {
-      method: "POST",
-      body: JSON.stringify({ question })
-    });
-    renderAiOutput(payload);
-
-    if (action === "suggest-tags" && payload.output?.tags?.length) {
-      elements.tags.value = payload.output.tags.join(", ");
-      saveDraftCache();
-    }
-
-    if (action === "create-title" && payload.output?.title) {
-      elements.title.value = payload.output.title;
-      saveDraftCache();
-    }
-  } catch (error) {
-    elements.aiResult.textContent = error.message;
-  }
-}
 
 function bindEvents() {
   elements.authForm.addEventListener("submit", submitAuth);
@@ -2852,15 +2718,21 @@ function bindEvents() {
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
   elements.deleteNote.addEventListener("click", deleteCurrentNote);
-  elements.toggleContext?.addEventListener("click", toggleContextPanel);
   elements.focusMode?.addEventListener("click", toggleFocusMode);
   elements.saveNote.addEventListener("click", saveNote);
-  elements.uploadAttachment.addEventListener("click", uploadAttachment);
-  elements.aiActions.forEach((button) => {
-    button.addEventListener("click", () => runAiAction(button.dataset.aiAction));
+
+  // Inline attachment file input — fires immediately on file selection
+  elements.attachmentFile?.addEventListener("change", () => {
+    uploadAttachmentFiles(elements.attachmentFile.files);
   });
 
-  document.querySelector("[data-ai-apply]")?.addEventListener("click", applyAiResult);
+  // Settings panel open/close
+  document.querySelector("[data-action='open-settings']")?.addEventListener("click", () => {
+    if (elements.settingsPanel) elements.settingsPanel.hidden = false;
+  });
+  document.querySelector("[data-action='close-settings']")?.addEventListener("click", () => {
+    if (elements.settingsPanel) elements.settingsPanel.hidden = true;
+  });
 
   function triggerExportDownload(button, url, label) {
     const original = button.textContent;
@@ -2940,6 +2812,23 @@ function bindEvents() {
     event.preventDefault();
     files.forEach((file) => insertImageFileIntoEditor(file));
   });
+
+  // Drag-and-drop onto the inline attach bar — any file type
+  const attachBar = document.querySelector(".inline-attach-bar");
+  if (attachBar) {
+    attachBar.addEventListener("dragover", (event) => {
+      if (event.dataTransfer?.items?.length) {
+        event.preventDefault();
+        attachBar.classList.add("drag-over");
+      }
+    });
+    attachBar.addEventListener("dragleave", () => attachBar.classList.remove("drag-over"));
+    attachBar.addEventListener("drop", (event) => {
+      event.preventDefault();
+      attachBar.classList.remove("drag-over");
+      uploadAttachmentFiles(event.dataTransfer?.files);
+    });
+  }
 
   // (Toolbar is now a static sticky bar — no show/hide listeners needed.)
   elements.notebook.addEventListener("change", saveDraftCache);

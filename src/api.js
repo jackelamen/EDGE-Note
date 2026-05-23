@@ -1,5 +1,4 @@
 import { config } from "./config.js";
-import { checkAiEndpoint, runAiAction } from "./aiRepository.js";
 import {
   authStatus,
   changeOwnerPassword,
@@ -99,10 +98,6 @@ function parseAttachmentPath(pathname) {
   return match ? Number(match[1]) : null;
 }
 
-function parseAiActionPath(pathname) {
-  const match = pathname.match(/^\/api\/notes\/(\d+)\/ai\/([a-z-]+)$/);
-  return match ? { noteId: Number(match[1]), action: match[2] } : null;
-}
 
 function sendDatabaseUnavailable(res, error) {
   sendJson(res, 503, {
@@ -185,9 +180,7 @@ export async function handleApi(req, res, url) {
   if (url.pathname === "/api/config") {
     sendJson(res, 200, {
       attachmentLimitMb: config.attachments.limitMb,
-      syncMode: "manual",
-      aiEnabled: Boolean(config.ai.endpointUrl),
-      aiModelName: config.ai.modelName
+      syncMode: "manual"
     });
     return true;
   }
@@ -261,13 +254,6 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
-  if (url.pathname === "/api/ai/status") {
-    await safely(res, async () => {
-      requireMethod(req, ["GET"]);
-      sendJson(res, 200, await checkAiEndpoint());
-    });
-    return true;
-  }
 
   if (url.pathname === "/api/notebooks") {
     await safely(res, async () => {
@@ -524,21 +510,6 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
-  const aiAction = parseAiActionPath(url.pathname);
-  if (aiAction) {
-    await safely(res, async () => {
-      requireMethod(req, ["POST"]);
-      const input = await readJson(req);
-      const result = await runAiAction({
-        userId,
-        noteId: aiAction.noteId,
-        action: aiAction.action,
-        question: input.question || ""
-      });
-      sendJson(res, 200, result);
-    });
-    return true;
-  }
 
   const attachmentId = parseAttachmentDownloadPath(url.pathname);
   if (attachmentId) {

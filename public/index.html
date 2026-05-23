@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.svg">
-    <link rel="stylesheet" href="/styles.css?v=18">
+    <link rel="stylesheet" href="/styles.css?v=19">
   </head>
   <body>
 
@@ -106,6 +106,44 @@
           </div>
         </div>
 
+        <!-- Settings panel — slides over sidebar content -->
+        <div class="settings-panel" data-settings-panel hidden>
+          <div class="nb-manage-header">
+            <span>Settings</span>
+            <button type="button" class="nb-manage-close" data-action="close-settings" aria-label="Done">Done</button>
+          </div>
+
+          <div class="settings-section">
+            <div class="context-heading">Backup</div>
+            <div class="backup-status" data-export-status>Run a check before downloading</div>
+            <div class="backup-actions">
+              <button type="button" data-export="status">Check</button>
+              <button type="button" data-export="create-backup">Save</button>
+              <button type="button" data-export="list-backups">List</button>
+              <button type="button" data-export="json">JSON</button>
+              <button type="button" data-export="markdown">MD</button>
+              <button type="button" data-export="archive">TGZ</button>
+            </div>
+            <div class="backup-list" data-backup-list></div>
+          </div>
+
+          <div class="settings-section">
+            <div class="context-heading">Security</div>
+            <form class="security-form" data-password-form>
+              <label>
+                <span>Current password</span>
+                <input type="password" autocomplete="current-password" data-current-password>
+              </label>
+              <label>
+                <span>New password</span>
+                <input type="password" minlength="10" autocomplete="new-password" data-new-password>
+              </label>
+              <button type="submit">Change password</button>
+              <p data-password-status></p>
+            </form>
+          </div>
+        </div>
+
         <div class="sidebar-footer">
           <div class="sync-status" aria-label="Sync status">
             <span class="sync-dot" aria-hidden="true"></span>
@@ -114,9 +152,14 @@
               <span data-cache-status>Manual sync</span>
             </div>
           </div>
-          <button class="btn-icon-small" type="button" data-action="logout" aria-label="Log out" title="Log out">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
+          <div class="sidebar-footer-icons">
+            <button class="btn-icon-small" type="button" data-action="open-settings" aria-label="Settings" title="Settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.31.35.59.6.82.25.23.56.38.9.43H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
+            </button>
+            <button class="btn-icon-small" type="button" data-action="logout" aria-label="Log out" title="Log out">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -238,10 +281,6 @@
             </button>
             <button class="btn-ghost" type="button" data-action="archive-note">Archive</button>
             <button class="btn-ghost btn-danger" type="button" data-action="delete-note">Delete</button>
-            <button class="btn-ghost" type="button" data-action="toggle-context" aria-pressed="false" title="Hide note tools">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/><path d="m10 9-3 3 3 3"/></svg>
-              Tools
-            </button>
             <button class="btn-primary" type="button" data-action="save-note">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               Sync
@@ -358,6 +397,25 @@
             data-note-body
             data-placeholder="Start writing…"
           ></div>
+
+          <!-- Inline attachment / photo area -->
+          <div class="inline-attachments" data-inline-attachments hidden>
+            <div class="inline-attachments-header">
+              <span class="inline-attachments-label">Attachments</span>
+              <span class="inline-attachments-count" data-attachment-count></span>
+            </div>
+            <div class="inline-attachments-grid" data-attachments-list></div>
+          </div>
+
+          <div class="inline-attach-bar">
+            <label class="inline-attach-btn" title="Add photo or file">
+              <input type="file" data-attachment-file accept="image/*,*/*" multiple>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Add photo or file
+            </label>
+            <span class="inline-attach-limit" data-attachment-limit>Limit 25 MB per file</span>
+          </div>
+
         </article>
 
         <footer class="editor-footer">
@@ -369,94 +427,6 @@
         </footer>
       </section>
 
-      <!-- Context panel -->
-      <aside class="context-panel" aria-label="Note info">
-
-        <div class="context-section">
-          <h2 class="context-heading">History</h2>
-          <div class="history-list" data-history-list>
-            <div class="empty-state">Save edits to build history.</div>
-          </div>
-        </div>
-
-        <div class="context-section">
-          <h2 class="context-heading">AI</h2>
-          <div class="ai-actions">
-            <button type="button" data-ai-action="summarize">Summarize</button>
-            <button type="button" data-ai-action="extract-tasks">Extract tasks</button>
-            <button type="button" data-ai-action="suggest-tags">Suggest tags</button>
-            <button type="button" data-ai-action="create-title">Create title</button>
-            <button type="button" data-ai-action="clean-up">Clean up</button>
-            <button type="button" data-ai-action="find-related">Find related</button>
-          </div>
-          <label class="ai-question">
-            <span class="sr-only">Ask this note</span>
-            <input type="text" data-ai-question placeholder="Ask this note…">
-          </label>
-          <button class="ai-ask-btn" type="button" data-ai-action="ask-note">Ask</button>
-          <div class="ai-result" data-ai-result>AI actions use your configured endpoint.</div>
-          <button class="btn-ghost ai-apply-btn" type="button" data-ai-apply hidden>Apply to note</button>
-        </div>
-
-        <div class="context-section">
-          <h2 class="context-heading">Attachments</h2>
-          <div class="attachment-actions">
-            <label class="file-picker">
-              <input type="file" data-attachment-file>
-              <span>Choose file</span>
-            </label>
-            <button class="btn-attach-upload" type="button" data-action="upload-attachment">Upload</button>
-          </div>
-          <div class="attachment-limit" data-attachment-limit>Limit 25 MB</div>
-          <div class="attachment-list" data-attachments-list>
-            <div class="empty-state">No attachments yet.</div>
-          </div>
-        </div>
-
-        <div class="context-section">
-          <h2 class="context-heading">Backup</h2>
-          <div class="backup-status" data-export-status>Run a check before downloading</div>
-          <div class="backup-actions">
-            <button type="button" data-export="status">Check</button>
-            <button type="button" data-export="create-backup">Save</button>
-            <button type="button" data-export="list-backups">List</button>
-            <button type="button" data-export="json">JSON</button>
-            <button type="button" data-export="markdown">MD</button>
-            <button type="button" data-export="archive">TGZ</button>
-          </div>
-          <div class="backup-list" data-backup-list></div>
-        </div>
-
-        <div class="context-section">
-          <h2 class="context-heading">Shortcuts</h2>
-          <div class="shortcut-list" data-shortcuts-list>
-            <span><kbd>⌘S</kbd> Sync</span>
-            <span><kbd>⌘K</kbd> Search</span>
-            <span><kbd>⌘N</kbd> New note</span>
-            <span><kbd>⌘B</kbd> Bold</span>
-            <span><kbd>⌘I</kbd> Italic</span>
-            <span><kbd>⌘↵</kbd> Checklist</span>
-            <span><kbd>⌘↓</kbd> Next note</span>
-          </div>
-        </div>
-
-        <div class="context-section">
-          <h2 class="context-heading">Security</h2>
-          <form class="security-form" data-password-form>
-            <label>
-              <span>Current password</span>
-              <input type="password" autocomplete="current-password" data-current-password>
-            </label>
-            <label>
-              <span>New password</span>
-              <input type="password" minlength="10" autocomplete="new-password" data-new-password>
-            </label>
-            <button type="submit">Change password</button>
-            <p data-password-status></p>
-          </form>
-        </div>
-
-      </aside>
 
       <!-- Mobile formatting toolbar (shown above keyboard when editor is focused) -->
       <div class="mobile-format-bar" data-mobile-format-bar aria-label="Formatting" role="toolbar" hidden>
@@ -538,13 +508,9 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           Books
         </button>
-        <button type="button" data-mobile-panel="tools" aria-label="Tools">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.31.35.59.6.82.25.23.56.38.9.43H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
-          Tools
-        </button>
       </nav>
     </main>
 
-    <script src="/app.js?v=16" type="module"></script>
+    <script src="/app.js?v=17" type="module"></script>
   </body>
 </html>
