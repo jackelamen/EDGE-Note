@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.svg">
-    <link rel="stylesheet" href="/styles.css?v=12">
+    <link rel="stylesheet" href="/styles.css?v=13">
   </head>
   <body>
 
@@ -121,48 +121,51 @@
           </button>
         </header>
 
-        <!-- Scratchpad -->
-        <section class="home-section home-scratchpad-section">
-          <div class="home-section-header">
-            <h2>Scratchpad</h2>
-            <button class="home-scratchpad-convert btn-text" type="button" data-action="scratchpad-to-note" title="Convert to note">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-              Convert to note
-            </button>
-          </div>
-          <textarea
-            class="home-scratchpad"
-            data-scratchpad
-            placeholder="Jot anything here… it stays between sessions. Hit 'Convert to note' when you're ready."
-            rows="5"
-            aria-label="Scratchpad"
-          ></textarea>
-        </section>
+        <div class="home-content">
+          <!-- Scratchpad -->
+          <section class="home-section home-scratchpad-section">
+            <div class="home-section-header">
+              <h2>Scratchpad</h2>
+              <button class="home-scratchpad-convert btn-text" type="button" data-action="scratchpad-to-note" title="Convert to note">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Convert to note
+              </button>
+            </div>
+            <textarea
+              class="home-scratchpad"
+              data-scratchpad
+              placeholder="Jot anything here… it stays between sessions."
+              rows="4"
+              aria-label="Scratchpad"
+            ></textarea>
+          </section>
 
-        <!-- Pinned / Favorites -->
-        <section class="home-section" data-home-pinned-section hidden>
-          <div class="home-section-header">
-            <h2>Pinned</h2>
-          </div>
-          <div class="home-cards home-cards-pinned" data-home-pinned></div>
-        </section>
+          <!-- Pinned / Favorites -->
+          <section class="home-section" data-home-pinned-section hidden>
+            <div class="home-section-header">
+              <h2>Pinned</h2>
+            </div>
+            <div class="home-cards home-cards-pinned" data-home-pinned></div>
+          </section>
 
-        <!-- Recent notes -->
-        <section class="home-section">
-          <div class="home-section-header">
-            <h2>Recent notes</h2>
-            <a href="#all-notes" data-view-filter="all" class="home-see-all">See all</a>
-          </div>
-          <div class="home-cards" data-home-recent></div>
-        </section>
+          <!-- Recent notes -->
+          <section class="home-section">
+            <div class="home-section-header">
+              <h2>Recent notes</h2>
+              <a href="#all-notes" data-view-filter="all" class="home-see-all">See all</a>
+            </div>
+            <div class="home-cards" data-home-recent></div>
+          </section>
 
-        <section class="home-section">
-          <div class="home-section-header">
-            <h2>Notebooks</h2>
-            <button class="home-see-all btn-text" type="button" data-action="manage-notebooks">Manage</button>
-          </div>
-          <div class="home-notebooks" data-home-notebooks></div>
-        </section>
+          <!-- Notebooks -->
+          <section class="home-section">
+            <div class="home-section-header">
+              <h2>Notebooks</h2>
+              <button class="home-see-all btn-text" type="button" data-action="manage-notebooks">Manage</button>
+            </div>
+            <div class="home-notebooks" data-home-notebooks></div>
+          </section>
+        </div>
       </section>
 
       <!-- Note list -->
@@ -530,6 +533,6 @@
       </nav>
     </main>
 
-    <script src="/app.js?v=10" type="module"></script>
+    <script src="/app.js?v=11" type="module"></script>
   </body>
 </html>

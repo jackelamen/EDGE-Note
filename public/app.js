@@ -1438,6 +1438,9 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
             <button type="button" class="btn-notebook-rename" data-notebook-rename="${notebook.id}" aria-label="Rename" title="Rename">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
             </button>
+            <button type="button" class="btn-notebook-move" data-notebook-move="${notebook.id}" aria-label="Move / nest" title="Move / nest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l-3 3 3 3"/><path d="M2 12h14"/><path d="M19 4v7a4 4 0 0 1-4 4H2"/></svg>
+            </button>
             <button type="button" class="btn-notebook-delete" data-notebook-delete="${notebook.id}" aria-label="Delete" title="Delete">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
             </button>
@@ -1517,19 +1520,27 @@ function timeGreeting() {
 
 function renderHomeNotebooks() {
   if (!elements.homeNotebooks) return;
-  // Only show top-level notebooks on home
-  const topLevel = state.notebooks.filter((nb) => !nb.parentId);
-  if (!topLevel.length) {
+  if (!state.notebooks.length) {
     elements.homeNotebooks.innerHTML = '<p class="home-empty">No notebooks yet.</p>';
     return;
   }
-  elements.homeNotebooks.innerHTML = topLevel.map((notebook) => `
-    <button class="home-notebook-card" type="button" data-notebook-filter="${notebook.id}">
-      <span class="home-notebook-icon" aria-hidden="true">${notebook.icon || "📓"}</span>
-      <strong>${escapeHtml(notebook.name)}</strong>
-      <span>${notebook.noteCount || 0} note${notebook.noteCount === 1 ? "" : "s"}</span>
-    </button>
-  `).join("");
+
+  // Render as nested list: top-level notebooks, each followed by their children
+  function notebookTile(notebook, depth = 0) {
+    const children = state.notebooks.filter((nb) => nb.parentId === notebook.id);
+    const tile = `
+      <button class="home-notebook-card${depth > 0 ? " home-notebook-card-child" : ""}" type="button"
+              data-notebook-filter="${notebook.id}" style="${depth > 0 ? `margin-left:${depth * 16}px` : ""}">
+        <span class="home-notebook-icon" aria-hidden="true">${notebook.icon || "📓"}</span>
+        <strong>${escapeHtml(notebook.name)}</strong>
+        <span>${notebook.noteCount || 0} note${notebook.noteCount === 1 ? "" : "s"}</span>
+      </button>
+    `;
+    return tile + children.map((child) => notebookTile(child, depth + 1)).join("");
+  }
+
+  const topLevel = state.notebooks.filter((nb) => !nb.parentId);
+  elements.homeNotebooks.innerHTML = topLevel.map((nb) => notebookTile(nb)).join("");
 }
 
 function renderHomeView() {
@@ -1957,6 +1968,67 @@ async function renameNotebook(notebookId) {
     renderCollections();
     renderNotes();
     setStatus(`Renamed to "${name.trim()}"`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function moveNotebook(notebookId) {
+  const notebook = state.notebooks.find((nb) => nb.id === notebookId);
+  if (!notebook) return;
+
+  // Build options: "None (top level)" + all notebooks except this one and its descendants
+  const descendants = new Set();
+  function collectDescendants(id) {
+    state.notebooks.filter((nb) => nb.parentId === id).forEach((nb) => {
+      descendants.add(nb.id);
+      collectDescendants(nb.id);
+    });
+  }
+  collectDescendants(notebookId);
+
+  const options = ["(top level)", ...state.notebooks
+    .filter((nb) => nb.id !== notebookId && !descendants.has(nb.id))
+    .map((nb) => {
+      const prefix = nb.parentId ? "  └ " : "";
+      return `${prefix}${nb.icon || "📓"} ${nb.name}`;
+    })
+  ];
+  const optionsText = options.map((o, i) => `${i}: ${o}`).join("\n");
+  const currentLabel = notebook.parentId
+    ? (state.notebooks.find((nb) => nb.id === notebook.parentId)?.name || "unknown")
+    : "(top level)";
+
+  const input = window.prompt(
+    `Move "${notebook.name}" (currently under: ${currentLabel})\n\nEnter number:\n${optionsText}`,
+    "0"
+  );
+  if (input === null) return;
+
+  const idx = parseInt(input, 10);
+  if (isNaN(idx) || idx < 0 || idx >= options.length) {
+    setStatus("Invalid selection.");
+    return;
+  }
+
+  const newParentId = idx === 0
+    ? null
+    : state.notebooks.filter((nb) => nb.id !== notebookId && !descendants.has(nb.id))[idx - 1]?.id || null;
+
+  try {
+    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ parentId: newParentId })
+    });
+    state.notebooks = payload.notebooks || [];
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
+    renderCollections();
+    renderNotes();
+    setStatus("Notebook moved.");
   } catch (error) {
     setStatus(error.message);
   }
@@ -3007,6 +3079,11 @@ function bindEvents() {
       renameNotebook(Number(renameBtn.dataset.notebookRename));
       return;
     }
+    const moveBtn = event.target.closest("[data-notebook-move]");
+    if (moveBtn) {
+      moveNotebook(Number(moveBtn.dataset.notebookMove));
+      return;
+    }
     const iconBtn = event.target.closest("[data-notebook-icon]");
     if (iconBtn) {
       setNotebookIcon(Number(iconBtn.dataset.notebookIcon));
@@ -3200,6 +3277,32 @@ function bindEvents() {
     event.returnValue = "";
   });
   window.addEventListener("keydown", handleGlobalShortcuts);
+
+  // Auto-sync: reload notes every 60 seconds when the tab is visible
+  let autoSyncInterval = null;
+  function startAutoSync() {
+    if (autoSyncInterval) return;
+    autoSyncInterval = window.setInterval(async () => {
+      if (document.hidden) return;
+      await flushPendingChanges();
+      await loadNotes();
+      if (state.filter === "home") renderHomeView();
+    }, 60_000);
+  }
+  function stopAutoSync() {
+    window.clearInterval(autoSyncInterval);
+    autoSyncInterval = null;
+  }
+  // Also sync immediately when the tab becomes visible again
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      flushPendingChanges();
+      loadNotes().then(() => {
+        if (state.filter === "home") renderHomeView();
+      });
+    }
+  });
+  startAutoSync();
 }
 
 async function init() {
