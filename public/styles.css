@@ -30,7 +30,8 @@
   --sb-active-ink: #f0a090;
   --sb-hover:      rgba(255,255,255,.06);
 
-  --sidebar-w:     220px;
+  --sidebar-w:     240px;
+  --sidebar-w-collapsed: 58px;
   --list-w:        280px;
   --context-w:     260px;
   --radius:        7px;
@@ -272,10 +273,19 @@ p { margin: 0; }
   display: grid;
   grid-template-columns: var(--sidebar-w) var(--list-w) 1fr var(--context-w);
   min-height: 100vh;
+  transition: grid-template-columns var(--transition-md);
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: var(--sidebar-w-collapsed) var(--list-w) 1fr var(--context-w);
 }
 
 .app-shell.context-collapsed {
   grid-template-columns: var(--sidebar-w) var(--list-w) minmax(0, 1fr) 0;
+}
+
+.app-shell.sidebar-collapsed.context-collapsed {
+  grid-template-columns: var(--sidebar-w-collapsed) var(--list-w) minmax(0, 1fr) 0;
 }
 
 .app-shell.context-collapsed .context-panel { display: none; }
@@ -303,10 +313,114 @@ p { margin: 0; }
   color: var(--sb-ink);
   border-right: 1px solid var(--sb-line);
   overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 0;
   height: 100vh;
+  width: var(--sidebar-w);
+  transition: width var(--transition-md);
 }
+
+/* Sidebar collapse toggle button */
+.btn-sidebar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  color: var(--sb-ink-3);
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+.btn-sidebar-collapse:hover { background: var(--sb-hover); color: var(--sb-ink); }
+.btn-sidebar-collapse svg { width: 14px; height: 14px; stroke: currentColor; fill: none; transition: transform var(--transition-md); }
+
+/* When collapsed, flip the chevron */
+.app-shell.sidebar-collapsed .btn-sidebar-collapse svg { transform: rotate(180deg); }
+
+/* Collapsed sidebar — icon only */
+.app-shell.sidebar-collapsed .sidebar {
+  width: var(--sidebar-w-collapsed);
+  padding: 12px 6px;
+  align-items: center;
+}
+
+.app-shell.sidebar-collapsed .sidebar-brand strong,
+.app-shell.sidebar-collapsed .btn-new-note span,
+.app-shell.sidebar-collapsed .nav-item span,
+.app-shell.sidebar-collapsed .sidebar-section-header,
+.app-shell.sidebar-collapsed .notebook-row-name,
+.app-shell.sidebar-collapsed .notebook-row-actions,
+.app-shell.sidebar-collapsed .notebook-chevron,
+.app-shell.sidebar-collapsed .notebook-chevron-spacer,
+.app-shell.sidebar-collapsed .sidebar-section-items a span,
+.app-shell.sidebar-collapsed .sidebar-section-items a small,
+.app-shell.sidebar-collapsed .notebook-row-link small,
+.app-shell.sidebar-collapsed .notebook-form-wrap,
+.app-shell.sidebar-collapsed .tags-nav,
+.app-shell.sidebar-collapsed .sync-text,
+.app-shell.sidebar-collapsed [data-sync-bar] .sync-text { display: none; }
+
+.app-shell.sidebar-collapsed .btn-new-note {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.app-shell.sidebar-collapsed .nav-item {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius);
+}
+
+.app-shell.sidebar-collapsed .notebook-row-link {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .notebook-row-inner {
+  padding-left: 0;
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .notebook-children { display: none; }
+
+.app-shell.sidebar-collapsed .sidebar-brand {
+  padding: 4px 0 14px;
+  justify-content: center;
+}
+
+/* Tooltip-style label on icon hover when collapsed */
+.app-shell.sidebar-collapsed .nav-item { position: relative; }
+.app-shell.sidebar-collapsed .nav-item::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition);
+  z-index: 300;
+}
+.app-shell.sidebar-collapsed .nav-item:hover::after { opacity: 1; }
 
 .sidebar-brand {
   display: flex;
@@ -436,13 +550,24 @@ p { margin: 0; }
 /* ─── Notebooks ──────────────────────────────────────────────── */
 .notebook-row {
   display: flex;
+  flex-direction: column;   /* inner row + children stacked vertically */
+  border-radius: var(--radius);
+}
+
+.notebook-row-inner {
+  display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
   border-radius: var(--radius);
   transition: background var(--transition);
 }
 
-.notebook-row:hover { background: var(--sb-hover); }
-.notebook-row:hover .notebook-row-actions { opacity: 1; }
+.notebook-row-inner:hover { background: var(--sb-hover); }
+.notebook-row-inner:hover .notebook-row-actions { opacity: 1; }
+
+.notebook-row-inner .notebook-row-link { padding-left: 4px; }
 
 .notebook-row-link {
   display: flex;
@@ -871,18 +996,6 @@ p { margin: 0; }
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-}
-
-.notebook-row-inner {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  padding-left: 4px;
-}
-
-.notebook-row-inner .notebook-row-link {
-  padding-left: 4px;
 }
 
 .notebook-children { overflow: hidden; }

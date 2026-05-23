@@ -2744,6 +2744,21 @@ function bindEvents() {
   elements.logout.addEventListener("click", logout);
   elements.notebookForm.addEventListener("submit", createNotebookFromForm);
 
+  // Sidebar collapse toggle — persisted to localStorage
+  const SIDEBAR_COLLAPSED_KEY = "edge_sidebar_collapsed";
+  function applySidebarCollapse(collapsed) {
+    elements.appShell?.classList.toggle("sidebar-collapsed", collapsed);
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  }
+  // Restore on load
+  if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") {
+    applySidebarCollapse(true);
+  }
+  document.querySelector("[data-action='toggle-sidebar']")?.addEventListener("click", () => {
+    const isCollapsed = elements.appShell?.classList.contains("sidebar-collapsed");
+    applySidebarCollapse(!isCollapsed);
+  });
+
   // Show notebook form when + clicked, hide on Escape
   document.querySelector("[data-action='toggle-notebook-form']")?.addEventListener("click", () => {
     const form = elements.notebookForm;
