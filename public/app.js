@@ -354,6 +354,10 @@ function sanitizeHtml(html) {
       return;
     }
 
+    // Remap legacy tags to their semantic equivalents before the allowlist check
+    if (tag === "b") { element.outerHTML = `<strong>${element.innerHTML}</strong>`; return; }
+    if (tag === "i") { element.outerHTML = `<em>${element.innerHTML}</em>`; return; }
+
     if (!allowedTags.has(tag)) {
       unwrap(element);
       return;
@@ -1090,17 +1094,47 @@ function applyToolbarColor(property, value) {
   applyInlineStyle({ [property]: color });
 }
 
+function anchorBlock() {
+  const sel = window.getSelection();
+  if (!sel?.anchorNode) return null;
+  return sel.anchorNode.nodeType === Node.ELEMENT_NODE
+    ? sel.anchorNode
+    : sel.anchorNode.parentElement;
+}
+
 function applyWysiwygFormat(format) {
   elements.body.focus();
   restoreSelection();
 
-  if (format === "bold") { document.execCommand("bold", false, null); }
-  else if (format === "italic") { document.execCommand("italic", false, null); }
+  if (format === "bold") {
+    // execCommand("bold") produces <b>, which our sanitizer strips.
+    // Instead wrap the selection in <strong>, or unwrap if already bold.
+    const sel = window.getSelection();
+    const alreadyBold = sel?.anchorNode?.parentElement?.closest("strong") ||
+      document.queryCommandState("bold");
+    if (alreadyBold) {
+      document.execCommand("removeFormat", false, null);
+    } else if (sel && !sel.isCollapsed) {
+      document.execCommand("insertHTML", false,
+        `<strong>${escapeHtml(sel.toString())}</strong>`);
+    }
+  }
+  else if (format === "italic") {
+    // Same issue: execCommand produces <i>, sanitizer only allows <em>.
+    const sel = window.getSelection();
+    const alreadyItalic = sel?.anchorNode?.parentElement?.closest("em") ||
+      document.queryCommandState("italic");
+    if (alreadyItalic) {
+      document.execCommand("removeFormat", false, null);
+    } else if (sel && !sel.isCollapsed) {
+      document.execCommand("insertHTML", false,
+        `<em>${escapeHtml(sel.toString())}</em>`);
+    }
+  }
   else if (format === "underline") { document.execCommand("underline", false, null); }
   else if (format === "heading") {
     // Toggle between h2 and normal paragraph
-    const sel = window.getSelection();
-    const block = sel?.anchorNode ? sel.anchorNode.parentElement?.closest("h2, h3, h4, p, div") : null;
+    const block = anchorBlock()?.closest("h2, h3, h4, p, div");
     if (block && /^H[2-4]$/.test(block.tagName)) {
       document.execCommand("formatBlock", false, "p");
     } else {
@@ -1109,7 +1143,15 @@ function applyWysiwygFormat(format) {
   }
   else if (format === "bullet") { document.execCommand("insertUnorderedList", false, null); }
   else if (format === "ordered") { document.execCommand("insertOrderedList", false, null); }
-  else if (format === "quote") { document.execCommand("formatBlock", false, "blockquote"); }
+  else if (format === "quote") {
+    // Toggle blockquote on/off
+    const block = anchorBlock()?.closest("blockquote, p, div, h2, h3, h4");
+    if (block?.tagName === "BLOCKQUOTE") {
+      document.execCommand("formatBlock", false, "p");
+    } else {
+      document.execCommand("formatBlock", false, "blockquote");
+    }
+  }
   else if (format === "code") {
     const sel = window.getSelection();
     const selected = sel?.toString() || "";
