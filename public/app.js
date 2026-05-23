@@ -66,7 +66,19 @@ const elements = {
   notebook: document.querySelector("[data-note-notebook]"),
   notebookForm: document.querySelector("[data-notebook-form]"),
   notebookName: document.querySelector("[data-notebook-name]"),
+  notebookParent: document.querySelector("[data-notebook-parent]"),
   notebooksList: document.querySelector("[data-notebooks-list]"),
+  mobileNotebooksModal: document.querySelector("[data-mobile-notebooks-modal]"),
+  mobileModalOverlay: document.querySelector("[data-mobile-modal-overlay]"),
+  mobileNotebooksList: document.querySelector("[data-mobile-notebooks-list]"),
+  mobileNotebookForm: document.querySelector("[data-mobile-notebook-form]"),
+  mobileNotebookName: document.querySelector("[data-mobile-notebook-name]"),
+  mobileNotebookParent: document.querySelector("[data-mobile-notebook-parent]"),
+  mobileFormatBar: document.querySelector("[data-mobile-format-bar]"),
+  scratchpad: document.querySelector("[data-scratchpad]"),
+  homePinnedSection: document.querySelector("[data-home-pinned-section]"),
+  homePinned: document.querySelector("[data-home-pinned]"),
+  homeDate: document.querySelector("[data-home-date]"),
   currentPassword: document.querySelector("[data-current-password]"),
   logout: document.querySelector("[data-action='logout']"),
   newPassword: document.querySelector("[data-new-password]"),
@@ -192,6 +204,13 @@ function stripHtml(html) {
 function notePreview(note) {
   const preview = stripHtml(note.body);
   return preview || "No body yet";
+}
+
+function firstImageSrc(note) {
+  if (!note.body) return null;
+  // Fast regex — look for first img src in the body HTML
+  const match = note.body.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
 }
 
 function searchSnippet(note) {
@@ -328,7 +347,7 @@ function sanitizeHtml(html) {
   const root = document.createElement("div");
   root.innerHTML = String(html || "");
   const allowedTags = new Set([
-    "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "input",
+    "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "img", "input",
     "li", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "u", "ul"
   ]);
   const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span"]);
@@ -402,6 +421,23 @@ function sanitizeHtml(html) {
       element.setAttribute("type", "checkbox");
       element.setAttribute("data-task-check", "");
       if (isChecked) element.setAttribute("checked", "");
+    }
+
+    if (tag === "img") {
+      const src = element.getAttribute("src") || "";
+      // Allow data URIs and attachment download URLs only
+      const safeSrc = src.startsWith("data:image/") || src.startsWith("/api/attachments/")
+        ? src
+        : "";
+      if (!safeSrc) {
+        element.remove();
+        return;
+      }
+      const alt = (element.getAttribute("alt") || "").slice(0, 300);
+      Array.from(element.attributes).forEach((a) => element.removeAttribute(a.name));
+      element.setAttribute("src", safeSrc);
+      if (alt) element.setAttribute("alt", alt);
+      element.setAttribute("class", "note-img");
     }
   }
 
@@ -1196,6 +1232,21 @@ function applyWysiwygFormat(format) {
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }
+  else if (format === "image") {
+    // Open a file picker — works on both desktop and mobile
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      document.body.removeChild(input);
+      if (file) insertImageFileIntoEditor(file);
+    }, { once: true });
+    input.click();
+    return; // don't call saveDraftCache yet — async
+  }
   else if (format === "clear") {
     document.execCommand("removeFormat", false, null);
   }
@@ -1215,19 +1266,22 @@ function renderAttachments() {
     return;
   }
 
-  elements.attachmentList.innerHTML = state.attachments.map((attachment) => `
+  elements.attachmentList.innerHTML = state.attachments.map((attachment) => {
+    const isImage = (attachment.mimeType || "").startsWith("image/");
+    return `
     <article class="attachment-item">
-      <a class="attachment-main" href="${attachment.downloadUrl}">
+      <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener">
         ${attachment.thumbnailUrl ? `<img src="${attachment.thumbnailUrl}" alt="" loading="lazy">` : '<span class="attachment-icon" aria-hidden="true">FILE</span>'}
         <span>${escapeHtml(attachment.filename)}</span>
         <small>${escapeHtml(attachment.mimeType || "file")} · ${escapeHtml(formatBytes(attachment.sizeBytes))}</small>
       </a>
       <div class="attachment-tools">
+        ${isImage ? `<button type="button" data-attachment-embed="${attachment.id}">Embed</button>` : ""}
         <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
         <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
       </div>
     </article>
-  `).join("");
+  `}).join("");
 }
 
 function historyPreview(version) {
@@ -1344,16 +1398,35 @@ function applyAiResult() {
   }
 }
 
+// Track which notebook groups are collapsed (persisted in localStorage)
+const collapsedNotebooks = new Set(
+  JSON.parse(localStorage.getItem("edge_collapsed_notebooks") || "[]")
+);
+
+function saveCollapsedNotebooks() {
+  localStorage.setItem("edge_collapsed_notebooks", JSON.stringify([...collapsedNotebooks]));
+}
+
 function renderNotebookTree(notebooks, parentId = null, depth = 0) {
-  return notebooks
-    .filter((nb) => (nb.parentId || null) === parentId)
-    .map((notebook) => {
-      const children = renderNotebookTree(notebooks, notebook.id, depth + 1);
-      const icon = notebook.icon || "📓";
-      const indent = depth > 0 ? `style="padding-left:${8 + depth * 14}px"` : "";
-      return `
-        <div class="notebook-row" data-notebook-id="${notebook.id}">
-          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link" ${indent}>
+  const children = notebooks.filter((nb) => (nb.parentId || null) === parentId);
+  if (!children.length) return "";
+
+  return children.map((notebook) => {
+    const subtree = renderNotebookTree(notebooks, notebook.id, depth + 1);
+    const hasChildren = subtree.length > 0;
+    const icon = notebook.icon || "📓";
+    const isCollapsed = collapsedNotebooks.has(notebook.id);
+    const indent = depth > 0 ? `style="padding-left:${depth * 14}px"` : "";
+
+    return `
+      <div class="notebook-row${hasChildren ? " has-children" : ""}${hasChildren && !isCollapsed ? " expanded" : ""}" data-notebook-id="${notebook.id}">
+        <div class="notebook-row-inner" ${indent}>
+          ${hasChildren ? `
+            <button type="button" class="notebook-chevron" data-notebook-toggle="${notebook.id}" aria-label="Toggle" title="Expand/collapse">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          ` : `<span class="notebook-chevron-spacer"></span>`}
+          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link">
             <span class="notebook-icon" aria-hidden="true">${icon}</span>
             <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
             <small>${notebook.noteCount || 0}</small>
@@ -1370,9 +1443,24 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
             </button>
           </div>
         </div>
-        ${children}
-      `;
-    }).join("");
+        ${hasChildren ? `<div class="notebook-children${isCollapsed ? " collapsed" : ""}">${subtree}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+function buildNotebookParentOptions(excludeId = null) {
+  // Build flat list of notebooks for parent selector, excluding the notebook being edited
+  return [
+    '<option value="">No parent (top level)</option>',
+    ...state.notebooks
+      .filter((nb) => nb.id !== excludeId)
+      .map((nb) => {
+        const icon = nb.icon || "📓";
+        const prefix = nb.parentId ? "  └ " : "";
+        return `<option value="${nb.id}">${icon} ${prefix}${escapeHtml(nb.name)}</option>`;
+      })
+  ].join("");
 }
 
 function renderCollections() {
@@ -1389,8 +1477,18 @@ function renderCollections() {
   elements.notebook.innerHTML = notebookOptions.join("");
   elements.notebook.value = selectedNotebook;
 
+  // Populate parent selectors
+  const parentOptions = buildNotebookParentOptions();
+  if (elements.notebookParent) elements.notebookParent.innerHTML = parentOptions;
+  if (elements.mobileNotebookParent) elements.mobileNotebookParent.innerHTML = parentOptions;
+
   const tree = renderNotebookTree(state.notebooks);
   elements.notebooksList.innerHTML = tree || '<span class="sidebar-empty">No notebooks yet</span>';
+
+  // Also render the mobile modal list if it's open
+  if (elements.mobileNotebooksList) {
+    elements.mobileNotebooksList.innerHTML = tree || '<p class="home-empty">No notebooks yet.</p>';
+  }
 
   elements.tagsNav.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
@@ -1419,13 +1517,15 @@ function timeGreeting() {
 
 function renderHomeNotebooks() {
   if (!elements.homeNotebooks) return;
-  if (!state.notebooks.length) {
-    elements.homeNotebooks.innerHTML = '<p class="home-empty">No notebooks yet. Create one from the sidebar.</p>';
+  // Only show top-level notebooks on home
+  const topLevel = state.notebooks.filter((nb) => !nb.parentId);
+  if (!topLevel.length) {
+    elements.homeNotebooks.innerHTML = '<p class="home-empty">No notebooks yet.</p>';
     return;
   }
-  elements.homeNotebooks.innerHTML = state.notebooks.map((notebook) => `
+  elements.homeNotebooks.innerHTML = topLevel.map((notebook) => `
     <button class="home-notebook-card" type="button" data-notebook-filter="${notebook.id}">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <span class="home-notebook-icon" aria-hidden="true">${notebook.icon || "📓"}</span>
       <strong>${escapeHtml(notebook.name)}</strong>
       <span>${notebook.noteCount || 0} note${notebook.noteCount === 1 ? "" : "s"}</span>
     </button>
@@ -1435,12 +1535,43 @@ function renderHomeNotebooks() {
 function renderHomeView() {
   if (!elements.homeView || elements.homeView.hidden) return;
 
-  // Update greeting
-  if (elements.homeGreeting) {
-    elements.homeGreeting.textContent = timeGreeting();
+  // Date and greeting
+  if (elements.homeGreeting) elements.homeGreeting.textContent = timeGreeting();
+  if (elements.homeDate) {
+    elements.homeDate.textContent = new Intl.DateTimeFormat(undefined, {
+      weekday: "long", month: "long", day: "numeric"
+    }).format(new Date());
   }
 
-  // Render recent notes — show up to 8 most recent non-archived notes
+  // Restore scratchpad from localStorage
+  if (elements.scratchpad && !elements.scratchpad.dataset.loaded) {
+    elements.scratchpad.value = localStorage.getItem("edge_scratchpad") || "";
+    elements.scratchpad.dataset.loaded = "1";
+  }
+
+  // Pinned / favorited notes
+  const pinned = state.notes.filter((note) => note.favorite && !note.archivedAt).slice(0, 6);
+  if (elements.homePinnedSection) {
+    elements.homePinnedSection.hidden = pinned.length === 0;
+  }
+  if (elements.homePinned && pinned.length) {
+    elements.homePinned.innerHTML = pinned.map((note) => {
+      const thumb = firstImageSrc(note);
+      return `
+      <button class="home-card${thumb ? " home-card-has-thumb" : ""}" type="button" data-note-id="${note.id}">
+        ${thumb ? `<img class="home-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
+        <div class="home-card-body">
+          <span class="home-card-notebook">${escapeHtml(note.notebookName || "Note")}</span>
+          <h3 class="home-card-title">${escapeHtml(note.title || "Untitled note")}</h3>
+          <p class="home-card-snippet">${escapeHtml(stripHtml(note.body).slice(0, 100) || "")}</p>
+          <time class="home-card-date">${escapeHtml(formatDate(note.updatedAt))}</time>
+        </div>
+      </button>
+    `;
+    }).join("");
+  }
+
+  // Recent notes — up to 8 non-archived, non-pinned
   if (elements.homeRecent) {
     const recent = state.notes
       .filter((note) => !note.archivedAt)
@@ -1449,14 +1580,20 @@ function renderHomeView() {
     if (!recent.length) {
       elements.homeRecent.innerHTML = '<p class="home-empty">No notes yet. Hit "New note" to get started.</p>';
     } else {
-      elements.homeRecent.innerHTML = recent.map((note) => `
-        <button class="home-card" type="button" data-note-id="${note.id}">
-          <span class="home-card-notebook">${escapeHtml(note.notebookName || "Note")}</span>
-          <h3 class="home-card-title">${escapeHtml(note.title || "Untitled note")}</h3>
-          <p class="home-card-snippet">${escapeHtml(stripHtml(note.body).slice(0, 120) || "")}</p>
-          <time class="home-card-date">${escapeHtml(formatDate(note.updatedAt))}</time>
+      elements.homeRecent.innerHTML = recent.map((note) => {
+        const thumb = firstImageSrc(note);
+        return `
+        <button class="home-card${thumb ? " home-card-has-thumb" : ""}" type="button" data-note-id="${note.id}">
+          ${thumb ? `<img class="home-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
+          <div class="home-card-body">
+            <span class="home-card-notebook">${escapeHtml(note.notebookName || "Note")}</span>
+            <h3 class="home-card-title">${escapeHtml(note.title || "Untitled note")}</h3>
+            <p class="home-card-snippet">${escapeHtml(stripHtml(note.body).slice(0, 120) || "")}</p>
+            <time class="home-card-date">${escapeHtml(formatDate(note.updatedAt))}</time>
+          </div>
         </button>
-      `).join("");
+      `;
+      }).join("");
     }
   }
 
@@ -1483,14 +1620,19 @@ function renderNotes() {
     return;
   }
 
-  elements.list.innerHTML = notes.map((note) => `
-    <article class="note-card ${note.id === state.selectedId ? "active" : ""}" data-note-id="${note.id}" tabindex="0">
-      <span class="note-card-notebook">${escapeHtml(note.notebookName || (note.tags?.[0] ? `#${note.tags[0]}` : "Note"))}</span>
-      <h3 class="note-card-title">${escapeHtml(note.title || "Untitled note")}${note.favorite ? ' <span class="note-card-star" aria-label="Favorite">★</span>' : ""}</h3>
-      <p class="note-card-snippet">${escapeHtml(searchSnippet(note))}</p>
-      <time class="note-card-date" datetime="${escapeHtml(note.updatedAt || "")}">${escapeHtml(formatDate(note.updatedAt))}</time>
+  elements.list.innerHTML = notes.map((note) => {
+    const thumb = firstImageSrc(note);
+    return `
+    <article class="note-card ${note.id === state.selectedId ? "active" : ""}${thumb ? " note-card-has-thumb" : ""}" data-note-id="${note.id}" tabindex="0">
+      ${thumb ? `<img class="note-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
+      <div class="note-card-body">
+        <span class="note-card-notebook">${escapeHtml(note.notebookName || (note.tags?.[0] ? `#${note.tags[0]}` : "Note"))}</span>
+        <h3 class="note-card-title">${escapeHtml(note.title || "Untitled note")}${note.favorite ? ' <span class="note-card-star" aria-label="Favorite">★</span>' : ""}</h3>
+        <p class="note-card-snippet">${escapeHtml(searchSnippet(note))}</p>
+        <time class="note-card-date" datetime="${escapeHtml(note.updatedAt || "")}">${escapeHtml(formatDate(note.updatedAt))}</time>
+      </div>
     </article>
-  `).join("");
+  `}).join("");
 }
 
 async function updateCurrentNote(patch) {
@@ -1728,33 +1870,39 @@ async function loadCollections() {
   }
 }
 
+async function createNotebookApi({ name, parentId = null } = {}) {
+  const payload = await requestJson("/api/notebooks", {
+    method: "POST",
+    body: JSON.stringify({ name, parentId: parentId || null })
+  });
+  state.notebooks = payload.notebooks || [];
+  writeCache(cacheKeys.collections, {
+    notebooks: state.notebooks,
+    tags: state.tags,
+    cachedAt: new Date().toISOString()
+  });
+  renderCollections();
+  renderNotes();
+  return state.notebooks.find((nb) => nb.name.toLowerCase() === name.toLowerCase());
+}
+
 async function createNotebookFromForm(event) {
   event.preventDefault();
   const name = elements.notebookName.value.trim();
   if (!name) return;
+  const parentId = elements.notebookParent?.value ? Number(elements.notebookParent.value) : null;
 
   try {
-    const payload = await requestJson("/api/notebooks", {
-      method: "POST",
-      body: JSON.stringify({ name })
-    });
-    state.notebooks = payload.notebooks || [];
+    const created = await createNotebookApi({ name, parentId });
     elements.notebookName.value = "";
+    if (elements.notebookParent) elements.notebookParent.value = "";
     if (elements.notebookForm) elements.notebookForm.hidden = true;
-    const created = state.notebooks.find((notebook) => notebook.name.toLowerCase() === name.toLowerCase());
     if (created) {
       state.notebookFilter = created.id;
       state.tagFilter = null;
       state.filter = "all";
       elements.notebook.value = created.id;
     }
-    writeCache(cacheKeys.collections, {
-      notebooks: state.notebooks,
-      tags: state.tags,
-      cachedAt: new Date().toISOString()
-    });
-    renderCollections();
-    renderNotes();
     setStatus(`Notebook "${name}" ready`);
   } catch (error) {
     setStatus(error.message);
@@ -2078,6 +2226,89 @@ async function saveNote() {
   } finally {
     state.pendingSave = false;
     elements.saveNote.textContent = "Sync";
+  }
+}
+
+function insertImageUrl(src, alt = "") {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = alt;
+  img.className = "note-img";
+  // Wrap in a <p> so it sits on its own line and cursor can move past it
+  const wrapper = document.createElement("p");
+  wrapper.appendChild(img);
+  const br = document.createElement("p");
+  br.innerHTML = "<br>";
+
+  elements.body.focus();
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(br.cloneNode(true));
+    range.insertNode(wrapper);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    elements.body.appendChild(wrapper);
+    elements.body.appendChild(br.cloneNode(true));
+  }
+  elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+async function insertImageFileIntoEditor(file) {
+  // Read as data URL for immediate display
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  insertImageUrl(dataUrl, file.name);
+
+  // If note is already saved, upload and replace the data URL with a real attachment URL
+  if (state.selectedId) {
+    uploadAndReplaceImage(file, dataUrl);
+  }
+  // If note is not saved yet, the data URL will be saved with the body.
+  // On next load the sanitizer will pass it through.
+  // After the user saves, we can swap it then — but for simplicity we upload immediately if possible.
+}
+
+async function uploadAndReplaceImage(file, dataUrlToReplace) {
+  let noteId = state.selectedId;
+  if (!noteId) return;
+
+  try {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const thumbnail = await createAttachmentThumbnail(file);
+    if (thumbnail) form.append("thumbnail", thumbnail, "thumbnail.webp");
+
+    const response = await fetch(`/api/notes/${noteId}/attachments`, {
+      method: "POST",
+      body: form
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || "Upload failed");
+
+    const attachment = payload.attachment;
+    state.attachments.unshift(attachment);
+    renderAttachments();
+
+    // Replace the data URL in the editor with the real download URL
+    const imgs = elements.body.querySelectorAll(`img[src="${CSS.escape(dataUrlToReplace)}"], img.note-img`);
+    imgs.forEach((img) => {
+      if (img.getAttribute("src") === dataUrlToReplace) {
+        img.setAttribute("src", attachment.downloadUrl);
+      }
+    });
+    elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+    setStatus(`Image uploaded: ${attachment.filename}`);
+  } catch (error) {
+    setStatus(`Image upload failed: ${error.message}`);
   }
 }
 
@@ -2600,6 +2831,30 @@ function bindEvents() {
     }
   });
 
+  // Paste handler — intercept image data from clipboard
+  elements.body.addEventListener("paste", (event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return; // let default paste handle text
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    insertImageFileIntoEditor(file);
+  });
+
+  // Drag-and-drop images into the editor
+  elements.body.addEventListener("dragover", (event) => {
+    const hasImage = Array.from(event.dataTransfer?.items || []).some((i) => i.type.startsWith("image/"));
+    if (hasImage) event.preventDefault();
+  });
+
+  elements.body.addEventListener("drop", (event) => {
+    const files = Array.from(event.dataTransfer?.files || []).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    event.preventDefault();
+    files.forEach((file) => insertImageFileIntoEditor(file));
+  });
+
   // Floating toolbar — show/hide on selection changes inside the editor.
   document.addEventListener("selectionchange", () => {
     updateFloatingToolbar();
@@ -2740,7 +2995,8 @@ function bindEvents() {
     });
   }
 
-  elements.notebooksList.addEventListener("click", (event) => {
+  // Shared notebook click handler (sidebar + mobile modal)
+  function handleNotebookListClick(event) {
     const deleteBtn = event.target.closest("[data-notebook-delete]");
     if (deleteBtn) {
       deleteNotebook(Number(deleteBtn.dataset.notebookDelete));
@@ -2756,14 +3012,132 @@ function bindEvents() {
       setNotebookIcon(Number(iconBtn.dataset.notebookIcon));
       return;
     }
+    const toggleBtn = event.target.closest("[data-notebook-toggle]");
+    if (toggleBtn) {
+      const id = Number(toggleBtn.dataset.notebookToggle);
+      const row = toggleBtn.closest(".notebook-row");
+      if (collapsedNotebooks.has(id)) {
+        collapsedNotebooks.delete(id);
+        row?.classList.add("expanded");
+        row?.querySelector(".notebook-children")?.classList.remove("collapsed");
+      } else {
+        collapsedNotebooks.add(id);
+        row?.classList.remove("expanded");
+        row?.querySelector(".notebook-children")?.classList.add("collapsed");
+      }
+      saveCollapsedNotebooks();
+      return;
+    }
     const link = event.target.closest("[data-notebook-filter]");
     if (!link) return;
     event.preventDefault();
     state.notebookFilter = Number(link.dataset.notebookFilter);
     state.tagFilter = null;
     state.filter = "all";
+    // Close mobile modal if open
+    closeNotebooksModal();
     loadNotes();
+    setMobilePanel("list");
+  }
+
+  elements.notebooksList.addEventListener("click", handleNotebookListClick);
+
+  // Mobile notebooks modal
+  function openNotebooksModal() {
+    if (!elements.mobileModalOverlay) return;
+    elements.mobileModalOverlay.hidden = false;
+    document.body.style.overflow = "hidden";
+    // Refresh the list
+    if (elements.mobileNotebooksList) {
+      elements.mobileNotebooksList.innerHTML = renderNotebookTree(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
+    }
+  }
+
+  function closeNotebooksModal() {
+    if (!elements.mobileModalOverlay) return;
+    elements.mobileModalOverlay.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  // "Notebooks" tab and "Manage" button both open the modal
+  document.querySelectorAll("[data-action='open-notebooks-modal'], [data-action='manage-notebooks']").forEach((btn) => {
+    btn.addEventListener("click", openNotebooksModal);
   });
+
+  document.querySelector("[data-action='close-notebooks-modal']")?.addEventListener("click", closeNotebooksModal);
+
+  elements.mobileModalOverlay?.addEventListener("click", (event) => {
+    if (event.target === elements.mobileModalOverlay) closeNotebooksModal();
+  });
+
+  elements.mobileNotebooksList?.addEventListener("click", handleNotebookListClick);
+
+  elements.mobileNotebookForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = elements.mobileNotebookName?.value.trim();
+    if (!name) return;
+    const parentId = elements.mobileNotebookParent?.value ? Number(elements.mobileNotebookParent.value) : null;
+    try {
+      await createNotebookApi({ name, parentId });
+      if (elements.mobileNotebookName) elements.mobileNotebookName.value = "";
+      if (elements.mobileNotebookParent) elements.mobileNotebookParent.value = "";
+      // Refresh modal list
+      if (elements.mobileNotebooksList) {
+        elements.mobileNotebooksList.innerHTML = renderNotebookTree(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
+      }
+      setStatus(`Notebook "${name}" ready`);
+    } catch (error) {
+      setStatus(error.message);
+    }
+  });
+
+  // Scratchpad — persist to localStorage
+  if (elements.scratchpad) {
+    elements.scratchpad.addEventListener("input", () => {
+      localStorage.setItem("edge_scratchpad", elements.scratchpad.value);
+    });
+  }
+
+  // Convert scratchpad to note
+  document.querySelector("[data-action='scratchpad-to-note']")?.addEventListener("click", () => {
+    const text = elements.scratchpad?.value.trim();
+    if (!text) return;
+    createNewNote();
+    // Give the editor a moment to initialise, then paste the text
+    setTimeout(() => {
+      if (elements.body) {
+        elements.body.innerText = text;
+        updateWordCount();
+        elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      if (elements.scratchpad) {
+        elements.scratchpad.value = "";
+        localStorage.removeItem("edge_scratchpad");
+      }
+      setMobilePanel("editor");
+    }, 80);
+  });
+
+  // Mobile format bar — show when editor is focused, hide when blurred
+  if (elements.mobileFormatBar && elements.body) {
+    elements.body.addEventListener("focus", () => {
+      if (window.innerWidth <= 660) elements.mobileFormatBar.hidden = false;
+    });
+    elements.body.addEventListener("blur", () => {
+      // Small delay so toolbar button taps register before hiding
+      setTimeout(() => { elements.mobileFormatBar.hidden = true; }, 150);
+    });
+    // Wire format buttons on the mobile bar to the same handler
+    elements.mobileFormatBar.querySelectorAll("[data-format]").forEach((button) => {
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        saveSelection();
+      });
+      button.addEventListener("click", () => {
+        applyWysiwygFormat(button.dataset.format);
+      });
+    });
+  }
 
   elements.tagsNav.addEventListener("click", (event) => {
     const link = event.target.closest("[data-tag-filter]");
@@ -2793,8 +3167,17 @@ function bindEvents() {
   });
 
   elements.attachmentList.addEventListener("click", (event) => {
+    const embed = event.target.closest("[data-attachment-embed]");
     const replace = event.target.closest("[data-attachment-replace]");
     const remove = event.target.closest("[data-attachment-delete]");
+    if (embed) {
+      const attachment = state.attachments.find((a) => a.id === Number(embed.dataset.attachmentEmbed));
+      if (attachment) {
+        insertImageUrl(attachment.downloadUrl, attachment.filename);
+        setMobilePanel("editor");
+      }
+      return;
+    }
     if (replace) {
       replaceSelectedAttachment(Number(replace.dataset.attachmentReplace));
       return;
