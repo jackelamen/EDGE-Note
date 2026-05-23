@@ -2740,7 +2740,7 @@ async function runAiAction(action) {
 function bindEvents() {
   elements.authForm.addEventListener("submit", submitAuth);
   elements.logout.addEventListener("click", logout);
-  elements.notebookForm.addEventListener("submit", createNotebookFromForm);
+  elements.notebookForm?.addEventListener("submit", createNotebookFromForm);
 
   // Sidebar collapse toggle — persisted to localStorage
   const SIDEBAR_COLLAPSED_KEY = "edge_sidebar_collapsed";
