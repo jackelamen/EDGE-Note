@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="/styles.css?v=19">
   </head>
   <body>
+    <script>
+      window.addEventListener('error', e => {
+        document.body.style.cssText = 'background:#fff;padding:24px;font:14px monospace';
+        document.body.innerHTML = '<b>JS Error:</b><br>' + e.message + '<br>' + (e.filename||'') + ':' + e.lineno;
+      });
+      window.addEventListener('unhandledrejection', e => {
+        document.body.style.cssText = 'background:#fff;padding:24px;font:14px monospace';
+        document.body.innerHTML = '<b>Unhandled Promise:</b><br>' + (e.reason?.message || e.reason);
+      });
+    </script>
 
     <!-- Auth screen -->
     <section class="auth-panel" data-auth-panel hidden>
