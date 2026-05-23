@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.svg">
-    <link rel="stylesheet" href="/styles.css?v=8">
+    <link rel="stylesheet" href="/styles.css?v=9">
   </head>
   <body>
 
@@ -315,6 +315,14 @@
             data-placeholder="Start writing…"
           ></div>
         </article>
+
+        <footer class="editor-footer">
+          <button class="btn-focus-mode" type="button" data-action="focus-mode" title="Focus mode">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            Focus
+          </button>
+          <span class="word-count" data-word-count>0 words</span>
+        </footer>
       </section>
 
       <!-- Context panel -->
@@ -434,6 +442,6 @@
       </nav>
     </main>
 
-    <script src="/app.js?v=6" type="module"></script>
+    <script src="/app.js?v=7" type="module"></script>
   </body>
 </html>

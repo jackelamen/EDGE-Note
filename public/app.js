@@ -109,7 +109,9 @@ const elements = {
   mobileTabs: document.querySelector("[data-mobile-tabs]"),
   searchBar: document.querySelector("[data-search-bar]"),
   noteListFocusSearch: document.querySelector("[data-action='focus-search']"),
-  confirmSaveSearch: document.querySelector("[data-action='confirm-save-search']")
+  confirmSaveSearch: document.querySelector("[data-action='confirm-save-search']"),
+  wordCount: document.querySelector("[data-word-count]"),
+  focusMode: document.querySelector("[data-action='focus-mode']")
 };
 
 const shortcutFormats = {
@@ -682,6 +684,7 @@ function selectNote(note) {
     ? markdownToHtml(note.body)
     : (note?.body || "");
   setEditorHtml(bodyHtml);
+  updateWordCount();
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
 
   // Update editor breadcrumb with notebook or current view
@@ -857,6 +860,26 @@ function toggleContextPanel() {
   state.contextCollapsed = !state.contextCollapsed;
   localStorage.setItem(cacheKeys.contextCollapsed, String(state.contextCollapsed));
   applyContextPanelState();
+}
+
+function updateWordCount() {
+  if (!elements.wordCount) return;
+  const text = (elements.body?.innerText || "").trim();
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  const chars = text.length;
+  elements.wordCount.textContent = `${words.toLocaleString()} ${words === 1 ? "word" : "words"} · ${chars.toLocaleString()} chars`;
+}
+
+function toggleFocusMode() {
+  const shell = elements.appShell;
+  if (!shell) return;
+  const entering = !shell.classList.contains("focus-mode");
+  shell.classList.toggle("focus-mode", entering);
+  // Also collapse context so the toggle stays coherent
+  if (entering) {
+    shell.classList.remove("context-collapsed");
+  }
+  elements.focusMode?.setAttribute("title", entering ? "Exit focus mode" : "Focus mode");
 }
 
 function noteMatchesSearch(note) {
@@ -2261,6 +2284,7 @@ function createNewNote() {
   elements.tags.value = "";
   elements.title.value = "Untitled note";
   setEditorHtml("");
+  updateWordCount();
   setStatus("New draft");
   renderTasks();
   renderEditorActions(null);
@@ -2463,6 +2487,7 @@ function bindEvents() {
   elements.archiveNote.addEventListener("click", archiveCurrentNote);
   elements.deleteNote.addEventListener("click", deleteCurrentNote);
   elements.toggleContext?.addEventListener("click", toggleContextPanel);
+  elements.focusMode?.addEventListener("click", toggleFocusMode);
   elements.saveNote.addEventListener("click", saveNote);
   elements.uploadAttachment.addEventListener("click", uploadAttachment);
   elements.aiActions.forEach((button) => {
@@ -2512,6 +2537,7 @@ function bindEvents() {
   elements.body.addEventListener("input", () => {
     saveDraftCache();
     renderTasks();
+    updateWordCount();
   });
   // Track selection so toolbar knows where to insert formatting.
   elements.body.addEventListener("keyup", saveSelection);
