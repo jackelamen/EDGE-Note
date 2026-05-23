@@ -323,7 +323,7 @@ p { margin: 0; }
   transition: width var(--transition-md);
 }
 
-/* Sidebar collapse toggle button */
+/* Sidebar collapse toggle button (kept for any remaining refs) */
 .btn-sidebar-collapse {
   display: flex;
   align-items: center;
@@ -403,14 +403,8 @@ p { margin: 0; }
   gap: 0;
 }
 
-.app-shell.sidebar-collapsed .btn-sidebar-collapse {
-  display: none;
-}
-
-/* Clicking the logo mark expands the sidebar when collapsed */
-.app-shell.sidebar-collapsed .brand-mark {
-  cursor: pointer;
-}
+/* Brand mark is always a toggle — always show pointer */
+.brand-mark { cursor: pointer; }
 
 /* Tooltip-style label on icon hover when collapsed */
 .app-shell.sidebar-collapsed .nav-item { position: relative; }

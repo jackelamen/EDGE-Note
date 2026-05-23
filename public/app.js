@@ -2752,16 +2752,10 @@ function bindEvents() {
   if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") {
     applySidebarCollapse(true);
   }
-  document.querySelector("[data-action='toggle-sidebar']")?.addEventListener("click", () => {
+  // Logo mark toggles sidebar collapse in both directions
+  document.querySelector(".brand-mark")?.addEventListener("click", () => {
     const isCollapsed = elements.appShell?.classList.contains("sidebar-collapsed");
     applySidebarCollapse(!isCollapsed);
-  });
-
-  // Clicking the logo mark when collapsed re-expands the sidebar
-  document.querySelector(".brand-mark")?.addEventListener("click", () => {
-    if (elements.appShell?.classList.contains("sidebar-collapsed")) {
-      applySidebarCollapse(false);
-    }
   });
 
   // Show notebook form when + clicked, hide on Escape
