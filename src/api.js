@@ -29,7 +29,7 @@ import {
   saveAttachment
 } from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson, withSecurityHeaders } from "./http.js";
-import { createNotebook, listNotebooks } from "./notebooksRepository.js";
+import { createNotebook, deleteNotebook, listNotebooks, renameNotebook } from "./notebooksRepository.js";
 import {
   createNote,
   deleteNote,
@@ -43,6 +43,11 @@ import {
 import { buildSyncBootstrap, pullSyncChanges } from "./syncRepository.js";
 import { pushSyncChanges } from "./syncPushRepository.js";
 import { ensureTags, listTags } from "./tagsRepository.js";
+
+function parseNotebookId(pathname) {
+  const match = pathname.match(/^\/api\/notebooks\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
 
 function parseNoteId(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)$/);
@@ -278,6 +283,27 @@ export async function handleApi(req, res, url) {
         input: await readJson(req)
       });
       sendJson(res, 201, { notebooks });
+    });
+    return true;
+  }
+
+  const notebookId = parseNotebookId(url.pathname);
+  if (notebookId) {
+    await safely(res, async () => {
+      if (req.method === "PATCH") {
+        const { name } = await readJson(req);
+        const notebooks = await renameNotebook({ userId, notebookId, name });
+        sendJson(res, 200, { notebooks });
+        return;
+      }
+
+      if (req.method === "DELETE") {
+        const notebooks = await deleteNotebook({ userId, notebookId });
+        sendJson(res, 200, { notebooks });
+        return;
+      }
+
+      requireMethod(req, ["PATCH", "DELETE"]);
     });
     return true;
   }

@@ -780,14 +780,15 @@ function loadSavedSearches() {
   renderSavedSearches();
 }
 
-function saveCurrentSearch() {
+function saveCurrentSearch(explicitName) {
   const savedSearch = currentSearchState();
   if (!hasSearchCriteria(savedSearch)) {
     setStatus("Add search text or choose a filter before saving");
-    return;
+    return false;
   }
 
-  const name = defaultSavedSearchName(savedSearch);
+  // Use explicit name if provided (from the name input field), then fall back
+  const name = (explicitName || "").trim() || defaultSavedSearchName(savedSearch);
   state.savedSearches = [
     {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -798,9 +799,11 @@ function saveCurrentSearch() {
     ...state.savedSearches.filter((item) => item.name.toLowerCase() !== name.toLowerCase())
   ].slice(0, 12);
   elements.savedSearchName.value = "";
+  if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
   persistSavedSearches();
   renderSavedSearches();
   setStatus(`Saved search "${name}"`);
+  return true;
 }
 
 function applySavedSearch(savedSearch) {
@@ -1021,8 +1024,10 @@ function toggleTaskAtIndex(taskIndex) {
   }
   liveLi.classList.toggle("complete", !isChecked);
   liveLi.classList.toggle("task-item", isChecked);
-  saveDraftCache();
-  renderTasks();
+
+  // Dispatch a synthetic input event so the editor's input handler
+  // updates the status bar and draft cache, signalling unsaved changes.
+  elements.body.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function selectionIsInEditor(range) {
@@ -1186,7 +1191,11 @@ function renderHistory(versions) {
   `).join("");
 }
 
+// Holds the most recent AI payload so the apply button can act on it.
+let lastAiPayload = null;
+
 function renderAiOutput(payload) {
+  lastAiPayload = payload;
   const output = payload.output || {};
   const action = payload.action?.replaceAll("-", " ") || "AI";
   let body = output.text || "";
@@ -1194,7 +1203,7 @@ function renderAiOutput(payload) {
   if (Array.isArray(output.summary)) {
     body = output.summary.map((item) => `- ${item}`).join("\n");
   } else if (Array.isArray(output.tasks)) {
-    body = output.tasks.map((item) => `- ${item}`).join("\n");
+    body = output.tasks.map((item) => `- [ ] ${item}`).join("\n");
   } else if (Array.isArray(output.tags)) {
     body = output.tags.map((item) => `#${item}`).join(" ");
   } else if (output.title) {
@@ -1213,6 +1222,64 @@ function renderAiOutput(payload) {
   }
 
   elements.aiResult.textContent = `${action}${payload.cached ? " (cached)" : ""}\n${body}`;
+
+  // Show the apply button only for actions that can write back to the editor
+  const applyBtn = document.querySelector("[data-ai-apply]");
+  if (!applyBtn) return;
+  if (payload.action === "clean-up" && output.text) {
+    applyBtn.textContent = "Apply to note";
+    applyBtn.hidden = false;
+  } else if (payload.action === "extract-tasks" && Array.isArray(output.tasks) && output.tasks.length) {
+    applyBtn.textContent = "Insert into note";
+    applyBtn.hidden = false;
+  } else {
+    applyBtn.hidden = true;
+  }
+}
+
+function applyAiResult() {
+  if (!lastAiPayload) return;
+  const output = lastAiPayload.output || {};
+  const applyBtn = document.querySelector("[data-ai-apply]");
+
+  if (lastAiPayload.action === "clean-up" && output.text) {
+    // Replace editor content — convert double-newlines to paragraphs
+    const html = output.text
+      .split(/\n{2,}/)
+      .map((para) => `<p>${escapeHtml(para.trim())}</p>`)
+      .join("");
+    setEditorHtml(html || `<p>${escapeHtml(output.text)}</p>`);
+    saveDraftCache();
+    renderTasks();
+    setStatus("Clean-up applied — review and Sync when ready");
+    elements.aiResult.textContent = "Clean-up applied to note.";
+    if (applyBtn) applyBtn.hidden = true;
+    lastAiPayload = null;
+    return;
+  }
+
+  if (lastAiPayload.action === "extract-tasks" && Array.isArray(output.tasks)) {
+    // Append tasks as a checklist at the end of the editor
+    const checklistHtml = `<ul class="checklist">${
+      output.tasks.map((task) => (
+        `<li class="task-item"><input type="checkbox" data-task-check> ${escapeHtml(task)}</li>`
+      )).join("")
+    }</ul><p></p>`;
+    elements.body.focus();
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(elements.body);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand("insertHTML", false, checklistHtml);
+    saveDraftCache();
+    renderTasks();
+    setStatus("Tasks inserted — review and Sync when ready");
+    elements.aiResult.textContent = "Tasks inserted into note.";
+    if (applyBtn) applyBtn.hidden = true;
+    lastAiPayload = null;
+  }
 }
 
 function renderCollections() {
@@ -1229,10 +1296,20 @@ function renderCollections() {
 
   elements.notebooksList.innerHTML = state.notebooks.length
     ? state.notebooks.map((notebook) => `
-        <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}">
-          <span>${escapeHtml(notebook.name)}</span>
-          <small>${notebook.noteCount || 0}</small>
-        </a>
+        <div class="notebook-row" data-notebook-id="${notebook.id}">
+          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link">
+            <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
+            <small>${notebook.noteCount || 0}</small>
+          </a>
+          <div class="notebook-row-actions">
+            <button type="button" class="btn-notebook-rename" data-notebook-rename="${notebook.id}" aria-label="Rename notebook" title="Rename">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            </button>
+            <button type="button" class="btn-notebook-delete" data-notebook-delete="${notebook.id}" aria-label="Delete notebook" title="Delete">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            </button>
+          </div>
+        </div>
       `).join("")
     : '<span class="sidebar-empty">No notebooks yet</span>';
 
@@ -1604,6 +1681,59 @@ async function createNotebookFromForm(event) {
   }
 }
 
+async function deleteNotebook(notebookId) {
+  const notebook = state.notebooks.find((nb) => nb.id === notebookId);
+  if (!notebook) return;
+  if (!window.confirm(`Delete notebook "${notebook.name}"? Notes in it will be moved to "No notebook".`)) return;
+
+  try {
+    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+      method: "DELETE"
+    });
+    state.notebooks = payload.notebooks || [];
+    // If we were filtering by this notebook, reset to all notes
+    if (state.notebookFilter === notebookId) {
+      state.notebookFilter = null;
+      state.filter = "all";
+    }
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
+    renderCollections();
+    loadNotes();
+    setStatus(`Deleted notebook "${notebook.name}"`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function renameNotebook(notebookId) {
+  const notebook = state.notebooks.find((nb) => nb.id === notebookId);
+  if (!notebook) return;
+  const name = window.prompt("Rename notebook:", notebook.name);
+  if (!name || name.trim() === notebook.name) return;
+
+  try {
+    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: name.trim() })
+    });
+    state.notebooks = payload.notebooks || [];
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
+    renderCollections();
+    renderNotes();
+    setStatus(`Renamed to "${name.trim()}"`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
 async function loadNotes() {
   const params = new URLSearchParams();
   const search = elements.search.value.trim();
@@ -1899,10 +2029,43 @@ async function uploadAttachment() {
   }
 }
 
+function pickReplacementFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.style.display = "none";
+    document.body.appendChild(input);
+
+    input.addEventListener("change", () => {
+      const file = input.files?.[0] || null;
+      document.body.removeChild(input);
+      resolve(file);
+    }, { once: true });
+
+    // If the user cancels without picking, the change event never fires.
+    // Detect cancel via a window focus event that fires after the picker closes.
+    const onFocus = () => {
+      window.removeEventListener("focus", onFocus);
+      // Give the change event a chance to fire first
+      setTimeout(() => {
+        if (document.body.contains(input)) {
+          document.body.removeChild(input);
+          resolve(null);
+        }
+      }, 300);
+    };
+    window.addEventListener("focus", onFocus);
+
+    input.click();
+  });
+}
+
 async function replaceSelectedAttachment(attachmentId) {
-  const file = elements.attachmentFile.files?.[0];
+  setStatus("Choose a replacement file…");
+  const file = await pickReplacementFile();
+
   if (!file) {
-    setStatus("Choose a replacement file first");
+    setStatus("Replace cancelled");
     return;
   }
   if (file.size > state.attachmentLimitMb * 1024 * 1024) {
@@ -1916,7 +2079,13 @@ async function replaceSelectedAttachment(attachmentId) {
   if (thumbnail) {
     form.append("thumbnail", thumbnail, "thumbnail.webp");
   }
-  setStatus("Replacing attachment...");
+  setStatus("Replacing attachment…");
+
+  // Update the Replace button text to give feedback while uploading
+  const replaceBtn = elements.attachmentList.querySelector(
+    `[data-attachment-replace="${attachmentId}"]`
+  );
+  if (replaceBtn) replaceBtn.textContent = "Replacing…";
 
   try {
     const response = await fetch(`/api/attachments/${attachmentId}`, {
@@ -1930,11 +2099,11 @@ async function replaceSelectedAttachment(attachmentId) {
     state.attachments = state.attachments.map((attachment) => (
       attachment.id === attachmentId ? payload.attachment : attachment
     ));
-    elements.attachmentFile.value = "";
     renderAttachments();
     setStatus(`Replaced ${payload.attachment.filename}`);
   } catch (error) {
     setStatus(error.message);
+    if (replaceBtn) replaceBtn.textContent = "Replace";
   }
 }
 
@@ -1987,8 +2156,14 @@ function renderStoredBackups(backups = []) {
   }
 
   elements.backupList.innerHTML = backups.slice(0, 5).map((backup) => `
-    <a class="backup-item" href="${escapeHtml(backup.downloadUrl)}">
-      <span>${escapeHtml(formatDate(backup.createdAt))}</span>
+    <a class="backup-item"
+       href="${escapeHtml(backup.downloadUrl)}"
+       download="${escapeHtml(backup.filename)}"
+       title="Download ${escapeHtml(backup.filename)}">
+      <span class="backup-item-name">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="backup-item-icon"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        ${escapeHtml(formatDate(backup.createdAt))}
+      </span>
       <small>${escapeHtml(formatBytes(backup.sizeBytes || 0))}</small>
     </a>
   `).join("");
@@ -2179,6 +2354,7 @@ function bindEvents() {
       state.tagFilter = null;
       updateNavigationState();
       renderHomeView();
+      loadNotes().catch(() => {});
       return;
     }
 
@@ -2221,6 +2397,11 @@ function bindEvents() {
   elements.formatColorInputs.forEach((input) => {
     input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
     input.addEventListener("mousedown", saveSelection);
+    // Use both "input" (live, fires on every color change) and "change" (fires on close)
+    // so the swatch updates immediately and the format is applied on picker close.
+    input.addEventListener("input", () => {
+      input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
+    });
     input.addEventListener("change", () => {
       input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
       applyToolbarColor(input.dataset.formatColor, input.value);
@@ -2237,16 +2418,37 @@ function bindEvents() {
     button.addEventListener("click", () => runAiAction(button.dataset.aiAction));
   });
 
+  document.querySelector("[data-ai-apply]")?.addEventListener("click", applyAiResult);
+
+  function triggerExportDownload(button, url, label) {
+    const original = button.textContent;
+    button.textContent = "Preparing…";
+    button.disabled = true;
+    setStatus(`Preparing ${label} download…`);
+    // Use a hidden link so we get download semantics without navigating away
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => {
+      button.textContent = original;
+      button.disabled = false;
+      setStatus(`${label} download started`);
+    }, 1200);
+  }
+
   elements.exportJson.addEventListener("click", () => {
-    window.location.href = "/api/export.json";
+    triggerExportDownload(elements.exportJson, "/api/export.json", "JSON");
   });
 
   elements.exportMarkdown.addEventListener("click", () => {
-    window.location.href = "/api/export.md";
+    triggerExportDownload(elements.exportMarkdown, "/api/export.md", "Markdown");
   });
 
   elements.exportArchive.addEventListener("click", () => {
-    window.location.href = "/api/export.tgz";
+    triggerExportDownload(elements.exportArchive, "/api/export.tgz", "Archive");
   });
 
   elements.exportVerify.addEventListener("click", checkExportStatus);
@@ -2315,8 +2517,7 @@ function bindEvents() {
 
   if (elements.confirmSaveSearch) {
     elements.confirmSaveSearch.addEventListener("click", () => {
-      saveCurrentSearch();
-      if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
+      saveCurrentSearch(elements.savedSearchName?.value);
     });
   }
 
@@ -2324,10 +2525,10 @@ function bindEvents() {
     elements.savedSearchName.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        saveCurrentSearch();
-        if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
+        saveCurrentSearch(elements.savedSearchName.value);
       }
       if (event.key === "Escape") {
+        elements.savedSearchName.value = "";
         if (elements.savedSearchNameRow) elements.savedSearchNameRow.hidden = true;
       }
     });
@@ -2362,6 +2563,8 @@ function bindEvents() {
     if (state.filter === "home") {
       updateNavigationState();
       renderHomeView();
+      // Refresh notes in the background so recent cards are never stale
+      loadNotes().catch(() => {});
     } else {
       loadNotes();
     }
@@ -2412,6 +2615,16 @@ function bindEvents() {
   }
 
   elements.notebooksList.addEventListener("click", (event) => {
+    const deleteBtn = event.target.closest("[data-notebook-delete]");
+    if (deleteBtn) {
+      deleteNotebook(Number(deleteBtn.dataset.notebookDelete));
+      return;
+    }
+    const renameBtn = event.target.closest("[data-notebook-rename]");
+    if (renameBtn) {
+      renameNotebook(Number(renameBtn.dataset.notebookRename));
+      return;
+    }
     const link = event.target.closest("[data-notebook-filter]");
     if (!link) return;
     event.preventDefault();
@@ -2496,6 +2709,7 @@ async function init() {
   const restoredDraft = restoreDraftCache();
   await loadNotes();
   schedulePendingSync();
+  listStoredBackups().catch(() => {});
 
   // Render home view if it starts visible (home is default view)
   if (state.filter === "home") {

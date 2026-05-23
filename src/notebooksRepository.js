@@ -62,3 +62,72 @@ export async function createNotebook({ userId, input }) {
 
   return listNotebooks({ userId });
 }
+
+export async function renameNotebook({ userId, notebookId, name }) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    const error = new Error("Notebook name is required.");
+    error.status = 400;
+    throw error;
+  }
+
+  const result = await query(
+    `UPDATE notebooks
+     SET name = :name
+     WHERE id = :notebookId
+       AND user_id = :userId
+       AND deleted_at IS NULL`,
+    { userId, notebookId, name: trimmed }
+  );
+
+  if (!result.affectedRows) {
+    const error = new Error("Notebook not found.");
+    error.status = 404;
+    throw error;
+  }
+
+  await recordSyncChange({
+    userId,
+    entityType: "notebook",
+    entityId: notebookId,
+    action: "update"
+  });
+
+  return listNotebooks({ userId });
+}
+
+export async function deleteNotebook({ userId, notebookId }) {
+  // Unlink notes from this notebook before soft-deleting it
+  await query(
+    `UPDATE notes
+     SET notebook_id = NULL
+     WHERE notebook_id = :notebookId
+       AND user_id = :userId
+       AND deleted_at IS NULL`,
+    { userId, notebookId }
+  );
+
+  const result = await query(
+    `UPDATE notebooks
+     SET deleted_at = CURRENT_TIMESTAMP
+     WHERE id = :notebookId
+       AND user_id = :userId
+       AND deleted_at IS NULL`,
+    { userId, notebookId }
+  );
+
+  if (!result.affectedRows) {
+    const error = new Error("Notebook not found.");
+    error.status = 404;
+    throw error;
+  }
+
+  await recordSyncChange({
+    userId,
+    entityType: "notebook",
+    entityId: notebookId,
+    action: "delete"
+  });
+
+  return listNotebooks({ userId });
+}
