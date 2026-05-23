@@ -68,6 +68,11 @@ const elements = {
   notebookName: document.querySelector("[data-notebook-name]"),
   notebookParent: document.querySelector("[data-notebook-parent]"),
   notebooksList: document.querySelector("[data-notebooks-list]"),
+  nbManagePanel: document.querySelector("[data-nb-manage-panel]"),
+  nbManageList: document.querySelector("[data-nb-manage-list]"),
+  nbManageForm: document.querySelector("[data-nb-manage-form]"),
+  nbManageName: document.querySelector("[data-nb-manage-name]"),
+  nbManageParent: document.querySelector("[data-nb-manage-parent]"),
   mobileNotebooksModal: document.querySelector("[data-mobile-notebooks-modal]"),
   mobileModalOverlay: document.querySelector("[data-mobile-modal-overlay]"),
   mobileNotebooksList: document.querySelector("[data-mobile-notebooks-list]"),
@@ -1447,13 +1452,17 @@ function renderCollections() {
   const parentOptions = buildNotebookParentOptions();
   if (elements.notebookParent) elements.notebookParent.innerHTML = parentOptions;
   if (elements.mobileNotebookParent) elements.mobileNotebookParent.innerHTML = parentOptions;
+  if (elements.nbManageParent) elements.nbManageParent.innerHTML = parentOptions;
 
   const tree = renderNotebookTree(state.notebooks);
   elements.notebooksList.innerHTML = tree || '<span class="sidebar-empty">No notebooks yet</span>';
 
-  // Also render the mobile modal list if it's open
+  // Also render mobile modal list and desktop manage panel if open
   if (elements.mobileNotebooksList) {
     elements.mobileNotebooksList.innerHTML = tree || '<p class="home-empty">No notebooks yet.</p>';
+  }
+  if (elements.nbManageList && elements.nbManagePanel && !elements.nbManagePanel.hidden) {
+    elements.nbManageList.innerHTML = tree || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
   }
 
   elements.tagsNav.innerHTML = state.tags.length
@@ -2269,27 +2278,50 @@ function insertImageUrl(src, alt = "") {
   img.src = src;
   img.alt = alt;
   img.className = "note-img";
-  // Wrap in a <p> so it sits on its own line and cursor can move past it
+  // Wrap in a <p> so it sits on its own line
   const wrapper = document.createElement("p");
   wrapper.appendChild(img);
   const br = document.createElement("p");
   br.innerHTML = "<br>";
 
   elements.body.focus();
+
+  // Try to insert at current cursor position; if no valid selection in editor,
+  // fall back to appending at the end.
   const sel = window.getSelection();
-  if (sel && sel.rangeCount) {
-    const range = sel.getRangeAt(0);
+  const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+  const inEditor = range && elements.body.contains(range.commonAncestorContainer);
+
+  if (inEditor) {
     range.deleteContents();
     range.insertNode(br.cloneNode(true));
     range.insertNode(wrapper);
-    range.collapse(false);
+    range.setStartAfter(wrapper);
+    range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
   } else {
+    // Place cursor at end of editor then insert
+    const endRange = document.createRange();
+    endRange.selectNodeContents(elements.body);
+    endRange.collapse(false);
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(endRange);
+    }
     elements.body.appendChild(wrapper);
     elements.body.appendChild(br.cloneNode(true));
+    // Move cursor after the inserted image
+    const afterRange = document.createRange();
+    afterRange.setStartAfter(wrapper);
+    afterRange.collapse(true);
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(afterRange);
+    }
   }
   elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+  saveDraftCache();
 }
 
 async function insertImageFileIntoEditor(file) {
@@ -2725,6 +2757,13 @@ function bindEvents() {
     applySidebarCollapse(!isCollapsed);
   });
 
+  // Clicking the logo mark when collapsed re-expands the sidebar
+  document.querySelector(".brand-mark")?.addEventListener("click", () => {
+    if (elements.appShell?.classList.contains("sidebar-collapsed")) {
+      applySidebarCollapse(false);
+    }
+  });
+
   // Show notebook form when + clicked, hide on Escape
   document.querySelector("[data-action='toggle-notebook-form']")?.addEventListener("click", () => {
     const form = elements.notebookForm;
@@ -3088,6 +3127,48 @@ function bindEvents() {
   }
 
   elements.notebooksList.addEventListener("click", handleNotebookListClick);
+
+  // Desktop notebook manage panel
+  function openManagePanel() {
+    if (!elements.nbManagePanel) return;
+    elements.nbManagePanel.hidden = false;
+    const tree = renderNotebookTree(state.notebooks);
+    if (elements.nbManageList) {
+      elements.nbManageList.innerHTML = tree || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
+    }
+    const parentOptions = buildNotebookParentOptions();
+    if (elements.nbManageParent) elements.nbManageParent.innerHTML = parentOptions;
+    elements.nbManageName?.focus();
+  }
+
+  function closeManagePanel() {
+    if (!elements.nbManagePanel) return;
+    elements.nbManagePanel.hidden = true;
+  }
+
+  document.querySelector("[data-action='open-manage-notebooks']")?.addEventListener("click", openManagePanel);
+  document.querySelector("[data-action='close-manage-notebooks']")?.addEventListener("click", closeManagePanel);
+
+  elements.nbManageList?.addEventListener("click", handleNotebookListClick);
+
+  elements.nbManageForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = elements.nbManageName?.value.trim();
+    if (!name) return;
+    const parentId = elements.nbManageParent?.value ? Number(elements.nbManageParent.value) : null;
+    try {
+      await createNotebookApi({ name, parentId });
+      if (elements.nbManageName) elements.nbManageName.value = "";
+      if (elements.nbManageList) {
+        elements.nbManageList.innerHTML = renderNotebookTree(state.notebooks) || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
+      }
+      const parentOptions = buildNotebookParentOptions();
+      if (elements.nbManageParent) elements.nbManageParent.innerHTML = parentOptions;
+      setStatus(`Notebook "${name}" ready`);
+    } catch (error) {
+      setStatus(error.message);
+    }
+  });
 
   // Mobile notebooks modal
   function openNotebooksModal() {

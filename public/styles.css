@@ -316,6 +316,8 @@ p { margin: 0; }
   overflow-x: hidden;
   position: sticky;
   top: 0;
+  /* Needed so manage panel can overlay with position: absolute */
+  position: relative;
   height: 100vh;
   width: var(--sidebar-w);
   transition: width var(--transition-md);
@@ -398,6 +400,16 @@ p { margin: 0; }
 .app-shell.sidebar-collapsed .sidebar-brand {
   padding: 4px 0 14px;
   justify-content: center;
+  gap: 0;
+}
+
+.app-shell.sidebar-collapsed .btn-sidebar-collapse {
+  display: none;
+}
+
+/* Clicking the logo mark expands the sidebar when collapsed */
+.app-shell.sidebar-collapsed .brand-mark {
+  cursor: pointer;
 }
 
 /* Tooltip-style label on icon hover when collapsed */
@@ -547,10 +559,10 @@ p { margin: 0; }
   margin-left: 6px;
 }
 
-/* ─── Notebooks ──────────────────────────────────────────────── */
+/* ─── Notebooks (browse mode — clean, no action buttons) ────── */
 .notebook-row {
   display: flex;
-  flex-direction: column;   /* inner row + children stacked vertically */
+  flex-direction: column;
   border-radius: var(--radius);
 }
 
@@ -565,20 +577,22 @@ p { margin: 0; }
 }
 
 .notebook-row-inner:hover { background: var(--sb-hover); }
-.notebook-row-inner:hover .notebook-row-actions { opacity: 1; }
+
+/* Actions hidden in normal sidebar — only visible in manage panel */
+.notebook-row-actions { display: none; }
 
 .notebook-row-inner .notebook-row-link { padding-left: 4px; }
 
 .notebook-row-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex: 1;
   height: 28px;
-  padding: 0 6px 0 8px;
+  padding: 0 8px 0 8px;
   color: var(--sb-ink-2);
   font-size: 0.78rem;
   min-width: 0;
+  gap: 6px;
 }
 
 .notebook-row-link:hover { background: none; color: var(--sb-ink); }
@@ -591,45 +605,44 @@ p { margin: 0; }
   white-space: nowrap;
 }
 
-.notebook-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  opacity: 0;
-  transition: opacity var(--transition);
+.notebook-row-count {
+  color: var(--sb-ink-3);
+  font-size: 0.72rem;
   flex-shrink: 0;
-  padding-right: 4px;
 }
 
 .notebook-icon {
   font-size: 0.9rem;
   line-height: 1;
   flex-shrink: 0;
-  margin-right: 5px;
   user-select: none;
 }
 
+/* Manage-panel-specific button styles */
 .btn-notebook-icon,
 .btn-notebook-rename,
+.btn-notebook-move,
 .btn-notebook-delete {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border: none;
   background: none;
   border-radius: 4px;
   cursor: pointer;
   color: var(--sb-ink-3);
   transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
 }
 
 .btn-notebook-icon svg,
 .btn-notebook-rename svg,
+.btn-notebook-move svg,
 .btn-notebook-delete svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   stroke: currentColor;
   fill: none;
   stroke-width: 2;
@@ -639,7 +652,132 @@ p { margin: 0; }
 
 .btn-notebook-icon:hover { background: var(--sb-hover); color: var(--sb-ink); }
 .btn-notebook-rename:hover { background: var(--sb-hover); color: var(--sb-ink); }
+.btn-notebook-move:hover { background: var(--sb-hover); color: var(--sb-ink); }
 .btn-notebook-delete:hover { background: rgba(192,57,43,.25); color: #f08080; }
+
+/* ─── Notebook manage panel ──────────────────────────────────── */
+.nb-manage-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--sb-bg);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.nb-manage-panel[hidden] { display: none; }
+
+.nb-manage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--sb-line);
+  flex-shrink: 0;
+}
+
+.nb-manage-header span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--sb-ink-3);
+}
+
+.nb-manage-close {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+
+.nb-manage-close:hover { background: var(--sb-hover); }
+
+.nb-manage-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+
+/* In manage panel, show action buttons always */
+.nb-manage-list .notebook-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-right: 2px;
+}
+
+.nb-manage-list .notebook-row-link {
+  color: var(--sb-ink-2);
+  pointer-events: none; /* links don't navigate inside manage mode */
+  cursor: default;
+}
+
+.nb-manage-list .notebook-row-inner {
+  padding-right: 4px;
+}
+
+.nb-manage-add {
+  border-top: 1px solid var(--sb-line);
+  padding: 10px 10px 14px;
+  flex-shrink: 0;
+}
+
+.nb-manage-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nb-manage-name-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-line);
+  border-radius: var(--radius);
+  color: var(--sb-ink);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.nb-manage-name-input:focus { border-color: var(--accent); }
+
+.nb-manage-parent-select {
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-line);
+  border-radius: var(--radius);
+  color: var(--sb-ink-2);
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.btn-nb-manage-add {
+  width: 100%;
+  height: 28px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.btn-nb-manage-add:hover { background: var(--accent-hover); }
 
 .notebook-form { padding: 4px 4px 0; }
 

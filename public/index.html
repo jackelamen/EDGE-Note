@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.svg">
-    <link rel="stylesheet" href="/styles.css?v=15">
+    <link rel="stylesheet" href="/styles.css?v=17">
   </head>
   <body>
 
@@ -73,19 +73,31 @@
         <div class="sidebar-section">
           <div class="sidebar-section-header">
             <span>Notebooks</span>
-            <button class="btn-section-add" type="button" data-action="toggle-notebook-form" aria-label="Add notebook" title="Add notebook">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <button class="btn-section-add" type="button" data-action="open-manage-notebooks" aria-label="Manage notebooks" title="Manage notebooks">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
             </button>
           </div>
           <div class="sidebar-section-items" data-notebooks-list>
             <!-- Rendered by JS -->
           </div>
-          <form class="notebook-form" id="notebook-form" data-notebook-form hidden>
-            <input type="text" placeholder="Notebook name… (Enter to save)" data-notebook-name autocomplete="off">
-            <select class="notebook-parent-select" data-notebook-parent aria-label="Parent notebook">
-              <option value="">No parent (top level)</option>
-            </select>
-          </form>
+        </div>
+
+        <!-- Notebook manage panel — slides over sidebar content -->
+        <div class="nb-manage-panel" data-nb-manage-panel hidden>
+          <div class="nb-manage-header">
+            <span>Manage Notebooks</span>
+            <button type="button" class="nb-manage-close" data-action="close-manage-notebooks" aria-label="Done">Done</button>
+          </div>
+          <div class="nb-manage-list" data-nb-manage-list></div>
+          <div class="nb-manage-add">
+            <form class="nb-manage-form" data-nb-manage-form>
+              <input type="text" class="nb-manage-name-input" data-nb-manage-name placeholder="New notebook name…" autocomplete="off">
+              <select class="nb-manage-parent-select" data-nb-manage-parent aria-label="Parent">
+                <option value="">Top level</option>
+              </select>
+              <button type="submit" class="btn-nb-manage-add">Add</button>
+            </form>
+          </div>
         </div>
 
         <div class="sidebar-section">
@@ -536,6 +548,6 @@
       </nav>
     </main>
 
-    <script src="/app.js?v=13" type="module"></script>
+    <script src="/app.js?v=15" type="module"></script>
   </body>
 </html>
