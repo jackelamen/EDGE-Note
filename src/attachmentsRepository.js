@@ -88,26 +88,51 @@ async function assertNoteAccess({ userId, noteId }) {
 
 export async function listAttachments({ userId, noteId }) {
   await assertNoteAccess({ userId, noteId });
-  const rows = await query(
-    `SELECT
-       a.id,
-       a.note_id AS noteId,
-       a.filename,
-       a.mime_type AS mimeType,
-       a.size_bytes AS sizeBytes,
-       a.thumbnail_path AS thumbnailPath,
-       a.thumbnail_mime_type AS thumbnailMimeType,
-       a.thumbnail_size_bytes AS thumbnailSizeBytes,
-       a.checksum,
-       a.created_at AS createdAt
-     FROM attachments a
-     JOIN notes n ON n.id = a.note_id
-     WHERE n.user_id = :userId
-       AND a.note_id = :noteId
-       AND n.deleted_at IS NULL
-     ORDER BY a.created_at DESC`,
-    { userId, noteId }
-  );
+  let rows;
+  try {
+    rows = await query(
+      `SELECT
+         a.id,
+         a.note_id AS noteId,
+         a.filename,
+         a.mime_type AS mimeType,
+         a.size_bytes AS sizeBytes,
+         a.thumbnail_path AS thumbnailPath,
+         a.thumbnail_mime_type AS thumbnailMimeType,
+         a.thumbnail_size_bytes AS thumbnailSizeBytes,
+         a.checksum,
+         a.created_at AS createdAt
+       FROM attachments a
+       JOIN notes n ON n.id = a.note_id
+       WHERE n.user_id = :userId
+         AND a.note_id = :noteId
+         AND n.deleted_at IS NULL
+       ORDER BY a.created_at DESC`,
+      { userId, noteId }
+    );
+  } catch {
+    // Fall back without thumbnail columns (schema pre-migration 0010)
+    rows = await query(
+      `SELECT
+         a.id,
+         a.note_id AS noteId,
+         a.filename,
+         a.mime_type AS mimeType,
+         a.size_bytes AS sizeBytes,
+         NULL AS thumbnailPath,
+         NULL AS thumbnailMimeType,
+         NULL AS thumbnailSizeBytes,
+         a.checksum,
+         a.created_at AS createdAt
+       FROM attachments a
+       JOIN notes n ON n.id = a.note_id
+       WHERE n.user_id = :userId
+         AND a.note_id = :noteId
+         AND n.deleted_at IS NULL
+       ORDER BY a.created_at DESC`,
+      { userId, noteId }
+    );
+  }
 
   return rows.map(mapAttachment);
 }
@@ -132,23 +157,36 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
   await writeFile(join(config.attachments.root, storagePath), file.buffer);
   const thumbnailMeta = await writeThumbnail({ noteId, checksum, thumbnail });
 
-  const result = await query(
-    `INSERT INTO attachments
-       (note_id, filename, mime_type, size_bytes, storage_path, thumbnail_path, thumbnail_mime_type, thumbnail_size_bytes, checksum)
-     VALUES
-       (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :thumbnailPath, :thumbnailMimeType, :thumbnailSizeBytes, :checksum)`,
-    {
-      noteId,
-      filename,
-      mimeType: file.mimeType,
-      sizeBytes: file.buffer.length,
-      storagePath,
-      thumbnailPath: thumbnailMeta?.thumbnailPath || null,
-      thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
-      thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
-      checksum
-    }
-  );
+  let result;
+  try {
+    result = await query(
+      `INSERT INTO attachments
+         (note_id, filename, mime_type, size_bytes, storage_path, thumbnail_path, thumbnail_mime_type, thumbnail_size_bytes, checksum)
+       VALUES
+         (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :thumbnailPath, :thumbnailMimeType, :thumbnailSizeBytes, :checksum)`,
+      {
+        noteId,
+        filename,
+        mimeType: file.mimeType,
+        sizeBytes: file.buffer.length,
+        storagePath,
+        thumbnailPath: thumbnailMeta?.thumbnailPath || null,
+        thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
+        thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
+        checksum
+      }
+    );
+  } catch (err) {
+    // Fall back to INSERT without thumbnail columns (schema pre-migration 0010)
+    if (!String(err.message).includes("thumbnail")) throw err;
+    result = await query(
+      `INSERT INTO attachments
+         (note_id, filename, mime_type, size_bytes, storage_path, checksum)
+       VALUES
+         (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :checksum)`,
+      { noteId, filename, mimeType: file.mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
+    );
+  }
 
   await recordSyncChange({
     userId,
@@ -161,27 +199,53 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
 }
 
 export async function getAttachment({ userId, attachmentId }) {
-  const rows = await query(
-    `SELECT
-       a.id,
-       a.note_id AS noteId,
-       a.filename,
-       a.mime_type AS mimeType,
-       a.size_bytes AS sizeBytes,
-       a.storage_path AS storagePath,
-       a.thumbnail_path AS thumbnailPath,
-       a.thumbnail_mime_type AS thumbnailMimeType,
-       a.thumbnail_size_bytes AS thumbnailSizeBytes,
-       a.checksum,
-       a.created_at AS createdAt
-     FROM attachments a
-     JOIN notes n ON n.id = a.note_id
-     WHERE n.user_id = :userId
-       AND a.id = :attachmentId
-       AND n.deleted_at IS NULL
-     LIMIT 1`,
-    { userId, attachmentId }
-  );
+  let rows;
+  try {
+    rows = await query(
+      `SELECT
+         a.id,
+         a.note_id AS noteId,
+         a.filename,
+         a.mime_type AS mimeType,
+         a.size_bytes AS sizeBytes,
+         a.storage_path AS storagePath,
+         a.thumbnail_path AS thumbnailPath,
+         a.thumbnail_mime_type AS thumbnailMimeType,
+         a.thumbnail_size_bytes AS thumbnailSizeBytes,
+         a.checksum,
+         a.created_at AS createdAt
+       FROM attachments a
+       JOIN notes n ON n.id = a.note_id
+       WHERE n.user_id = :userId
+         AND a.id = :attachmentId
+         AND n.deleted_at IS NULL
+       LIMIT 1`,
+      { userId, attachmentId }
+    );
+  } catch {
+    // Fall back without thumbnail columns (schema pre-migration 0010)
+    rows = await query(
+      `SELECT
+         a.id,
+         a.note_id AS noteId,
+         a.filename,
+         a.mime_type AS mimeType,
+         a.size_bytes AS sizeBytes,
+         a.storage_path AS storagePath,
+         NULL AS thumbnailPath,
+         NULL AS thumbnailMimeType,
+         NULL AS thumbnailSizeBytes,
+         a.checksum,
+         a.created_at AS createdAt
+       FROM attachments a
+       JOIN notes n ON n.id = a.note_id
+       WHERE n.user_id = :userId
+         AND a.id = :attachmentId
+         AND n.deleted_at IS NULL
+       LIMIT 1`,
+      { userId, attachmentId }
+    );
+  }
 
   const row = rows[0];
   if (!row) return null;
@@ -246,32 +310,49 @@ export async function replaceAttachment({ userId, attachmentId, file, thumbnail 
   await mkdir(noteDir, { recursive: true });
   await writeFile(join(config.attachments.root, storagePath), file.buffer);
   const thumbnailMeta = await writeThumbnail({ noteId: existing.noteId, checksum, thumbnail });
-  await query(
-    `UPDATE attachments a
-     JOIN notes n ON n.id = a.note_id
-     SET a.filename = :filename,
-         a.mime_type = :mimeType,
-         a.size_bytes = :sizeBytes,
-         a.storage_path = :storagePath,
-         a.thumbnail_path = :thumbnailPath,
-         a.thumbnail_mime_type = :thumbnailMimeType,
-         a.thumbnail_size_bytes = :thumbnailSizeBytes,
-         a.checksum = :checksum
-     WHERE n.user_id = :userId
-       AND a.id = :attachmentId`,
-    {
-      userId,
-      attachmentId,
-      filename,
-      mimeType: file.mimeType,
-      sizeBytes: file.buffer.length,
-      storagePath,
-      thumbnailPath: thumbnailMeta?.thumbnailPath || null,
-      thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
-      thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
-      checksum
-    }
-  );
+  try {
+    await query(
+      `UPDATE attachments a
+       JOIN notes n ON n.id = a.note_id
+       SET a.filename = :filename,
+           a.mime_type = :mimeType,
+           a.size_bytes = :sizeBytes,
+           a.storage_path = :storagePath,
+           a.thumbnail_path = :thumbnailPath,
+           a.thumbnail_mime_type = :thumbnailMimeType,
+           a.thumbnail_size_bytes = :thumbnailSizeBytes,
+           a.checksum = :checksum
+       WHERE n.user_id = :userId
+         AND a.id = :attachmentId`,
+      {
+        userId,
+        attachmentId,
+        filename,
+        mimeType: file.mimeType,
+        sizeBytes: file.buffer.length,
+        storagePath,
+        thumbnailPath: thumbnailMeta?.thumbnailPath || null,
+        thumbnailMimeType: thumbnailMeta?.thumbnailMimeType || null,
+        thumbnailSizeBytes: thumbnailMeta?.thumbnailSizeBytes || null,
+        checksum
+      }
+    );
+  } catch (err) {
+    // Fall back to UPDATE without thumbnail columns (schema pre-migration 0010)
+    if (!String(err.message).includes("thumbnail")) throw err;
+    await query(
+      `UPDATE attachments a
+       JOIN notes n ON n.id = a.note_id
+       SET a.filename = :filename,
+           a.mime_type = :mimeType,
+           a.size_bytes = :sizeBytes,
+           a.storage_path = :storagePath,
+           a.checksum = :checksum
+       WHERE n.user_id = :userId
+         AND a.id = :attachmentId`,
+      { userId, attachmentId, filename, mimeType: file.mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
+    );
+  }
   await unlink(join(config.attachments.root, existing.storagePath)).catch(() => {});
   if (existing.thumbnailPath) {
     await unlink(join(config.attachments.root, existing.thumbnailPath)).catch(() => {});

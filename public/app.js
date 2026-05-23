@@ -2343,6 +2343,7 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
     elements.body.dispatchEvent(new Event("input", { bubbles: true }));
     setStatus(`Image uploaded: ${attachment.filename}`);
   } catch (error) {
+    console.error("Image upload error:", error);
     setStatus(`Image upload failed: ${error.message}`);
   }
 }
@@ -2382,16 +2383,18 @@ async function uploadAttachment() {
       method: "POST",
       body: form
     });
-    const payload = await response.json();
+    let payload;
+    try { payload = await response.json(); } catch { payload = {}; }
     if (!response.ok) {
-      throw new Error(payload.message || payload.error || "Upload failed");
+      throw new Error(payload.message || payload.error || `Upload failed (HTTP ${response.status})`);
     }
     state.attachments.unshift(payload.attachment);
     elements.attachmentFile.value = "";
     renderAttachments();
     setStatus(`Attached ${payload.attachment.filename}`);
   } catch (error) {
-    setStatus(error.message);
+    console.error("Attachment upload error:", error);
+    setStatus(`Upload error: ${error.message}`);
   } finally {
     elements.uploadAttachment.textContent = "Upload";
   }
