@@ -1260,21 +1260,7 @@ function historyPreview(version) {
 }
 
 function renderHistory(versions) {
-  if (!versions.length) {
-    elements.historyList.innerHTML = '<div class="empty-state">Save edits to build version history.</div>';
-    return;
-  }
-
-  elements.historyList.innerHTML = versions.map((version) => `
-    <article class="history-item">
-      <div>
-        <strong>${escapeHtml(version.title || "Untitled note")}</strong>
-        <span>${escapeHtml(formatDate(version.createdAt))}</span>
-        <p>${escapeHtml(historyPreview(version))}</p>
-      </div>
-      <button type="button" data-version-restore="${version.id}">Restore</button>
-    </article>
-  `).join("");
+  if (!elements.historyList) return;
 }
 
 // Track which notebook groups are collapsed (persisted in localStorage)
@@ -3196,12 +3182,6 @@ function bindEvents() {
     if (remove) {
       deleteSelectedAttachment(Number(remove.dataset.attachmentDelete));
     }
-  });
-
-  elements.historyList.addEventListener("click", (event) => {
-    const restore = event.target.closest("[data-version-restore]");
-    if (!restore) return;
-    restoreVersion(Number(restore.dataset.versionRestore));
   });
 
   window.addEventListener("online", schedulePendingSync);
