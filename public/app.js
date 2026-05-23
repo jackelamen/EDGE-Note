@@ -838,7 +838,6 @@ function visibleNotes() {
     if (state.filter === "archive") return Boolean(note.archivedAt);
     if (note.archivedAt) return false;
     if (state.filter === "favorites") return note.favorite;
-    if (state.filter === "tasks") return parseChecklistTasks(note.body).length > 0 || /<input[^>]+type="checkbox"/i.test(note.body);
     return true;
   });
 }
@@ -875,11 +874,15 @@ function toggleFocusMode() {
   if (!shell) return;
   const entering = !shell.classList.contains("focus-mode");
   shell.classList.toggle("focus-mode", entering);
-  // Also collapse context so the toggle stays coherent
-  if (entering) {
-    shell.classList.remove("context-collapsed");
+  if (elements.focusMode) {
+    elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
+    elements.focusMode.querySelector("svg")?.setAttribute("viewBox", entering ? "0 0 24 24" : "0 0 24 24");
   }
-  elements.focusMode?.setAttribute("title", entering ? "Exit focus mode" : "Focus mode");
+}
+
+function exitFocusMode() {
+  elements.appShell?.classList.remove("focus-mode");
+  if (elements.focusMode) elements.focusMode.title = "Focus mode";
 }
 
 function noteMatchesSearch(note) {
@@ -938,23 +941,8 @@ function setMobilePanel(panel) {
 }
 
 function renderTasks() {
-  const tasks = parseChecklistTasks(getEditorHtml());
-  const complete = tasks.filter((task) => task.checked).length;
-  elements.taskSummary.textContent = tasks.length
-    ? `${complete} of ${tasks.length} complete`
-    : "No checklist items";
-
-  if (!tasks.length) {
-    elements.taskList.innerHTML = '<div class="empty-state">Add checklist lines to track tasks in this note.</div>';
-    return;
-  }
-
-  elements.taskList.innerHTML = tasks.map((task, index) => `
-    <button class="task-item ${task.checked ? "complete" : ""}" type="button" data-task-index="${index}">
-      <span aria-hidden="true">${task.checked ? "[x]" : "[ ]"}</span>
-      <span>${escapeHtml(task.text)}</span>
-    </button>
-  `).join("");
+  // Tasks panel removed — checklist items still work in the editor body
+  // but the sidebar task tracker is gone. This is now a no-op.
 }
 
 // Save the selection so toolbar button clicks don't lose it.
@@ -1356,36 +1344,53 @@ function applyAiResult() {
   }
 }
 
+function renderNotebookTree(notebooks, parentId = null, depth = 0) {
+  return notebooks
+    .filter((nb) => (nb.parentId || null) === parentId)
+    .map((notebook) => {
+      const children = renderNotebookTree(notebooks, notebook.id, depth + 1);
+      const icon = notebook.icon || "📓";
+      const indent = depth > 0 ? `style="padding-left:${8 + depth * 14}px"` : "";
+      return `
+        <div class="notebook-row" data-notebook-id="${notebook.id}">
+          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link" ${indent}>
+            <span class="notebook-icon" aria-hidden="true">${icon}</span>
+            <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
+            <small>${notebook.noteCount || 0}</small>
+          </a>
+          <div class="notebook-row-actions">
+            <button type="button" class="btn-notebook-icon" data-notebook-icon="${notebook.id}" aria-label="Change icon" title="Change icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
+            <button type="button" class="btn-notebook-rename" data-notebook-rename="${notebook.id}" aria-label="Rename" title="Rename">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            </button>
+            <button type="button" class="btn-notebook-delete" data-notebook-delete="${notebook.id}" aria-label="Delete" title="Delete">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            </button>
+          </div>
+        </div>
+        ${children}
+      `;
+    }).join("");
+}
+
 function renderCollections() {
   const selectedNotebook = elements.notebook.value;
   const notebookOptions = [
     '<option value="">No notebook</option>',
-    ...state.notebooks.map((notebook) => (
-      `<option value="${notebook.id}">${escapeHtml(notebook.name)}</option>`
-    ))
+    ...state.notebooks.map((notebook) => {
+      const icon = notebook.icon || "📓";
+      const prefix = notebook.parentId ? "  └ " : "";
+      return `<option value="${notebook.id}">${icon} ${prefix}${escapeHtml(notebook.name)}</option>`;
+    })
   ];
 
   elements.notebook.innerHTML = notebookOptions.join("");
   elements.notebook.value = selectedNotebook;
 
-  elements.notebooksList.innerHTML = state.notebooks.length
-    ? state.notebooks.map((notebook) => `
-        <div class="notebook-row" data-notebook-id="${notebook.id}">
-          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link">
-            <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
-            <small>${notebook.noteCount || 0}</small>
-          </a>
-          <div class="notebook-row-actions">
-            <button type="button" class="btn-notebook-rename" data-notebook-rename="${notebook.id}" aria-label="Rename notebook" title="Rename">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-            </button>
-            <button type="button" class="btn-notebook-delete" data-notebook-delete="${notebook.id}" aria-label="Delete notebook" title="Delete">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-            </button>
-          </div>
-        </div>
-      `).join("")
-    : '<span class="sidebar-empty">No notebooks yet</span>';
+  const tree = renderNotebookTree(state.notebooks);
+  elements.notebooksList.innerHTML = tree || '<span class="sidebar-empty">No notebooks yet</span>';
 
   elements.tagsNav.innerHTML = state.tags.length
     ? state.tags.map((tag) => `
@@ -1735,6 +1740,7 @@ async function createNotebookFromForm(event) {
     });
     state.notebooks = payload.notebooks || [];
     elements.notebookName.value = "";
+    if (elements.notebookForm) elements.notebookForm.hidden = true;
     const created = state.notebooks.find((notebook) => notebook.name.toLowerCase() === name.toLowerCase());
     if (created) {
       state.notebookFilter = created.id;
@@ -1803,6 +1809,28 @@ async function renameNotebook(notebookId) {
     renderCollections();
     renderNotes();
     setStatus(`Renamed to "${name.trim()}"`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function setNotebookIcon(notebookId) {
+  const notebook = state.notebooks.find((nb) => nb.id === notebookId);
+  if (!notebook) return;
+  const icon = window.prompt("Notebook icon (paste any emoji):", notebook.icon || "📓");
+  if (icon === null) return; // cancelled
+  try {
+    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ icon: icon.trim() || null })
+    });
+    state.notebooks = payload.notebooks || [];
+    writeCache(cacheKeys.collections, {
+      notebooks: state.notebooks,
+      tags: state.tags,
+      cachedAt: new Date().toISOString()
+    });
+    renderCollections();
   } catch (error) {
     setStatus(error.message);
   }
@@ -2314,6 +2342,12 @@ function handleGlobalShortcuts(event) {
   if (elements.appShell.hidden || event.altKey) return;
   const key = event.key.toLowerCase();
 
+  // Escape exits focus mode
+  if (event.key === "Escape" && elements.appShell?.classList.contains("focus-mode")) {
+    exitFocusMode();
+    return;
+  }
+
   if (modifierPressed(event) && key === "s") {
     event.preventDefault();
     saveNote();
@@ -2407,6 +2441,21 @@ function bindEvents() {
   elements.logout.addEventListener("click", logout);
   elements.notebookForm.addEventListener("submit", createNotebookFromForm);
 
+  // Show notebook form when + clicked, hide on Escape
+  document.querySelector("[data-action='toggle-notebook-form']")?.addEventListener("click", () => {
+    const form = elements.notebookForm;
+    if (!form) return;
+    form.hidden = !form.hidden;
+    if (!form.hidden) elements.notebookName?.focus();
+  });
+
+  elements.notebookName?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      elements.notebookForm.hidden = true;
+      elements.notebookName.value = "";
+    }
+  });
+
   document.querySelectorAll("[data-action='new-note']").forEach((btn) => {
     btn.addEventListener("click", () => {
       // If we're on the home view, switch to note view first
@@ -2449,7 +2498,7 @@ function bindEvents() {
     setMobilePanel(panel);
   });
 
-  elements.insertChecklist.addEventListener("click", insertChecklistItem);
+  elements.insertChecklist?.addEventListener("click", insertChecklistItem);
   elements.formatButtons.forEach((button) => {
     // mousedown fires before the editor loses focus, so we save the selection first
     button.addEventListener("mousedown", (event) => {
@@ -2702,6 +2751,11 @@ function bindEvents() {
       renameNotebook(Number(renameBtn.dataset.notebookRename));
       return;
     }
+    const iconBtn = event.target.closest("[data-notebook-icon]");
+    if (iconBtn) {
+      setNotebookIcon(Number(iconBtn.dataset.notebookIcon));
+      return;
+    }
     const link = event.target.closest("[data-notebook-filter]");
     if (!link) return;
     event.preventDefault();
@@ -2736,12 +2790,6 @@ function bindEvents() {
       const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
       if (note) selectNote(note);
     }
-  });
-
-  elements.taskList.addEventListener("click", (event) => {
-    const task = event.target.closest("[data-task-index]");
-    if (!task) return;
-    toggleTaskAtIndex(Number(task.dataset.taskIndex));
   });
 
   elements.attachmentList.addEventListener("click", (event) => {

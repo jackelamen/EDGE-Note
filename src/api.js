@@ -29,7 +29,7 @@ import {
   saveAttachment
 } from "./attachmentsRepository.js";
 import { readJson, readMultipart, requireMethod, sendDownload, sendJson, withSecurityHeaders } from "./http.js";
-import { createNotebook, deleteNotebook, listNotebooks, renameNotebook } from "./notebooksRepository.js";
+import { createNotebook, deleteNotebook, listNotebooks, renameNotebook, updateNotebook } from "./notebooksRepository.js";
 import {
   createNote,
   deleteNote,
@@ -291,8 +291,8 @@ export async function handleApi(req, res, url) {
   if (notebookId) {
     await safely(res, async () => {
       if (req.method === "PATCH") {
-        const { name } = await readJson(req);
-        const notebooks = await renameNotebook({ userId, notebookId, name });
+        const input = await readJson(req);
+        const notebooks = await updateNotebook({ userId, notebookId, input });
         sendJson(res, 200, { notebooks });
         return;
       }

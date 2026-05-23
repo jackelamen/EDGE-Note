@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.svg">
-    <link rel="stylesheet" href="/styles.css?v=9">
+    <link rel="stylesheet" href="/styles.css?v=10">
   </head>
   <body>
 
@@ -57,10 +57,6 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             Notes
           </a>
-          <a class="nav-item" href="#tasks" data-view-filter="tasks">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            Tasks
-          </a>
           <a class="nav-item" href="#favorites" data-view-filter="favorites">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"/></svg>
             Favorites
@@ -74,15 +70,15 @@
         <div class="sidebar-section">
           <div class="sidebar-section-header">
             <span>Notebooks</span>
-            <button class="btn-section-add" type="submit" form="notebook-form" aria-label="Add notebook" title="Add notebook">
+            <button class="btn-section-add" type="button" data-action="toggle-notebook-form" aria-label="Add notebook" title="Add notebook">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             </button>
           </div>
           <div class="sidebar-section-items" data-notebooks-list>
             <!-- Rendered by JS -->
           </div>
-          <form class="notebook-form" id="notebook-form" data-notebook-form>
-            <input type="text" placeholder="New notebook name…" data-notebook-name>
+          <form class="notebook-form" id="notebook-form" data-notebook-form hidden>
+            <input type="text" placeholder="Notebook name… (Enter to save)" data-notebook-name autocomplete="off">
           </form>
         </div>
 
@@ -190,10 +186,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"/>
               </svg>
-            </button>
-            <button class="btn-ghost" type="button" data-action="insert-checklist">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-              Checklist
             </button>
             <button class="btn-ghost" type="button" data-action="archive-note">Archive</button>
             <button class="btn-ghost btn-danger" type="button" data-action="delete-note">Delete</button>
@@ -329,14 +321,6 @@
       <aside class="context-panel" aria-label="Note info">
 
         <div class="context-section">
-          <h2 class="context-heading">Tasks</h2>
-          <div class="task-summary" data-task-summary>No checklist items</div>
-          <div class="task-list" data-task-list>
-            <div class="empty-state">Add checklist items to this note.</div>
-          </div>
-        </div>
-
-        <div class="context-section">
           <h2 class="context-heading">History</h2>
           <div class="history-list" data-history-list>
             <div class="empty-state">Save edits to build history.</div>
@@ -442,6 +426,6 @@
       </nav>
     </main>
 
-    <script src="/app.js?v=7" type="module"></script>
+    <script src="/app.js?v=8" type="module"></script>
   </body>
 </html>

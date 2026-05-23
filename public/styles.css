@@ -476,6 +476,15 @@ p { margin: 0; }
   padding-right: 4px;
 }
 
+.notebook-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 5px;
+  user-select: none;
+}
+
+.btn-notebook-icon,
 .btn-notebook-rename,
 .btn-notebook-delete {
   display: flex;
@@ -491,6 +500,7 @@ p { margin: 0; }
   transition: background var(--transition), color var(--transition);
 }
 
+.btn-notebook-icon svg,
 .btn-notebook-rename svg,
 .btn-notebook-delete svg {
   width: 11px;
@@ -502,6 +512,7 @@ p { margin: 0; }
   stroke-linejoin: round;
 }
 
+.btn-notebook-icon:hover { background: var(--sb-hover); color: var(--sb-ink); }
 .btn-notebook-rename:hover { background: var(--sb-hover); color: var(--sb-ink); }
 .btn-notebook-delete:hover { background: rgba(192,57,43,.25); color: #f08080; }
 
