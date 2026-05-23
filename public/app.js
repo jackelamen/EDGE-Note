@@ -327,7 +327,7 @@ function sanitizeHtml(html) {
   root.innerHTML = String(html || "");
   const allowedTags = new Set([
     "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "input",
-    "li", "ol", "p", "pre", "span", "strong", "u", "ul"
+    "li", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "u", "ul"
   ]);
   const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span"]);
   const classAllowList = {
@@ -357,6 +357,7 @@ function sanitizeHtml(html) {
     // Remap legacy tags to their semantic equivalents before the allowlist check
     if (tag === "b") { element.outerHTML = `<strong>${element.innerHTML}</strong>`; return; }
     if (tag === "i") { element.outerHTML = `<em>${element.innerHTML}</em>`; return; }
+    if (tag === "strike") { element.outerHTML = `<s>${element.innerHTML}</s>`; return; }
 
     if (!allowedTags.has(tag)) {
       unwrap(element);
@@ -1173,6 +1174,14 @@ function applyWysiwygFormat(format) {
       }
     }
   }
+  else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
+  else if (format === "superscript") { document.execCommand("superscript", false, null); }
+  else if (format === "subscript") { document.execCommand("subscript", false, null); }
+  else if (format === "align-left") { document.execCommand("justifyLeft", false, null); }
+  else if (format === "align-center") { document.execCommand("justifyCenter", false, null); }
+  else if (format === "align-right") { document.execCommand("justifyRight", false, null); }
+  else if (format === "indent") { document.execCommand("indent", false, null); }
+  else if (format === "outdent") { document.execCommand("outdent", false, null); }
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }

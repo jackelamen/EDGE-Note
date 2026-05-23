@@ -279,6 +279,28 @@
             <button type="button" data-format="link" aria-label="Link">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
+            <button type="button" data-format="strikethrough" aria-label="Strikethrough">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 20c-2.79 0-5-1.68-5-4h2c0 1.1 1.4 2 3 2s3-.9 3-2-1.4-2-3-2H4"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+            </button>
+            <button type="button" data-format="superscript" aria-label="Superscript">x<sup style="font-size:0.65em;line-height:0">2</sup></button>
+            <button type="button" data-format="subscript" aria-label="Subscript">x<sub style="font-size:0.65em;line-height:0">2</sub></button>
+            <span class="toolbar-divider"></span>
+            <button type="button" data-format="align-left" aria-label="Align left">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
+            </button>
+            <button type="button" data-format="align-center" aria-label="Align center">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            </button>
+            <button type="button" data-format="align-right" aria-label="Align right">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="toolbar-divider"></span>
+            <button type="button" data-format="indent" aria-label="Indent">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/><polyline points="7 8 11 12 7 16"/><line x1="11" y1="12" x2="21" y2="12"/></svg>
+            </button>
+            <button type="button" data-format="outdent" aria-label="Outdent">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/><polyline points="11 8 7 12 11 16"/><line x1="7" y1="12" x2="21" y2="12"/></svg>
+            </button>
             <span class="toolbar-divider"></span>
             <button type="button" data-format="hr" aria-label="Divider line">—</button>
             <button type="button" data-format="clear" aria-label="Clear formatting">Tx</button>
@@ -412,6 +434,6 @@
       </nav>
     </main>
 
-    <script src="/app.js?v=5" type="module"></script>
+    <script src="/app.js?v=6" type="module"></script>
   </body>
 </html>
