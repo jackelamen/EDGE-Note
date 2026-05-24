@@ -572,7 +572,7 @@ p { margin: 0; }
   color: var(--sb-ink-2);
   font-size: 0.82rem;
   min-width: 0;
-  gap: 8px;
+  gap: 0;
 }
 
 .notebook-row-link:hover { background: none; color: var(--sb-ink); }
@@ -592,13 +592,15 @@ p { margin: 0; }
 }
 
 .notebook-icon {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1;
   flex-shrink: 0;
   user-select: none;
+  width: 22px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  margin-right: 6px;
 }
 
 /* Manage-panel-specific button styles */
