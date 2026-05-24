@@ -2198,7 +2198,8 @@ async function saveNote() {
   }
 }
 
-function insertImageUrl(src, alt = "", insertionRange = savedSelection) {
+function insertImageUrl(src, alt = "", insertionRange = savedSelection, options = {}) {
+  const shouldPersist = options.persist !== false;
   if (insertionRange) {
     savedSelection = insertionRange.cloneRange();
   }
@@ -2250,29 +2251,24 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection) {
       sel.addRange(afterRange);
     }
   }
-  elements.body.dispatchEvent(new Event("input", { bubbles: true }));
-  saveDraftCache();
-  syncCurrentNotePreviewFromEditor();
+  if (shouldPersist) {
+    elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+    saveDraftCache();
+    syncCurrentNotePreviewFromEditor();
+  }
 }
 
 async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
   setStatus(`Embedding ${file.name}...`);
-  // Read as data URL for immediate display
-  const dataUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  insertImageUrl(dataUrl, file.name, insertionRange);
-
   if (!state.selectedId) {
     const saved = await saveNote();
     if (!saved) return;
   }
 
-  await uploadAndReplaceImage(file, dataUrl);
+  const objectUrl = URL.createObjectURL(file);
+  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false });
+  await uploadAndReplaceImage(file, objectUrl);
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
 }
 
 async function uploadAndReplaceImage(file, dataUrlToReplace) {
