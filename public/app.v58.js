@@ -2357,7 +2357,7 @@ async function uploadImageAttachment(file) {
     body: form
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || "Upload failed");
+  if (!response.ok) throw new Error(payload.error || payload.message || `Upload failed (${response.status})`);
   return payload.attachment;
 }
 
