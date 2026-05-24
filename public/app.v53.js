@@ -240,8 +240,20 @@ function formatBytes(value) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function isImageFile(file) {
+  const name = String(file?.name || "");
+  return Boolean(file?.type?.startsWith("image/"))
+    || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(name);
+}
+
+function isImageAttachment(attachment) {
+  const name = String(attachment?.filename || "");
+  return Boolean(attachment?.mimeType?.startsWith("image/"))
+    || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(name);
+}
+
 async function createAttachmentThumbnail(file) {
-  if (!file?.type?.startsWith("image/")) return null;
+  if (!isImageFile(file)) return null;
 
   const imageUrl = URL.createObjectURL(file);
   try {
@@ -433,8 +445,7 @@ function sanitizeHtml(html) {
 
     if (tag === "img") {
       const src = element.getAttribute("src") || "";
-      // Allow data URIs and attachment download URLs only
-      const safeSrc = src.startsWith("data:image/") || src.startsWith("/api/attachments/")
+      const safeSrc = src.startsWith("blob:") || src.startsWith("data:image/") || src.startsWith("/api/attachments/")
         ? src
         : "";
       if (!safeSrc) {
@@ -1218,28 +1229,18 @@ function applyWysiwygFormat(format) {
 function renderAttachments() {
   if (!elements.attachmentList) return;
 
-  const editorImages = Array.from(elements.body?.querySelectorAll("img") || [])
-    .map((img) => img.getAttribute("src"))
-    .filter(Boolean);
-  const displayAttachments = state.attachments.filter((attachment) => {
-    const isImage = (attachment.mimeType || "").startsWith("image/");
-    return !isImage || !editorImages.includes(attachment.downloadUrl);
-  });
-  const imageAttachments = displayAttachments.filter((attachment) => (attachment.mimeType || "").startsWith("image/"));
-  const fileAttachments = displayAttachments.filter((attachment) => !(attachment.mimeType || "").startsWith("image/"));
+  const displayAttachments = state.attachments.filter((attachment) => !isImageAttachment(attachment));
+  const fileAttachments = displayAttachments;
 
   // Show/hide the whole attachments section
   if (elements.inlineAttachments) {
     elements.inlineAttachments.hidden = !displayAttachments.length;
   }
   if (elements.attachmentCount) {
-    const imageLabel = imageAttachments.length
-      ? `${imageAttachments.length} photo${imageAttachments.length === 1 ? "" : "s"}`
-      : "";
     const fileLabel = fileAttachments.length
       ? `${fileAttachments.length} file${fileAttachments.length === 1 ? "" : "s"}`
       : "";
-    elements.attachmentCount.textContent = [imageLabel, fileLabel].filter(Boolean).join(" · ");
+    elements.attachmentCount.textContent = fileLabel;
   }
 
   if (!displayAttachments.length) {
@@ -1248,23 +1249,6 @@ function renderAttachments() {
   }
 
   elements.attachmentList.innerHTML = displayAttachments.map((attachment) => {
-    const isImage = (attachment.mimeType || "").startsWith("image/");
-    if (isImage) {
-      return `
-      <figure class="attachment-item is-image is-inline-photo">
-        <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener" aria-label="${escapeHtml(attachment.filename)}">
-          <img src="${attachment.downloadUrl}" alt="${escapeHtml(attachment.filename)}" loading="lazy">
-        </a>
-        <figcaption class="attachment-overlay">
-          <span>${escapeHtml(attachment.filename)}</span>
-          <div class="attachment-overlay-actions">
-            <button type="button" data-attachment-embed="${attachment.id}">Embed</button>
-            <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
-            <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
-          </div>
-        </figcaption>
-      </figure>`;
-    }
     return `
     <article class="attachment-item is-file">
       <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener">
@@ -2260,13 +2244,14 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
 
 async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
   setStatus(`Embedding ${file.name}...`);
+  const objectUrl = URL.createObjectURL(file);
+  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false });
+
   if (!state.selectedId) {
     const saved = await saveNote();
     if (!saved) return;
   }
 
-  const objectUrl = URL.createObjectURL(file);
-  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false });
   await uploadAndReplaceImage(file, objectUrl);
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
 }
@@ -2314,6 +2299,15 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
 async function uploadAttachmentFiles(files) {
   if (!files || !files.length) return;
 
+  const incoming = Array.from(files);
+  const images = incoming.filter(isImageFile);
+  const others = incoming.filter((file) => !isImageFile(file));
+  if (images.length) {
+    const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
+    images.forEach((file) => insertImageFileIntoEditor(file, imageSelection));
+  }
+  if (!others.length) return;
+
   let noteId = state.selectedId;
   if (!noteId) {
     const saved = await saveNote();
@@ -2328,7 +2322,7 @@ async function uploadAttachmentFiles(files) {
   const originalText = label?.querySelector("span")?.textContent || "Add photo or file";
   if (label) label.querySelector("span") && (label.querySelector("span").textContent = "Uploading…");
 
-  for (const file of Array.from(files)) {
+  for (const file of others) {
     if (file.size > state.attachmentLimitMb * 1024 * 1024) {
       setStatus(`"${file.name}" exceeds ${state.attachmentLimitMb} MB limit`);
       continue;
@@ -2751,8 +2745,8 @@ function bindEvents() {
   // non-image files go to the attachment grid at the bottom.
   elements.attachmentFile?.addEventListener("change", () => {
     const files = Array.from(elements.attachmentFile.files || []);
-    const images = files.filter((f) => f.type.startsWith("image/"));
-    const others = files.filter((f) => !f.type.startsWith("image/"));
+    const images = files.filter(isImageFile);
+    const others = files.filter((file) => !isImageFile(file));
     const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
     images.forEach((f) => insertImageFileIntoEditor(f, imageSelection));
     if (others.length) uploadAttachmentFiles(others);
@@ -2836,12 +2830,13 @@ function bindEvents() {
 
   // Drag-and-drop images into the editor
   elements.body.addEventListener("dragover", (event) => {
-    const hasImage = Array.from(event.dataTransfer?.items || []).some((i) => i.type.startsWith("image/"));
+    const hasImage = Array.from(event.dataTransfer?.items || []).some((i) => i.type.startsWith("image/"))
+      || Array.from(event.dataTransfer?.files || []).some(isImageFile);
     if (hasImage) event.preventDefault();
   });
 
   elements.body.addEventListener("drop", (event) => {
-    const files = Array.from(event.dataTransfer?.files || []).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(event.dataTransfer?.files || []).filter(isImageFile);
     if (!files.length) return;
     event.preventDefault();
     files.forEach((file) => insertImageFileIntoEditor(file));
@@ -2861,8 +2856,8 @@ function bindEvents() {
       event.preventDefault();
       attachBar.classList.remove("drag-over");
       const files = Array.from(event.dataTransfer?.files || []);
-      const images = files.filter((f) => f.type.startsWith("image/"));
-      const others = files.filter((f) => !f.type.startsWith("image/"));
+      const images = files.filter(isImageFile);
+      const others = files.filter((file) => !isImageFile(file));
       images.forEach((f) => insertImageFileIntoEditor(f));
       if (others.length) uploadAttachmentFiles(others);
     });
