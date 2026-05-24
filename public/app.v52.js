@@ -1204,38 +1204,52 @@ function applyWysiwygFormat(format) {
 function renderAttachments() {
   if (!elements.attachmentList) return;
 
+  const editorImages = Array.from(elements.body?.querySelectorAll("img") || [])
+    .map((img) => img.getAttribute("src"))
+    .filter(Boolean);
+  const displayAttachments = state.attachments.filter((attachment) => {
+    const isImage = (attachment.mimeType || "").startsWith("image/");
+    return !isImage || !editorImages.includes(attachment.downloadUrl);
+  });
+  const imageAttachments = displayAttachments.filter((attachment) => (attachment.mimeType || "").startsWith("image/"));
+  const fileAttachments = displayAttachments.filter((attachment) => !(attachment.mimeType || "").startsWith("image/"));
+
   // Show/hide the whole attachments section
   if (elements.inlineAttachments) {
-    elements.inlineAttachments.hidden = !state.attachments.length;
+    elements.inlineAttachments.hidden = !displayAttachments.length;
   }
   if (elements.attachmentCount) {
-    elements.attachmentCount.textContent = state.attachments.length
-      ? `${state.attachments.length} file${state.attachments.length === 1 ? "" : "s"}`
+    const imageLabel = imageAttachments.length
+      ? `${imageAttachments.length} photo${imageAttachments.length === 1 ? "" : "s"}`
       : "";
+    const fileLabel = fileAttachments.length
+      ? `${fileAttachments.length} file${fileAttachments.length === 1 ? "" : "s"}`
+      : "";
+    elements.attachmentCount.textContent = [imageLabel, fileLabel].filter(Boolean).join(" · ");
   }
 
-  if (!state.attachments.length) {
+  if (!displayAttachments.length) {
     elements.attachmentList.innerHTML = "";
     return;
   }
 
-  elements.attachmentList.innerHTML = state.attachments.map((attachment) => {
+  elements.attachmentList.innerHTML = displayAttachments.map((attachment) => {
     const isImage = (attachment.mimeType || "").startsWith("image/");
     if (isImage) {
       return `
-      <article class="attachment-item is-image">
+      <figure class="attachment-item is-image is-inline-photo">
         <a class="attachment-main" href="${attachment.downloadUrl}" target="_blank" rel="noopener" aria-label="${escapeHtml(attachment.filename)}">
-          <img src="${attachment.thumbnailUrl || attachment.downloadUrl}" alt="${escapeHtml(attachment.filename)}" loading="lazy">
+          <img src="${attachment.downloadUrl}" alt="${escapeHtml(attachment.filename)}" loading="lazy">
         </a>
-        <div class="attachment-overlay">
+        <figcaption class="attachment-overlay">
           <span>${escapeHtml(attachment.filename)}</span>
           <div class="attachment-overlay-actions">
             <button type="button" data-attachment-embed="${attachment.id}">Embed</button>
             <button type="button" data-attachment-replace="${attachment.id}">Replace</button>
             <button type="button" data-attachment-delete="${attachment.id}">Delete</button>
           </div>
-        </div>
-      </article>`;
+        </figcaption>
+      </figure>`;
     }
     return `
     <article class="attachment-item is-file">
@@ -2270,6 +2284,7 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
       }
     });
     elements.body.dispatchEvent(new Event("input", { bubbles: true }));
+    renderAttachments();
     setStatus(`Image uploaded: ${attachment.filename}`);
   } catch (error) {
     console.error("Image upload error:", error);
@@ -2768,6 +2783,7 @@ function bindEvents() {
     saveDraftCache();
     renderTasks();
     updateWordCount();
+    if (state.attachments.length) renderAttachments();
   });
   // Track selection so toolbar knows where to insert formatting.
   elements.body.addEventListener("keyup", saveSelection);
