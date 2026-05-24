@@ -779,13 +779,17 @@ p { margin: 0; }
 
 /* ─── Settings panel (slides over sidebar) ───────────────────── */
 .settings-panel {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
   background: var(--sb-bg);
-  z-index: 20;
+  z-index: 200;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  border-right: 1px solid var(--sb-line);
 }
 
 .settings-panel[hidden] { display: none; }
