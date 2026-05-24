@@ -22,7 +22,8 @@ const state = {
   localDraftRestored: false,
   mobilePanel: "home",
   selectedId: null,
-  pendingSave: false
+  pendingSave: false,
+  saveAgainRequested: false
 };
 
 let pendingSyncTimer = null;
@@ -2223,13 +2224,20 @@ async function loadHistory(noteId = state.selectedId) {
 }
 
 async function saveNote() {
-  if (state.pendingSave) return;
+  // If a save is already in flight, mark that we need another save and bail.
+  // The in-flight save will re-run once it finishes (see finally block below).
+  if (state.pendingSave) {
+    state.saveAgainRequested = true;
+    return;
+  }
   state.pendingSave = true;
+  state.saveAgainRequested = false;
   elements.saveNote.textContent = "Saving";
   setStatus("Saving...");
 
   try {
     const draft = currentDraft();
+    const isNewNote = !state.selectedId;
     const payload = state.selectedId
       ? await requestJson(`/api/notes/${state.selectedId}`, {
         method: "PUT",
@@ -2247,7 +2255,31 @@ async function saveNote() {
     } else {
       state.notes.unshift(saved);
     }
-    selectNote(saved);
+
+    // Fix: when saving the already-open note, do NOT re-render the editor body
+    // from the server response — that would overwrite any content (like a freshly
+    // inserted image) that was added after currentDraft() was captured above.
+    // Only do a full selectNote() re-render when creating a brand-new note,
+    // since we need to acquire the new ID and switch the editor into edit mode.
+    if (isNewNote) {
+      selectNote(saved);
+    } else {
+      // Refresh state and metadata without touching the editor DOM
+      state.selectedId = saved.id;
+      elements.notebook.value = saved.notebookId || "";
+      elements.tags.value = (saved.tags || []).join(", ");
+      elements.title.value = saved.title || "Untitled note";
+      if (elements.editorBreadcrumb) {
+        const notebook = saved.notebookId
+          ? state.notebooks.find((nb) => nb.id === saved.notebookId)
+          : null;
+        elements.editorBreadcrumb.textContent = notebook?.name || viewLabel();
+      }
+      renderEditorActions(saved);
+      renderNotes();
+      writeCache(cacheKeys.selectedId, saved.id);
+    }
+
     state.localDraftRestored = false;
     clearDraftCache();
     writeCache(cacheKeys.notes, {
@@ -2273,6 +2305,12 @@ async function saveNote() {
   } finally {
     state.pendingSave = false;
     elements.saveNote.textContent = "Sync";
+    // If something requested a re-save while we were in flight, run it now
+    // so the latest editor contents (e.g. a freshly inserted image) get persisted.
+    if (state.saveAgainRequested) {
+      state.saveAgainRequested = false;
+      saveNote();
+    }
   }
 }
 
@@ -2361,7 +2399,7 @@ async function uploadImageAttachment(file) {
   return payload.attachment;
 }
 
-async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
+async function insertImageFileIntoEditor(file, insertionRange = savedSelection, options = {}) {
   setStatus(`Embedding ${file.name}...`);
   try {
     if (!state.selectedId) {
@@ -2375,12 +2413,21 @@ async function insertImageFileIntoEditor(file, insertionRange = savedSelection) 
       throw new Error("Image uploaded without a usable URL");
     }
 
+    // Insert the img into the editor DOM BEFORE saving, so that currentDraft()
+    // inside saveNote() captures the body that includes this image.
     insertImageUrl(attachment.downloadUrl, attachment.filename || file.name, insertionRange, { persist: true });
     state.attachments.unshift(attachment);
     renderAttachments();
     syncCurrentNotePreviewFromEditor();
-    const saved = await saveNote();
-    setStatus(saved ? `Image embedded: ${attachment.filename}` : `Image uploaded: ${attachment.filename}`);
+
+    // Only save here if the caller hasn't requested we skip it (multi-image loop
+    // does a single save after all images are inserted).
+    if (!options.skipSave) {
+      const saved = await saveNote();
+      // Verify the image URL actually made it into the persisted body
+      const persisted = saved?.body?.includes(attachment.downloadUrl);
+      setStatus(persisted ? `Image embedded: ${attachment.filename}` : `Image uploaded but not yet saved — try saving manually`);
+    }
   } catch (error) {
     console.error("Image upload error:", error);
     setStatus(`Image upload failed: ${error.message}`);
@@ -2396,9 +2443,12 @@ async function uploadAttachmentFiles(files) {
   const others = incoming.filter((file) => !isImageFile(file));
   if (images.length) {
     const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
+    // Insert all images first (skipSave=true), then do ONE save so the body
+    // snapshot includes every image and there's no overlapping-save contention.
     for (const file of images) {
-      await insertImageFileIntoEditor(file, imageSelection);
+      await insertImageFileIntoEditor(file, imageSelection, { skipSave: true });
     }
+    await saveNote();
   }
   if (!others.length) return;
 
