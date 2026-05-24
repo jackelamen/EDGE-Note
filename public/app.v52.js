@@ -929,15 +929,26 @@ function toggleFocusMode() {
   if (!shell) return;
   const entering = !shell.classList.contains("focus-mode");
   shell.classList.toggle("focus-mode", entering);
+  document.body.toggleAttribute("data-focus-mode", entering);
   if (elements.focusMode) {
     elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
-    elements.focusMode.querySelector("svg")?.setAttribute("viewBox", entering ? "0 0 24 24" : "0 0 24 24");
+    elements.focusMode.setAttribute("aria-pressed", entering ? "true" : "false");
+    const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+    if (labelNode) labelNode.nodeValue = entering ? " Exit" : " Focus";
   }
+  setMobilePanel("editor");
+  elements.body?.focus();
 }
 
 function exitFocusMode() {
   elements.appShell?.classList.remove("focus-mode");
-  if (elements.focusMode) elements.focusMode.title = "Focus mode";
+  document.body.removeAttribute("data-focus-mode");
+  if (elements.focusMode) {
+    elements.focusMode.title = "Focus mode";
+    elements.focusMode.setAttribute("aria-pressed", "false");
+    const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+    if (labelNode) labelNode.nodeValue = " Focus";
+  }
 }
 
 function noteMatchesSearch(note) {
@@ -2266,55 +2277,40 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
   }
 }
 
-async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
-  setStatus(`Embedding ${file.name}...`);
-  if (!state.selectedId) {
-    const saved = await saveNote();
-    if (!saved) return;
-    insertionRange = selectionIsInEditor(insertionRange) ? insertionRange : null;
-  }
+async function uploadImageAttachment(file) {
+  let noteId = state.selectedId;
+  if (!noteId) return null;
 
-  const objectUrl = URL.createObjectURL(file);
-  const uploadToken = window.crypto?.randomUUID
-    ? window.crypto.randomUUID()
-    : `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false, uploadToken });
-  await uploadAndReplaceImage(file, objectUrl, uploadToken);
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const thumbnail = await createAttachmentThumbnail(file);
+  if (thumbnail) form.append("thumbnail", thumbnail, "thumbnail.webp");
+
+  const response = await fetch(`/api/notes/${noteId}/attachments`, {
+    method: "POST",
+    body: form
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || "Upload failed");
+  return payload.attachment;
 }
 
-async function uploadAndReplaceImage(file, dataUrlToReplace, uploadToken = "") {
-  let noteId = state.selectedId;
-  if (!noteId) return;
-
+async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
+  setStatus(`Embedding ${file.name}...`);
   try {
-    const form = new FormData();
-    form.append("file", file, file.name);
-    const thumbnail = await createAttachmentThumbnail(file);
-    if (thumbnail) form.append("thumbnail", thumbnail, "thumbnail.webp");
+    if (!state.selectedId) {
+      const saved = await saveNote();
+      if (!saved) return;
+      insertionRange = null;
+    }
 
-    const response = await fetch(`/api/notes/${noteId}/attachments`, {
-      method: "POST",
-      body: form
-    });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.message || "Upload failed");
+    const attachment = await uploadImageAttachment(file);
+    if (!attachment?.downloadUrl) {
+      throw new Error("Image uploaded without a usable URL");
+    }
 
-    const attachment = payload.attachment;
+    insertImageUrl(attachment.downloadUrl, attachment.filename || file.name, insertionRange, { persist: true });
     state.attachments.unshift(attachment);
-    renderAttachments();
-
-    // Replace the data URL in the editor with the real download URL
-    const imgs = uploadToken
-      ? elements.body.querySelectorAll(`img[data-upload-token="${CSS.escape(uploadToken)}"]`)
-      : elements.body.querySelectorAll(`img[src="${CSS.escape(dataUrlToReplace)}"], img.note-img`);
-    imgs.forEach((img) => {
-      if (uploadToken || img.getAttribute("src") === dataUrlToReplace) {
-        img.setAttribute("src", attachment.downloadUrl);
-        img.removeAttribute("data-upload-token");
-      }
-    });
-    elements.body.dispatchEvent(new Event("input", { bubbles: true }));
     renderAttachments();
     syncCurrentNotePreviewFromEditor();
     const saved = await saveNote();
@@ -2334,7 +2330,9 @@ async function uploadAttachmentFiles(files) {
   const others = incoming.filter((file) => !isImageFile(file));
   if (images.length) {
     const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
-    images.forEach((file) => insertImageFileIntoEditor(file, imageSelection));
+    for (const file of images) {
+      await insertImageFileIntoEditor(file, imageSelection);
+    }
   }
   if (!others.length) return;
 
