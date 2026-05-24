@@ -542,11 +542,10 @@ p { margin: 0; }
   margin-left: 6px;
 }
 
-/* ─── Notebooks (Bear-style compact rows) ────────────────────── */
+/* ─── Notebooks (Evernote-style: icon flush with name) ───────── */
 .notebook-row {
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius);
 }
 
 .notebook-row-inner {
@@ -569,16 +568,11 @@ p { margin: 0; }
   align-items: center;
   flex: 1;
   height: 30px;
-  padding: 0 8px 0 8px;
+  padding: 0 8px;
   color: var(--sb-ink-2);
   font-size: 0.82rem;
   min-width: 0;
-  gap: 7px;
-}
-
-/* No chevron — full left padding from edge */
-.notebook-row-link.no-chevron {
-  padding-left: 8px;
+  gap: 8px;
 }
 
 .notebook-row-link:hover { background: none; color: var(--sb-ink); }
@@ -598,12 +592,13 @@ p { margin: 0; }
 }
 
 .notebook-icon {
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1;
   flex-shrink: 0;
   user-select: none;
-  width: 20px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Manage-panel-specific button styles */
@@ -1207,17 +1202,17 @@ p { margin: 0; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
+  width: 16px;
   height: 30px;
   flex-shrink: 0;
   color: var(--sb-ink-3);
-  border-radius: 3px;
   transition: transform var(--transition), color var(--transition);
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
-  margin-left: 6px;
+  margin-left: 4px;
+  margin-right: -4px;
 }
 
 .notebook-chevron:hover { color: var(--sb-ink); }
