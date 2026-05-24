@@ -2651,3 +2651,87 @@ kbd {
   .mobile-tabs button.active { color: var(--accent); }
   .mobile-tabs button:hover { color: var(--sb-ink); }
 }
+
+/* ─── Notebook move popover ──────────────────────────────────── */
+.nb-move-popover {
+  position: fixed;
+  z-index: 9999;
+  background: var(--sb-bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.28);
+  min-width: 220px;
+  max-width: 300px;
+  max-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: nb-move-in 0.12s ease;
+}
+
+@keyframes nb-move-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.nb-move-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.8rem;
+  color: var(--sb-ink-2);
+  flex-shrink: 0;
+}
+
+.nb-move-header strong { color: var(--sb-ink); }
+
+.nb-move-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sb-ink-3);
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.nb-move-close:hover { background: var(--sb-hover); color: var(--sb-ink); }
+
+.nb-move-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  flex: 1;
+}
+
+.nb-move-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--sb-ink);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 12px;
+  text-align: left;
+  transition: background 0.1s;
+}
+.nb-move-option:hover { background: var(--sb-hover); }
+.nb-move-option.nb-move-current { color: var(--accent); }
+.nb-move-option.nb-move-current:hover { background: var(--sb-hover); }
+
+.nb-move-icon { font-size: 0.95rem; flex-shrink: 0; }
+
+.nb-move-badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--accent);
+  opacity: 0.75;
+  font-weight: 500;
+  flex-shrink: 0;
+}

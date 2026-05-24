@@ -1888,61 +1888,120 @@ async function moveNotebook(notebookId) {
   const notebook = state.notebooks.find((nb) => nb.id === notebookId);
   if (!notebook) return;
 
-  // Build options: "None (top level)" + all notebooks except this one and its descendants
-  const descendants = new Set();
+  // Build the set of IDs that cannot be a parent (self + descendants)
+  const excluded = new Set([notebookId]);
   function collectDescendants(id) {
     state.notebooks.filter((nb) => nb.parentId === id).forEach((nb) => {
-      descendants.add(nb.id);
+      excluded.add(nb.id);
       collectDescendants(nb.id);
     });
   }
   collectDescendants(notebookId);
 
-  const options = ["(top level)", ...state.notebooks
-    .filter((nb) => nb.id !== notebookId && !descendants.has(nb.id))
-    .map((nb) => {
-      const prefix = nb.parentId ? "  └ " : "";
-      return `${prefix}${nb.icon || "📓"} ${nb.name}`;
-    })
-  ];
-  const optionsText = options.map((o, i) => `${i}: ${o}`).join("\n");
-  const currentLabel = notebook.parentId
-    ? (state.notebooks.find((nb) => nb.id === notebook.parentId)?.name || "unknown")
-    : "(top level)";
-
-  const input = window.prompt(
-    `Move "${notebook.name}" (currently under: ${currentLabel})\n\nEnter number:\n${optionsText}`,
-    "0"
-  );
-  if (input === null) return;
-
-  const idx = parseInt(input, 10);
-  if (isNaN(idx) || idx < 0 || idx >= options.length) {
-    setStatus("Invalid selection.");
-    return;
+  // Render the picker tree recursively
+  function pickerTree(parentId = null, depth = 0) {
+    const children = state.notebooks.filter(
+      (nb) => (nb.parentId || null) === parentId && !excluded.has(nb.id)
+    );
+    return children.map((nb) => {
+      const icon = nb.icon || "📓";
+      const isCurrent = nb.id === notebook.parentId;
+      const indent = depth * 16;
+      return `
+        <button type="button" class="nb-move-option${isCurrent ? " nb-move-current" : ""}"
+          data-move-target="${nb.id}" style="padding-left:${14 + indent}px">
+          <span class="nb-move-icon">${icon}</span>
+          <span>${escapeHtml(nb.name)}</span>
+          ${isCurrent ? '<span class="nb-move-badge">current</span>' : ""}
+        </button>
+        ${pickerTree(nb.id, depth + 1)}
+      `;
+    }).join("");
   }
 
-  const newParentId = idx === 0
-    ? null
-    : state.notebooks.filter((nb) => nb.id !== notebookId && !descendants.has(nb.id))[idx - 1]?.id || null;
+  // Build and inject the popover
+  const existing = document.getElementById("nb-move-popover");
+  if (existing) existing.remove();
 
-  try {
-    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ parentId: newParentId })
-    });
-    state.notebooks = payload.notebooks || [];
-    writeCache(cacheKeys.collections, {
-      notebooks: state.notebooks,
-      tags: state.tags,
-      cachedAt: new Date().toISOString()
-    });
-    renderCollections();
-    renderNotes();
-    setStatus("Notebook moved.");
-  } catch (error) {
-    setStatus(error.message);
+  const popover = document.createElement("div");
+  popover.id = "nb-move-popover";
+  popover.className = "nb-move-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", `Move "${notebook.name}"`);
+  popover.innerHTML = `
+    <div class="nb-move-header">
+      <span>Move <strong>${escapeHtml(notebook.name)}</strong> under…</span>
+      <button type="button" class="nb-move-close" aria-label="Cancel">✕</button>
+    </div>
+    <div class="nb-move-list">
+      <button type="button" class="nb-move-option${!notebook.parentId ? " nb-move-current" : ""}"
+        data-move-target="null" style="padding-left:14px">
+        <span class="nb-move-icon">📁</span>
+        <span>Top level</span>
+        ${!notebook.parentId ? '<span class="nb-move-badge">current</span>' : ""}
+      </button>
+      ${pickerTree()}
+    </div>
+  `;
+
+  // Position near the move button that was clicked
+  const moveBtn = document.querySelector(`[data-notebook-move="${notebookId}"]`);
+  const anchor = moveBtn || document.body;
+  document.body.appendChild(popover);
+
+  if (moveBtn) {
+    const rect = moveBtn.getBoundingClientRect();
+    const top = rect.bottom + 6;
+    const left = Math.min(rect.left, window.innerWidth - popover.offsetWidth - 12);
+    popover.style.top = `${top}px`;
+    popover.style.left = `${Math.max(8, left)}px`;
+  } else {
+    popover.style.top = "50%";
+    popover.style.left = "50%";
+    popover.style.transform = "translate(-50%, -50%)";
   }
+
+  function closePopover() {
+    popover.remove();
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("mousedown", onOutside);
+  }
+
+  async function applyMove(newParentId) {
+    closePopover();
+    try {
+      const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ parentId: newParentId })
+      });
+      state.notebooks = payload.notebooks || [];
+      writeCache(cacheKeys.collections, {
+        notebooks: state.notebooks,
+        tags: state.tags,
+        cachedAt: new Date().toISOString()
+      });
+      renderCollections();
+      renderNotes();
+      setStatus("Notebook moved.");
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
+
+  popover.addEventListener("click", (e) => {
+    const close = e.target.closest(".nb-move-close");
+    if (close) { closePopover(); return; }
+    const btn = e.target.closest("[data-move-target]");
+    if (!btn) return;
+    const raw = btn.getAttribute("data-move-target");
+    const newParentId = raw === "null" ? null : Number(raw);
+    applyMove(newParentId);
+  });
+
+  function onKey(e) { if (e.key === "Escape") closePopover(); }
+  function onOutside(e) { if (!popover.contains(e.target) && !e.target.closest("[data-notebook-move]")) closePopover(); }
+  document.addEventListener("keydown", onKey);
+  setTimeout(() => document.addEventListener("mousedown", onOutside), 0);
 }
 
 async function setNotebookIcon(notebookId) {
