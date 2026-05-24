@@ -380,6 +380,22 @@ function sanitizeHtml(html) {
     element.replaceWith(...Array.from(element.childNodes));
   }
 
+  function safeImageSrc(src) {
+    if (!src) return "";
+    if (src.startsWith("blob:") || src.startsWith("data:image/") || src.startsWith("/api/attachments/")) {
+      return src;
+    }
+    try {
+      const url = new URL(src, window.location.origin);
+      if (url.origin === window.location.origin && url.pathname.startsWith("/api/attachments/")) {
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+    } catch {
+      return "";
+    }
+    return "";
+  }
+
   function sanitizeElement(element) {
     const tag = element.tagName.toLowerCase();
     Array.from(element.childNodes).forEach((child) => {
@@ -445,9 +461,7 @@ function sanitizeHtml(html) {
 
     if (tag === "img") {
       const src = element.getAttribute("src") || "";
-      const safeSrc = src.startsWith("blob:") || src.startsWith("data:image/") || src.startsWith("/api/attachments/")
-        ? src
-        : "";
+      const safeSrc = safeImageSrc(src);
       if (!safeSrc) {
         element.remove();
         return;
@@ -998,7 +1012,10 @@ function saveSelection() {
 }
 
 function restoreSelection() {
-  if (!savedSelection) return;
+  if (!selectionIsInEditor(savedSelection)) {
+    savedSelection = null;
+    return;
+  }
   const sel = window.getSelection();
   if (sel) {
     sel.removeAllRanges();
@@ -1054,6 +1071,7 @@ function toggleTaskAtIndex(taskIndex) {
 function selectionIsInEditor(range) {
   if (!range || !elements.body) return false;
   const container = range.commonAncestorContainer;
+  if (!container || !container.isConnected) return false;
   return elements.body === container || elements.body.contains(container);
 }
 
@@ -2185,13 +2203,15 @@ async function saveNote() {
 function insertImageUrl(src, alt = "", insertionRange = savedSelection, options = {}) {
   const shouldPersist = options.persist !== false;
   const uploadToken = options.uploadToken || "";
-  if (insertionRange) {
+  if (selectionIsInEditor(insertionRange)) {
     savedSelection = insertionRange.cloneRange();
+  } else if (!selectionIsInEditor(savedSelection)) {
+    savedSelection = null;
   }
   restoreSelection();
 
   const img = document.createElement("img");
-  img.src = src;
+  img.setAttribute("src", src);
   img.alt = alt;
   img.className = "note-img";
   if (uploadToken) {
@@ -2209,7 +2229,7 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
   // fall back to appending at the end.
   const sel = window.getSelection();
   const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
-  const inEditor = range && elements.body.contains(range.commonAncestorContainer);
+  const inEditor = selectionIsInEditor(range);
 
   if (inEditor) {
     range.deleteContents();
@@ -2251,6 +2271,7 @@ async function insertImageFileIntoEditor(file, insertionRange = savedSelection) 
   if (!state.selectedId) {
     const saved = await saveNote();
     if (!saved) return;
+    insertionRange = selectionIsInEditor(insertionRange) ? insertionRange : null;
   }
 
   const objectUrl = URL.createObjectURL(file);
