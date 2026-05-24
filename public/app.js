@@ -288,6 +288,15 @@ function currentNote() {
   return state.notes.find((note) => note.id === state.selectedId) || null;
 }
 
+function syncCurrentNotePreviewFromEditor() {
+  const note = currentNote();
+  if (!note) return;
+  note.body = getEditorHtml();
+  note.bodyFormat = "html";
+  renderNotes();
+  renderHomeView();
+}
+
 function splitTags(value) {
   return String(value || "")
     .split(",")
@@ -1518,13 +1527,13 @@ function renderNotes() {
     const thumb = firstImageSrc(note);
     return `
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}${thumb ? " note-card-has-thumb" : ""}" data-note-id="${note.id}" tabindex="0">
-      ${thumb ? `<img class="note-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
       <div class="note-card-body">
         <span class="note-card-notebook">${escapeHtml(note.notebookName || (note.tags?.[0] ? `#${note.tags[0]}` : "Note"))}</span>
         <h3 class="note-card-title">${escapeHtml(note.title || "Untitled note")}${note.favorite ? ' <span class="note-card-star" aria-label="Favorite">★</span>' : ""}</h3>
         <p class="note-card-snippet">${escapeHtml(searchSnippet(note))}</p>
         <time class="note-card-date" datetime="${escapeHtml(note.updatedAt || "")}">${escapeHtml(formatDate(note.updatedAt))}</time>
       </div>
+      ${thumb ? `<img class="note-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
     </article>
   `}).join("");
 }
@@ -2185,6 +2194,8 @@ async function saveNote() {
 }
 
 function insertImageUrl(src, alt = "") {
+  restoreSelection();
+
   const img = document.createElement("img");
   img.src = src;
   img.alt = alt;
@@ -2233,6 +2244,7 @@ function insertImageUrl(src, alt = "") {
   }
   elements.body.dispatchEvent(new Event("input", { bubbles: true }));
   saveDraftCache();
+  syncCurrentNotePreviewFromEditor();
 }
 
 async function insertImageFileIntoEditor(file) {
@@ -2246,13 +2258,12 @@ async function insertImageFileIntoEditor(file) {
 
   insertImageUrl(dataUrl, file.name);
 
-  // If note is already saved, upload and replace the data URL with a real attachment URL
-  if (state.selectedId) {
-    uploadAndReplaceImage(file, dataUrl);
+  if (!state.selectedId) {
+    const saved = await saveNote();
+    if (!saved) return;
   }
-  // If note is not saved yet, the data URL will be saved with the body.
-  // On next load the sanitizer will pass it through.
-  // After the user saves, we can swap it then — but for simplicity we upload immediately if possible.
+
+  await uploadAndReplaceImage(file, dataUrl);
 }
 
 async function uploadAndReplaceImage(file, dataUrlToReplace) {
@@ -2285,7 +2296,9 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
     });
     elements.body.dispatchEvent(new Event("input", { bubbles: true }));
     renderAttachments();
-    setStatus(`Image uploaded: ${attachment.filename}`);
+    syncCurrentNotePreviewFromEditor();
+    const saved = await saveNote();
+    setStatus(saved ? `Image embedded: ${attachment.filename}` : `Image uploaded: ${attachment.filename}`);
   } catch (error) {
     console.error("Image upload error:", error);
     setStatus(`Image upload failed: ${error.message}`);
