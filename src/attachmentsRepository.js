@@ -23,14 +23,33 @@ function thumbnailExtension(mimeType) {
   return "img";
 }
 
+function inferMimeType(filename, mimeType = "") {
+  const cleanMime = String(mimeType || "").trim().toLowerCase();
+  if (cleanMime && cleanMime !== "application/octet-stream") return cleanMime;
+
+  const name = String(filename || "").toLowerCase();
+  if (name.endsWith(".avif")) return "image/avif";
+  if (name.endsWith(".bmp")) return "image/bmp";
+  if (name.endsWith(".gif")) return "image/gif";
+  if (name.endsWith(".heic")) return "image/heic";
+  if (name.endsWith(".heif")) return "image/heif";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".svg")) return "image/svg+xml";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".pdf")) return "application/pdf";
+  return cleanMime || "application/octet-stream";
+}
+
 function mapAttachment(row) {
   const downloadUrl = `/api/attachments/${row.id}/download`;
+  const mimeType = inferMimeType(row.filename, row.mimeType);
 
   return {
     id: row.id,
     noteId: row.noteId,
     filename: row.filename,
-    mimeType: row.mimeType,
+    mimeType,
     sizeBytes: row.sizeBytes,
     checksum: row.checksum,
     downloadUrl,
@@ -149,6 +168,7 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
 
   const checksum = createHash("sha256").update(file.buffer).digest("hex");
   const filename = cleanFilename(file.filename);
+  const mimeType = inferMimeType(filename, file.mimeType);
   const noteDir = join(config.attachments.root, String(noteId));
   const storageName = `${checksum.slice(0, 16)}-${filename}`;
   const storagePath = join(String(noteId), storageName);
@@ -167,7 +187,7 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
       {
         noteId,
         filename,
-        mimeType: file.mimeType,
+        mimeType,
         sizeBytes: file.buffer.length,
         storagePath,
         thumbnailPath: thumbnailMeta?.thumbnailPath || null,
@@ -184,7 +204,7 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
          (note_id, filename, mime_type, size_bytes, storage_path, checksum)
        VALUES
          (:noteId, :filename, :mimeType, :sizeBytes, :storagePath, :checksum)`,
-      { noteId, filename, mimeType: file.mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
+      { noteId, filename, mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
     );
   }
 
@@ -303,6 +323,7 @@ export async function replaceAttachment({ userId, attachmentId, file, thumbnail 
 
   const checksum = createHash("sha256").update(file.buffer).digest("hex");
   const filename = cleanFilename(file.filename);
+  const mimeType = inferMimeType(filename, file.mimeType);
   const noteDir = join(config.attachments.root, String(existing.noteId));
   const storageName = `${checksum.slice(0, 16)}-${filename}`;
   const storagePath = join(String(existing.noteId), storageName);
@@ -328,7 +349,7 @@ export async function replaceAttachment({ userId, attachmentId, file, thumbnail 
         userId,
         attachmentId,
         filename,
-        mimeType: file.mimeType,
+        mimeType,
         sizeBytes: file.buffer.length,
         storagePath,
         thumbnailPath: thumbnailMeta?.thumbnailPath || null,
@@ -350,7 +371,7 @@ export async function replaceAttachment({ userId, attachmentId, file, thumbnail 
            a.checksum = :checksum
        WHERE n.user_id = :userId
          AND a.id = :attachmentId`,
-      { userId, attachmentId, filename, mimeType: file.mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
+      { userId, attachmentId, filename, mimeType, sizeBytes: file.buffer.length, storagePath, checksum }
     );
   }
   await unlink(join(config.attachments.root, existing.storagePath)).catch(() => {});

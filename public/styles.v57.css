@@ -55,6 +55,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 [hidden] { display: none !important; }
@@ -271,7 +272,9 @@ p { margin: 0; }
 .app-shell {
   display: grid;
   grid-template-columns: var(--sidebar-w) var(--list-w) 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   transition: grid-template-columns var(--transition-md);
 }
 
@@ -302,11 +305,10 @@ p { margin: 0; }
   border-right: 1px solid var(--sb-line);
   overflow-y: auto;
   overflow-x: hidden;
-  position: sticky;
-  top: 0;
   /* Needed so manage panel can overlay with position: absolute */
   position: relative;
   height: 100vh;
+  min-height: 0;
   width: var(--sidebar-w);
   transition: width var(--transition-md);
 }
@@ -1425,9 +1427,8 @@ p { margin: 0; }
   background: var(--surface);
   border-right: 1px solid var(--line);
   overflow-y: auto;
-  position: sticky;
-  top: 0;
   height: 100vh;
+  min-height: 0;
 }
 
 .note-list-header {
@@ -1666,6 +1667,8 @@ p { margin: 0; }
   overflow-y: auto;
   position: relative;
   border-left: 1px solid var(--line-soft);
+  height: 100vh;
+  min-height: 0;
 }
 
 .editor-header {
@@ -2574,9 +2577,10 @@ kbd {
   body {
     background: var(--surface);
     padding-bottom: calc(68px + env(safe-area-inset-bottom));
+    overflow: auto;
   }
 
-  .app-shell { display: block; min-height: 100vh; }
+  .app-shell { display: block; height: auto; min-height: 100vh; overflow: visible; }
   .sidebar { display: none; }
 
   .home-view,

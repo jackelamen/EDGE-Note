@@ -524,9 +524,10 @@ export async function handleApi(req, res, url) {
         return;
       }
 
+      const isInlineImage = String(attachment.mimeType || "").startsWith("image/");
       res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.mimeType,
-        "content-disposition": `attachment; filename="${attachment.filename}"`,
+        "content-disposition": `${isInlineImage ? "inline" : "attachment"}; filename="${attachment.filename}"`,
         "content-length": attachment.sizeBytes,
         "cache-control": "private, max-age=300"
       }));
