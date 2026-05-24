@@ -569,11 +569,16 @@ p { margin: 0; }
   align-items: center;
   flex: 1;
   height: 30px;
-  padding: 0 8px 0 0;
+  padding: 0 8px 0 8px;
   color: var(--sb-ink-2);
   font-size: 0.82rem;
   min-width: 0;
   gap: 7px;
+}
+
+/* No chevron — full left padding from edge */
+.notebook-row-link.no-chevron {
+  padding-left: 8px;
 }
 
 .notebook-row-link:hover { background: none; color: var(--sb-ink); }
@@ -1219,11 +1224,7 @@ p { margin: 0; }
 .notebook-chevron svg { width: 8px; height: 8px; }
 .notebook-row.expanded > .notebook-row-inner .notebook-chevron { transform: rotate(90deg); }
 
-.notebook-chevron-spacer {
-  width: 20px;
-  height: 30px;
-  flex-shrink: 0;
-}
+.notebook-chevron-spacer { display: none; }
 
 .notebook-children { overflow: hidden; }
 .notebook-children.collapsed { display: none; }

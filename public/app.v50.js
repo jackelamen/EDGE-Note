@@ -1290,8 +1290,8 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
             <button type="button" class="notebook-chevron" data-notebook-toggle="${notebook.id}" aria-label="Toggle" title="Expand/collapse">
               <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
-          ` : `<span class="notebook-chevron-spacer"></span>`}
-          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link">
+          ` : ``}
+          <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link${hasChildren ? "" : " no-chevron"}">
             <span class="notebook-icon" aria-hidden="true">${icon}</span>
             <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
             <small>${notebook.noteCount || 0}</small>
