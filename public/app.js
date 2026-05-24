@@ -2604,8 +2604,8 @@ function bindEvents() {
   if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") {
     applySidebarCollapse(true);
   }
-  // Logo mark toggles sidebar collapse in both directions
-  document.querySelector(".brand-mark")?.addEventListener("click", () => {
+  // Logo mark in the sidebar toggles collapse (use last/sidebar one, not auth panel one)
+  document.querySelector(".sidebar .brand-mark")?.addEventListener("click", () => {
     const isCollapsed = elements.appShell?.classList.contains("sidebar-collapsed");
     applySidebarCollapse(!isCollapsed);
   });
