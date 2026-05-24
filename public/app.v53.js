@@ -979,7 +979,10 @@ let savedSelection = null;
 function saveSelection() {
   const sel = window.getSelection();
   if (sel && sel.rangeCount > 0) {
-    savedSelection = sel.getRangeAt(0).cloneRange();
+    const range = sel.getRangeAt(0);
+    if (selectionIsInEditor(range)) {
+      savedSelection = range.cloneRange();
+    }
   }
 }
 
@@ -1188,6 +1191,8 @@ function applyWysiwygFormat(format) {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }
   else if (format === "image") {
+    saveSelection();
+    const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
     // Open a file picker — works on both desktop and mobile
     const input = document.createElement("input");
     input.type = "file";
@@ -1197,7 +1202,7 @@ function applyWysiwygFormat(format) {
     input.addEventListener("change", () => {
       const file = input.files?.[0];
       document.body.removeChild(input);
-      if (file) insertImageFileIntoEditor(file);
+      if (file) insertImageFileIntoEditor(file, imageSelection);
     }, { once: true });
     input.click();
     return; // don't call saveDraftCache yet — async
@@ -2193,7 +2198,10 @@ async function saveNote() {
   }
 }
 
-function insertImageUrl(src, alt = "") {
+function insertImageUrl(src, alt = "", insertionRange = savedSelection) {
+  if (insertionRange) {
+    savedSelection = insertionRange.cloneRange();
+  }
   restoreSelection();
 
   const img = document.createElement("img");
@@ -2247,7 +2255,8 @@ function insertImageUrl(src, alt = "") {
   syncCurrentNotePreviewFromEditor();
 }
 
-async function insertImageFileIntoEditor(file) {
+async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
+  setStatus(`Embedding ${file.name}...`);
   // Read as data URL for immediate display
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -2256,7 +2265,7 @@ async function insertImageFileIntoEditor(file) {
     reader.readAsDataURL(file);
   });
 
-  insertImageUrl(dataUrl, file.name);
+  insertImageUrl(dataUrl, file.name, insertionRange);
 
   if (!state.selectedId) {
     const saved = await saveNote();
@@ -2735,13 +2744,21 @@ function bindEvents() {
   elements.focusMode?.addEventListener("click", toggleFocusMode);
   elements.saveNote.addEventListener("click", saveNote);
 
+  elements.attachmentFile?.addEventListener("pointerdown", () => {
+    saveSelection();
+  });
+  elements.attachmentFile?.closest(".inline-attach-btn")?.addEventListener("pointerdown", () => {
+    saveSelection();
+  });
+
   // Inline attachment file input — images go inline into editor body (Bear-style),
   // non-image files go to the attachment grid at the bottom.
   elements.attachmentFile?.addEventListener("change", () => {
     const files = Array.from(elements.attachmentFile.files || []);
     const images = files.filter((f) => f.type.startsWith("image/"));
     const others = files.filter((f) => !f.type.startsWith("image/"));
-    images.forEach((f) => insertImageFileIntoEditor(f));
+    const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
+    images.forEach((f) => insertImageFileIntoEditor(f, imageSelection));
     if (others.length) uploadAttachmentFiles(others);
     elements.attachmentFile.value = "";
   });
