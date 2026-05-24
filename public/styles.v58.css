@@ -2025,7 +2025,84 @@ p { margin: 0; }
   height: auto;
   border-radius: var(--radius);
   margin: 8px 0;
-  cursor: default;
+  cursor: pointer;
+  transition: outline 0.1s;
+}
+.wysiwyg-editor .note-img:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ─── Inline image toolbar ───────────────────────────────────── */
+.img-toolbar {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--sb-bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  padding: 4px 6px;
+  animation: nb-move-in 0.1s ease;
+}
+
+.img-toolbar-label {
+  font-size: 0.72rem;
+  color: var(--sb-ink-3);
+  margin-right: 2px;
+  user-select: none;
+}
+
+.img-toolbar button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--sb-ink-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 3px 7px;
+  transition: background 0.1s, color 0.1s;
+  line-height: 1.4;
+}
+.img-toolbar button:hover {
+  background: var(--sb-hover);
+  color: var(--sb-ink);
+}
+.img-toolbar button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.img-toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line-soft);
+  margin: 0 4px;
+}
+
+.img-toolbar-delete {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  color: #e05c5c !important;
+}
+.img-toolbar-delete:hover {
+  background: rgba(192,57,43,.15) !important;
+  color: #f08080 !important;
+}
+.img-toolbar-delete svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
 }
 
 /* ─── Word count bar ─────────────────────────────────────────── */

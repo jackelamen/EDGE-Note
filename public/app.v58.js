@@ -430,6 +430,7 @@ function sanitizeHtml(html) {
     const isChecked = isCheckbox && element.checked;
     const imgSrc = tag === "img" ? element.getAttribute("src") : null;
     const imgAlt = tag === "img" ? element.getAttribute("alt") : null;
+    const imgWidth = tag === "img" ? element.getAttribute("width") || element.style.width || null : null;
 
     Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name));
 
@@ -471,6 +472,11 @@ function sanitizeHtml(html) {
       element.setAttribute("src", safeSrc);
       if (alt) element.setAttribute("alt", alt);
       element.setAttribute("class", "note-img");
+      if (imgWidth) {
+        const w = String(imgWidth).trim();
+        // Allow percentage widths (e.g. "25%", "100%") or plain integers (pixel widths)
+        if (/^\d+%$/.test(w) || /^\d+$/.test(w)) element.setAttribute("width", w);
+      }
     }
   }
 
@@ -2284,6 +2290,7 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
   img.setAttribute("src", src);
   img.alt = alt;
   img.className = "note-img";
+  img.setAttribute("width", "100%");
   if (uploadToken) {
     img.dataset.uploadToken = uploadToken;
   }
@@ -2897,6 +2904,94 @@ function bindEvents() {
       saveDraftCache();
       renderTasks();
     }
+  });
+
+  // Image toolbar — click a note-img to get resize + delete controls
+  elements.body.addEventListener("click", (event) => {
+    const img = event.target.closest("img.note-img");
+    const existing = document.getElementById("img-toolbar");
+    if (existing) existing.remove();
+    if (!img) return;
+
+    event.preventDefault();
+
+    const toolbar = document.createElement("div");
+    toolbar.id = "img-toolbar";
+    toolbar.className = "img-toolbar";
+    toolbar.innerHTML = `
+      <span class="img-toolbar-label">Size:</span>
+      <button type="button" data-img-size="25%">S</button>
+      <button type="button" data-img-size="50%">M</button>
+      <button type="button" data-img-size="75%">L</button>
+      <button type="button" data-img-size="100%">Full</button>
+      <span class="img-toolbar-sep"></span>
+      <button type="button" class="img-toolbar-delete" data-img-delete aria-label="Delete image">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Delete
+      </button>
+    `;
+
+    document.body.appendChild(toolbar);
+
+    // Position above the image
+    const rect = img.getBoundingClientRect();
+    const tbRect = toolbar.getBoundingClientRect();
+    const top = Math.max(8, rect.top - tbRect.height - 8) + window.scrollY;
+    const left = Math.min(
+      Math.max(8, rect.left + window.scrollX),
+      window.innerWidth - tbRect.width - 8
+    );
+    toolbar.style.top = `${top}px`;
+    toolbar.style.left = `${left}px`;
+
+    // Mark current size
+    const currentWidth = img.getAttribute("width") || "100%";
+    toolbar.querySelectorAll("[data-img-size]").forEach((btn) => {
+      if (btn.dataset.imgSize === currentWidth) btn.classList.add("active");
+    });
+
+    function closeToolbar() {
+      toolbar.remove();
+      document.removeEventListener("mousedown", onOutside);
+      document.removeEventListener("keydown", onKey);
+    }
+
+    toolbar.addEventListener("click", (e) => {
+      const sizeBtn = e.target.closest("[data-img-size]");
+      const deleteBtn = e.target.closest("[data-img-delete]");
+
+      if (sizeBtn) {
+        img.setAttribute("width", sizeBtn.dataset.imgSize);
+        img.style.width = sizeBtn.dataset.imgSize;
+        toolbar.querySelectorAll("[data-img-size]").forEach((b) => b.classList.remove("active"));
+        sizeBtn.classList.add("active");
+        saveDraftCache();
+        saveNote();
+        return;
+      }
+
+      if (deleteBtn) {
+        // Remove the img (and its wrapping <p> if it's the only child)
+        const parent = img.parentElement;
+        img.remove();
+        if (parent && parent !== elements.body && !parent.textContent.trim() && !parent.querySelector("img")) {
+          parent.remove();
+        }
+        closeToolbar();
+        saveDraftCache();
+        saveNote();
+        return;
+      }
+    });
+
+    function onOutside(e) {
+      if (!toolbar.contains(e.target) && e.target !== img) closeToolbar();
+    }
+    function onKey(e) { if (e.key === "Escape") closeToolbar(); }
+    setTimeout(() => {
+      document.addEventListener("mousedown", onOutside);
+      document.addEventListener("keydown", onKey);
+    }, 0);
   });
 
   // Paste handler — intercept image data from clipboard
