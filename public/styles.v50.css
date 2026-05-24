@@ -554,7 +554,7 @@ p { margin: 0; }
   align-items: center;
   flex: 1;
   min-width: 0;
-  padding-left: 2px;
+  padding-left: 0;
   border-radius: var(--radius);
   transition: background var(--transition);
 }
@@ -564,14 +564,14 @@ p { margin: 0; }
 /* Actions hidden in normal sidebar — only visible in manage panel */
 .notebook-row-actions { display: none; }
 
-.notebook-row-inner .notebook-row-link { padding-left: 2px; }
+.notebook-row-inner .notebook-row-link { padding-left: 0; }
 
 .notebook-row-link {
   display: flex;
   align-items: center;
   flex: 1;
   height: 28px;
-  padding: 0 6px 0 4px;
+  padding: 0 6px 0 6px;
   color: var(--sb-ink-2);
   font-size: 0.78rem;
   min-width: 0;
@@ -1219,7 +1219,7 @@ p { margin: 0; }
 .notebook-row.expanded > .notebook-row-inner .notebook-chevron { transform: rotate(90deg); }
 
 .notebook-chevron-spacer {
-  width: 8px;
+  width: 0;
   height: 16px;
   flex-shrink: 0;
 }
