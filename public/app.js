@@ -2707,9 +2707,15 @@ function bindEvents() {
   elements.focusMode?.addEventListener("click", toggleFocusMode);
   elements.saveNote.addEventListener("click", saveNote);
 
-  // Inline attachment file input — fires immediately on file selection
+  // Inline attachment file input — images go inline into editor body (Bear-style),
+  // non-image files go to the attachment grid at the bottom.
   elements.attachmentFile?.addEventListener("change", () => {
-    uploadAttachmentFiles(elements.attachmentFile.files);
+    const files = Array.from(elements.attachmentFile.files || []);
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    const others = files.filter((f) => !f.type.startsWith("image/"));
+    images.forEach((f) => insertImageFileIntoEditor(f));
+    if (others.length) uploadAttachmentFiles(others);
+    elements.attachmentFile.value = "";
   });
 
   // Settings panel open/close
@@ -2812,7 +2818,11 @@ function bindEvents() {
     attachBar.addEventListener("drop", (event) => {
       event.preventDefault();
       attachBar.classList.remove("drag-over");
-      uploadAttachmentFiles(event.dataTransfer?.files);
+      const files = Array.from(event.dataTransfer?.files || []);
+      const images = files.filter((f) => f.type.startsWith("image/"));
+      const others = files.filter((f) => !f.type.startsWith("image/"));
+      images.forEach((f) => insertImageFileIntoEditor(f));
+      if (others.length) uploadAttachmentFiles(others);
     });
   }
 
