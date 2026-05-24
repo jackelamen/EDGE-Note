@@ -110,9 +110,6 @@ export async function readMultipart(req, { limitBytes }) {
     if (part.subarray(-2).toString() === "\r\n") {
       part = part.subarray(0, -2);
     }
-    if (part.subarray(-2).toString() === "--") {
-      part = part.subarray(0, -2);
-    }
 
     const headerEnd = part.indexOf(Buffer.from("\r\n\r\n"));
     if (headerEnd === -1) continue;
