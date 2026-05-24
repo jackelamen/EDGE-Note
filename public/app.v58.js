@@ -428,6 +428,8 @@ function sanitizeHtml(html) {
     const safeStyle = styleAllowedTags.has(tag) ? sanitizeInlineStyle(element) : "";
     const isCheckbox = tag === "input" && element.matches("input[type='checkbox']");
     const isChecked = isCheckbox && element.checked;
+    const imgSrc = tag === "img" ? element.getAttribute("src") : null;
+    const imgAlt = tag === "img" ? element.getAttribute("alt") : null;
 
     Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name));
 
@@ -460,14 +462,12 @@ function sanitizeHtml(html) {
     }
 
     if (tag === "img") {
-      const src = element.getAttribute("src") || "";
-      const safeSrc = safeImageSrc(src);
+      const safeSrc = safeImageSrc(imgSrc || "");
       if (!safeSrc) {
         element.remove();
         return;
       }
-      const alt = (element.getAttribute("alt") || "").slice(0, 300);
-      Array.from(element.attributes).forEach((a) => element.removeAttribute(a.name));
+      const alt = (imgAlt || "").slice(0, 300);
       element.setAttribute("src", safeSrc);
       if (alt) element.setAttribute("alt", alt);
       element.setAttribute("class", "note-img");
