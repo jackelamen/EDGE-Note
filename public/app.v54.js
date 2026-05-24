@@ -2184,6 +2184,7 @@ async function saveNote() {
 
 function insertImageUrl(src, alt = "", insertionRange = savedSelection, options = {}) {
   const shouldPersist = options.persist !== false;
+  const uploadToken = options.uploadToken || "";
   if (insertionRange) {
     savedSelection = insertionRange.cloneRange();
   }
@@ -2193,6 +2194,9 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
   img.src = src;
   img.alt = alt;
   img.className = "note-img";
+  if (uploadToken) {
+    img.dataset.uploadToken = uploadToken;
+  }
   // Wrap in a <p> so it sits on its own line
   const wrapper = document.createElement("p");
   wrapper.appendChild(img);
@@ -2244,19 +2248,21 @@ function insertImageUrl(src, alt = "", insertionRange = savedSelection, options 
 
 async function insertImageFileIntoEditor(file, insertionRange = savedSelection) {
   setStatus(`Embedding ${file.name}...`);
-  const objectUrl = URL.createObjectURL(file);
-  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false });
-
   if (!state.selectedId) {
     const saved = await saveNote();
     if (!saved) return;
   }
 
-  await uploadAndReplaceImage(file, objectUrl);
+  const objectUrl = URL.createObjectURL(file);
+  const uploadToken = window.crypto?.randomUUID
+    ? window.crypto.randomUUID()
+    : `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  insertImageUrl(objectUrl, file.name, insertionRange, { persist: false, uploadToken });
+  await uploadAndReplaceImage(file, objectUrl, uploadToken);
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 15000);
 }
 
-async function uploadAndReplaceImage(file, dataUrlToReplace) {
+async function uploadAndReplaceImage(file, dataUrlToReplace, uploadToken = "") {
   let noteId = state.selectedId;
   if (!noteId) return;
 
@@ -2278,10 +2284,13 @@ async function uploadAndReplaceImage(file, dataUrlToReplace) {
     renderAttachments();
 
     // Replace the data URL in the editor with the real download URL
-    const imgs = elements.body.querySelectorAll(`img[src="${CSS.escape(dataUrlToReplace)}"], img.note-img`);
+    const imgs = uploadToken
+      ? elements.body.querySelectorAll(`img[data-upload-token="${CSS.escape(uploadToken)}"]`)
+      : elements.body.querySelectorAll(`img[src="${CSS.escape(dataUrlToReplace)}"], img.note-img`);
     imgs.forEach((img) => {
-      if (img.getAttribute("src") === dataUrlToReplace) {
+      if (uploadToken || img.getAttribute("src") === dataUrlToReplace) {
         img.setAttribute("src", attachment.downloadUrl);
+        img.removeAttribute("data-upload-token");
       }
     });
     elements.body.dispatchEvent(new Event("input", { bubbles: true }));
@@ -2745,12 +2754,7 @@ function bindEvents() {
   // non-image files go to the attachment grid at the bottom.
   elements.attachmentFile?.addEventListener("change", () => {
     const files = Array.from(elements.attachmentFile.files || []);
-    const images = files.filter(isImageFile);
-    const others = files.filter((file) => !isImageFile(file));
-    const imageSelection = savedSelection ? savedSelection.cloneRange() : null;
-    images.forEach((f) => insertImageFileIntoEditor(f, imageSelection));
-    if (others.length) uploadAttachmentFiles(others);
-    elements.attachmentFile.value = "";
+    uploadAttachmentFiles(files);
   });
 
   // Settings panel open/close
@@ -2828,18 +2832,18 @@ function bindEvents() {
     insertImageFileIntoEditor(file);
   });
 
-  // Drag-and-drop images into the editor
+  // Drag-and-drop files into the editor. Images embed inline; other files attach.
   elements.body.addEventListener("dragover", (event) => {
-    const hasImage = Array.from(event.dataTransfer?.items || []).some((i) => i.type.startsWith("image/"))
-      || Array.from(event.dataTransfer?.files || []).some(isImageFile);
-    if (hasImage) event.preventDefault();
+    const hasFiles = Array.from(event.dataTransfer?.items || []).some((i) => i.kind === "file")
+      || Boolean(event.dataTransfer?.files?.length);
+    if (hasFiles) event.preventDefault();
   });
 
   elements.body.addEventListener("drop", (event) => {
-    const files = Array.from(event.dataTransfer?.files || []).filter(isImageFile);
+    const files = Array.from(event.dataTransfer?.files || []);
     if (!files.length) return;
     event.preventDefault();
-    files.forEach((file) => insertImageFileIntoEditor(file));
+    uploadAttachmentFiles(files);
   });
 
   // Drag-and-drop onto the inline attach bar — any file type
@@ -2856,10 +2860,7 @@ function bindEvents() {
       event.preventDefault();
       attachBar.classList.remove("drag-over");
       const files = Array.from(event.dataTransfer?.files || []);
-      const images = files.filter(isImageFile);
-      const others = files.filter((file) => !isImageFile(file));
-      images.forEach((f) => insertImageFileIntoEditor(f));
-      if (others.length) uploadAttachmentFiles(others);
+      uploadAttachmentFiles(files);
     });
   }
 
