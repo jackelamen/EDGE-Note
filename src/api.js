@@ -1,3 +1,5 @@
+import { existsSync } from "fs";
+import { join } from "path";
 import { config } from "./config.js";
 import {
   authStatus,
@@ -524,6 +526,11 @@ export async function handleApi(req, res, url) {
         return;
       }
 
+      const filePath = join(config.attachments.root, attachment.storagePath);
+      if (!existsSync(filePath)) {
+        sendJson(res, 404, { error: "Attachment file not found" });
+        return;
+      }
       const isInlineImage = String(attachment.mimeType || "").startsWith("image/");
       res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.mimeType,
@@ -531,7 +538,13 @@ export async function handleApi(req, res, url) {
         "content-length": attachment.sizeBytes,
         "cache-control": "private, max-age=300"
       }));
-      attachment.stream().pipe(res);
+      const stream = attachment.stream();
+      stream.on("error", (err) => {
+        console.error("Attachment stream error:", err.message);
+        if (!res.headersSent) res.end();
+        else res.destroy();
+      });
+      stream.pipe(res);
     });
     return true;
   }
@@ -549,12 +562,23 @@ export async function handleApi(req, res, url) {
         return;
       }
 
+      const thumbPath = join(config.attachments.root, attachment.thumbnailPath);
+      if (!existsSync(thumbPath)) {
+        sendJson(res, 404, { error: "Thumbnail file not found" });
+        return;
+      }
       res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.thumbnailMimeType,
         "content-length": attachment.thumbnailSizeBytes,
         "cache-control": "private, max-age=86400"
       }));
-      attachment.thumbnailStream().pipe(res);
+      const thumbStream = attachment.thumbnailStream();
+      thumbStream.on("error", (err) => {
+        console.error("Thumbnail stream error:", err.message);
+        if (!res.headersSent) res.end();
+        else res.destroy();
+      });
+      thumbStream.pipe(res);
     });
     return true;
   }
