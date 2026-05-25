@@ -173,8 +173,10 @@ export async function saveAttachment({ userId, noteId, file, thumbnail = null })
   const storageName = `${checksum.slice(0, 16)}-${filename}`;
   const storagePath = join(String(noteId), storageName);
 
+  console.log(`[attachment] writing to: ${join(config.attachments.root, storagePath)}`);
   await mkdir(noteDir, { recursive: true });
   await writeFile(join(config.attachments.root, storagePath), file.buffer);
+  console.log(`[attachment] write OK, ${file.buffer.length} bytes`);
   const thumbnailMeta = await writeThumbnail({ noteId, checksum, thumbnail });
 
   let result;
