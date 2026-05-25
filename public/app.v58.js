@@ -22,6 +22,7 @@ const state = {
   localDraftRestored: false,
   mobilePanel: "home",
   selectedId: null,
+  focusModeReturnState: null,
   pendingSave: false,
   saveAgainRequested: false
 };
@@ -369,11 +370,12 @@ function sanitizeHtml(html) {
   root.innerHTML = String(html || "");
   const allowedTags = new Set([
     "a", "blockquote", "br", "code", "div", "em", "h2", "h3", "h4", "hr", "img", "input",
-    "li", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "u", "ul"
+    "li", "ol", "p", "pre", "s", "span", "strong", "sub", "sup", "table", "tbody", "td", "th", "thead", "tr", "u", "ul"
   ]);
-  const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span"]);
+  const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span", "td", "th"]);
   const classAllowList = {
     li: new Set(["complete", "task-item"]),
+    table: new Set(["note-table"]),
     ul: new Set(["checklist"])
   };
 
@@ -931,31 +933,76 @@ function updateWordCount() {
   elements.wordCount.textContent = `${words.toLocaleString()} ${words === 1 ? "word" : "words"} · ${chars.toLocaleString()} chars`;
 }
 
+function placeEditorCaretAtEnd() {
+  if (!elements.body) return;
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(elements.body);
+  range.collapse(false);
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+  savedSelection = range.cloneRange();
+}
+
+function setFocusModeButtonState(entering) {
+  if (!elements.focusMode) return;
+  elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
+  elements.focusMode.setAttribute("aria-pressed", entering ? "true" : "false");
+  const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+  if (labelNode) labelNode.nodeValue = entering ? " Exit" : " Focus";
+}
+
+function enterFocusMode() {
+  const shell = elements.appShell;
+  if (!shell) return;
+
+  state.focusModeReturnState = {
+    filter: state.filter,
+    notebookFilter: state.notebookFilter,
+    tagFilter: state.tagFilter,
+    mobilePanel: state.mobilePanel
+  };
+
+  if (state.filter === "home") {
+    state.filter = "all";
+    state.notebookFilter = null;
+    state.tagFilter = null;
+  }
+
+  shell.classList.add("focus-mode");
+  document.body.toggleAttribute("data-focus-mode", true);
+  elements.homeView.hidden = true;
+  elements.noteListPanel.hidden = true;
+  if (elements.editorPanel) elements.editorPanel.hidden = false;
+  setMobilePanel("editor");
+  setFocusModeButtonState(true);
+  elements.body?.focus();
+  placeEditorCaretAtEnd();
+}
+
 function toggleFocusMode() {
   const shell = elements.appShell;
   if (!shell) return;
   const entering = !shell.classList.contains("focus-mode");
-  shell.classList.toggle("focus-mode", entering);
-  document.body.toggleAttribute("data-focus-mode", entering);
-  if (elements.focusMode) {
-    elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
-    elements.focusMode.setAttribute("aria-pressed", entering ? "true" : "false");
-    const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-    if (labelNode) labelNode.nodeValue = entering ? " Exit" : " Focus";
+  if (entering) {
+    enterFocusMode();
+  } else {
+    exitFocusMode();
   }
-  setMobilePanel("editor");
-  elements.body?.focus();
 }
 
 function exitFocusMode() {
   elements.appShell?.classList.remove("focus-mode");
   document.body.removeAttribute("data-focus-mode");
-  if (elements.focusMode) {
-    elements.focusMode.title = "Focus mode";
-    elements.focusMode.setAttribute("aria-pressed", "false");
-    const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-    if (labelNode) labelNode.nodeValue = " Focus";
+  if (state.focusModeReturnState) {
+    state.filter = state.focusModeReturnState.filter;
+    state.notebookFilter = state.focusModeReturnState.notebookFilter;
+    state.tagFilter = state.focusModeReturnState.tagFilter;
+    state.mobilePanel = state.focusModeReturnState.mobilePanel;
+    state.focusModeReturnState = null;
   }
+  setFocusModeButtonState(false);
+  updateNavigationState();
 }
 
 function noteMatchesSearch(note) {
@@ -1021,6 +1068,8 @@ let savedSelection = null;
 
 function saveSelection() {
   const sel = window.getSelection();
+  const editorHasFocus = elements.body === document.activeElement || elements.body?.contains(document.activeElement);
+  if (!editorHasFocus) return;
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0);
     if (selectionIsInEditor(range)) {
@@ -1059,6 +1108,47 @@ function insertChecklistItem() {
   // Insert a new list item with a checkbox using execCommand insertHTML.
   const html = '<ul class="checklist"><li class="task-item"><input type="checkbox" data-task-check> </li></ul>';
   document.execCommand("insertHTML", false, html);
+  saveDraftCache();
+  renderTasks();
+}
+
+function insertInlineTable() {
+  elements.body.focus();
+  restoreSelection();
+
+  const template = document.createElement("template");
+  template.innerHTML = `
+    <table class="note-table">
+      <thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>
+      <tbody>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+      </tbody>
+    </table><p></p>
+  `;
+  const table = template.content.querySelector(".note-table");
+  const range = selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : window.getSelection()?.rangeCount
+      ? window.getSelection().getRangeAt(0)
+      : document.createRange();
+  if (!savedSelection || !selectionIsInEditor(range)) {
+    range.selectNodeContents(elements.body);
+    range.collapse(false);
+  }
+  range.deleteContents();
+  range.insertNode(template.content);
+
+  const firstBodyCell = table?.querySelector("tbody td");
+  if (firstBodyCell) {
+    const cellRange = document.createRange();
+    const sel = window.getSelection();
+    cellRange.selectNodeContents(firstBodyCell);
+    cellRange.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(cellRange);
+    saveSelection();
+  }
   saveDraftCache();
   renderTasks();
 }
@@ -1253,6 +1343,10 @@ function applyWysiwygFormat(format) {
     }, { once: true });
     input.click();
     return; // don't call saveDraftCache yet — async
+  }
+  else if (format === "table") {
+    insertInlineTable();
+    return;
   }
   else if (format === "clear") {
     document.execCommand("removeFormat", false, null);
