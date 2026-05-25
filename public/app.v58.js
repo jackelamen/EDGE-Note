@@ -944,6 +944,24 @@ function placeEditorCaretAtEnd() {
   savedSelection = range.cloneRange();
 }
 
+function placeCaretInNode(node, collapseToEnd = true) {
+  if (!node) return;
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(node);
+  range.collapse(!collapseToEnd);
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+  savedSelection = range.cloneRange();
+}
+
+function notifyEditorChanged() {
+  updateWordCount();
+  saveDraftCache();
+  renderTasks();
+  elements.body?.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function setFocusModeButtonState(entering) {
   if (!elements.focusMode) return;
   elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
@@ -1163,15 +1181,9 @@ function insertInlineTable() {
   // Place caret in the first body cell
   const firstBodyCell = table.querySelector("tbody td");
   if (firstBodyCell) {
-    const cellRange = document.createRange();
-    cellRange.selectNodeContents(firstBodyCell);
-    cellRange.collapse(true);
-    sel?.removeAllRanges();
-    sel?.addRange(cellRange);
-    savedSelection = cellRange.cloneRange();
+    placeCaretInNode(firstBodyCell, false);
   }
-  saveDraftCache();
-  renderTasks();
+  notifyEditorChanged();
 }
 
 function toggleTaskAtIndex(taskIndex) {
@@ -3111,39 +3123,20 @@ function bindEvents() {
     if (!event.shiftKey) {
       // Forward
       if (idx < allCells.length - 1) {
-        allCells[idx + 1].focus();
-        // place caret at end of next cell
-        const r = document.createRange();
-        const sel = window.getSelection();
-        r.selectNodeContents(allCells[idx + 1]);
-        r.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        placeCaretInNode(allCells[idx + 1]);
       } else {
         // Last cell — append a new body row
         const colCount = table.querySelector("tr").querySelectorAll("th, td").length;
         const newRow = table.querySelector("tbody").insertRow(-1);
-        for (let i = 0; i < colCount; i++) newRow.insertCell(-1);
+        for (let i = 0; i < colCount; i++) newRow.insertCell(-1).innerHTML = "<br>";
         const firstNew = newRow.cells[0];
-        firstNew.focus();
-        const r = document.createRange();
-        const sel = window.getSelection();
-        r.selectNodeContents(firstNew);
-        r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
-        saveDraftCache();
+        placeCaretInNode(firstNew, false);
+        notifyEditorChanged();
       }
     } else {
       // Backward
       if (idx > 0) {
-        allCells[idx - 1].focus();
-        const r = document.createRange();
-        const sel = window.getSelection();
-        r.selectNodeContents(allCells[idx - 1]);
-        r.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        placeCaretInNode(allCells[idx - 1]);
       }
     }
   });
@@ -3223,7 +3216,7 @@ function bindEvents() {
       } else if (action === "del-table") {
         deleteTable(table);
       }
-      saveDraftCache();
+      notifyEditorChanged();
     });
   });
 
@@ -3260,14 +3253,9 @@ function bindEvents() {
     const next = table.nextElementSibling || table.previousElementSibling;
     table.remove();
     if (next) {
-      const r = document.createRange();
-      r.selectNodeContents(next);
-      r.collapse(true);
-      const s = window.getSelection();
-      s?.removeAllRanges();
-      s?.addRange(r);
+      placeCaretInNode(next, false);
     }
-    saveDraftCache();
+    notifyEditorChanged();
   }
 
   // Handle checkbox clicks inside the editor directly.
