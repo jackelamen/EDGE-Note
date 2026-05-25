@@ -174,7 +174,10 @@ export async function handleApi(req, res, url) {
       ok: true,
       service: "edge-note",
       env: config.env,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      cwd: process.cwd(),
+      attachmentRoot: config.attachments.root,
+      attachmentRootResolved: join(process.cwd(), config.attachments.root)
     });
     return true;
   }
