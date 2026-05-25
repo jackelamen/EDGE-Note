@@ -1118,41 +1118,40 @@ function insertChecklistItem() {
 
 function insertInlineTable() {
   elements.body.focus();
-  restoreSelection();
 
-  // Build the table element directly — don't use range.insertNode with a
-  // DocumentFragment because inserting a block <table> inside an inline
-  // context (e.g. a <p>) produces invalid HTML that browsers silently
-  // repair in unpredictable ways.
+  // Build the table as a real DOM element — never use insertNode/insertHTML
+  // for block elements because placing a <table> inside a <p> is invalid HTML
+  // and causes unpredictable browser repairs.
   const table = document.createElement("table");
   table.className = "note-table";
-  table.innerHTML = `
-    <thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>
-    <tbody>
-      <tr><td></td><td></td><td></td></tr>
-      <tr><td></td><td></td><td></td></tr>
-    </tbody>
-  `;
-
-  // Find the block-level ancestor of the current selection that is a
-  // direct child of the editor, then insert the table after it.
-  const sel = window.getSelection();
-  const anchorNode = sel?.anchorNode;
-  let insertAfter = null;
-
-  if (anchorNode && elements.body.contains(anchorNode)) {
-    let node = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
-    while (node && node.parentElement !== elements.body) {
-      node = node.parentElement;
-    }
-    if (node && node.parentElement === elements.body) insertAfter = node;
-  }
+  table.innerHTML =
+    "<thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>" +
+    "<tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody>";
 
   const after = document.createElement("p");
   after.innerHTML = "<br>";
 
-  if (insertAfter) {
-    insertAfter.after(table, after);
+  // Find the direct-child block of the editor that contains the cursor,
+  // and insert the table after it. Fall back to appending at the end.
+  const sel = window.getSelection();
+  let insertAfterNode = null;
+
+  // Use savedSelection first (set on toolbar mousedown), then live selection.
+  const activeRange = savedSelection && selectionIsInEditor(savedSelection)
+    ? savedSelection
+    : (sel?.rangeCount ? sel.getRangeAt(0) : null);
+
+  if (activeRange && selectionIsInEditor(activeRange)) {
+    let node = activeRange.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    while (node && node.parentElement !== elements.body) {
+      node = node.parentElement;
+    }
+    if (node && node.parentElement === elements.body) insertAfterNode = node;
+  }
+
+  if (insertAfterNode) {
+    insertAfterNode.after(table, after);
   } else {
     elements.body.appendChild(table);
     elements.body.appendChild(after);
@@ -1166,7 +1165,7 @@ function insertInlineTable() {
     cellRange.collapse(true);
     sel?.removeAllRanges();
     sel?.addRange(cellRange);
-    saveSelection();
+    savedSelection = cellRange.cloneRange();
   }
   saveDraftCache();
   renderTasks();

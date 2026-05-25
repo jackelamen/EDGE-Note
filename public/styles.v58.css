@@ -294,6 +294,7 @@ p { margin: 0; }
 .app-shell.focus-mode .editor {
   border-left: 0;
   background: var(--surface-2);
+  grid-column: 1 / -1;
 }
 
 /* Hide the breadcrumb and action buttons — just the writing surface */
