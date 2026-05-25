@@ -398,6 +398,12 @@
             data-placeholder="Start writing…"
           ></div>
 
+          <!-- Floating image insert button (mobile only, always visible in editor) -->
+          <label class="mobile-float-img-btn" title="Insert image" aria-label="Insert image">
+            <input type="file" data-mobile-float-img accept="image/*" multiple>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </label>
+
           <!-- Inline attachment / photo area -->
           <div class="inline-attachments" data-inline-attachments hidden>
             <div class="inline-attachments-header">

@@ -1375,18 +1375,77 @@ p { margin: 0; }
   gap: 4px;
 }
 
-.mobile-notebooks-list .notebook-row {
-  background: var(--surface-2);
+/* Mobile notebook rows (simple renderer) */
+.mobile-nb-row { display: flex; flex-direction: column; }
+
+.mobile-nb-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 10px 12px;
   border-radius: var(--radius);
+  background: var(--surface-2);
+  margin-bottom: 3px;
 }
 
-.mobile-notebooks-list .notebook-row-link {
-  color: var(--ink-2);
-  height: 38px;
-  font-size: 0.85rem;
+.mobile-nb-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.mobile-nb-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--ink);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.mobile-notebooks-list .notebook-row-actions { opacity: 1; }
+.mobile-nb-count {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.mobile-nb-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.mobile-nb-delete:hover { background: var(--danger-soft); color: var(--danger); }
+.mobile-nb-delete svg { width: 15px; height: 15px; }
+
+/* Floating image insert button — mobile only, sticky at bottom-right of editor */
+.mobile-float-img-btn { display: none; }
+
+@media (max-width: 700px) {
+  .mobile-float-img-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    bottom: 72px;
+    float: right;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 3px 14px rgba(0,0,0,.28);
+    cursor: pointer;
+    margin: 8px 12px 8px auto;
+    z-index: 10;
+    transition: background var(--transition), transform 0.12s;
+  }
+  .mobile-float-img-btn:active { transform: scale(0.92); }
+  .mobile-float-img-btn svg { width: 22px; height: 22px; stroke: #fff; }
+  .mobile-float-img-btn input { display: none; }
+}
 
 .mobile-notebook-form-wrap {
   border-top: 1px solid var(--line-soft);

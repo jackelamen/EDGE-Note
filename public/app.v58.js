@@ -1320,6 +1320,29 @@ function saveCollapsedNotebooks() {
   localStorage.setItem("edge_collapsed_notebooks", JSON.stringify([...collapsedNotebooks]));
 }
 
+// Simple mobile notebook list — name, count, delete only. No desktop-only action buttons.
+function renderMobileNotebookList(notebooks, parentId = null, depth = 0) {
+  const children = notebooks.filter((nb) => (nb.parentId || null) === parentId);
+  if (!children.length) return "";
+  return children.map((nb) => {
+    const icon = nb.icon || "📓";
+    const indent = `style="padding-left:${depth * 16 + 12}px"`;
+    const sub = renderMobileNotebookList(notebooks, nb.id, depth + 1);
+    return `
+      <div class="mobile-nb-row" data-nb-row="${nb.id}">
+        <div class="mobile-nb-row-inner" ${indent}>
+          <span class="mobile-nb-icon">${icon}</span>
+          <span class="mobile-nb-name">${escapeHtml(nb.name)}</span>
+          <small class="mobile-nb-count">${nb.noteCount || 0}</small>
+          <button type="button" class="mobile-nb-delete" data-notebook-delete="${nb.id}" aria-label="Delete ${escapeHtml(nb.name)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
+        ${sub}
+      </div>`;
+  }).join("");
+}
+
 function renderNotebookTree(notebooks, parentId = null, depth = 0) {
   const children = notebooks.filter((nb) => (nb.parentId || null) === parentId);
   if (!children.length) return "";
@@ -1402,9 +1425,9 @@ function renderCollections() {
   const tree = renderNotebookTree(state.notebooks);
   elements.notebooksList.innerHTML = tree || '<span class="sidebar-empty">No notebooks yet</span>';
 
-  // Also render mobile modal list and desktop manage panel if open
+  // Also render mobile modal list (uses simpler mobile renderer) and desktop manage panel if open
   if (elements.mobileNotebooksList) {
-    elements.mobileNotebooksList.innerHTML = tree || '<p class="home-empty">No notebooks yet.</p>';
+    elements.mobileNotebooksList.innerHTML = renderMobileNotebookList(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
   }
   if (elements.nbManageList && elements.nbManagePanel && !elements.nbManagePanel.hidden) {
     elements.nbManageList.innerHTML = tree || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
@@ -2892,6 +2915,14 @@ function bindEvents() {
     uploadAttachmentFiles(files);
   });
 
+  // Mobile floating image button — always visible inside editor, no need to scroll to top
+  const mobileFloatImg = document.querySelector("[data-mobile-float-img]");
+  mobileFloatImg?.addEventListener("change", () => {
+    const files = Array.from(mobileFloatImg.files || []);
+    if (files.length) uploadAttachmentFiles(files);
+    mobileFloatImg.value = "";
+  });
+
   // Settings panel open/close
   document.querySelector("[data-action='open-settings']")?.addEventListener("click", () => {
     if (elements.settingsPanel) elements.settingsPanel.hidden = false;
@@ -3317,7 +3348,7 @@ function bindEvents() {
     document.body.style.overflow = "hidden";
     // Refresh the list
     if (elements.mobileNotebooksList) {
-      elements.mobileNotebooksList.innerHTML = renderNotebookTree(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
+      elements.mobileNotebooksList.innerHTML = renderMobileNotebookList(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
     }
   }
 
@@ -3351,7 +3382,7 @@ function bindEvents() {
       if (elements.mobileNotebookParent) elements.mobileNotebookParent.value = "";
       // Refresh modal list
       if (elements.mobileNotebooksList) {
-        elements.mobileNotebooksList.innerHTML = renderNotebookTree(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
+        elements.mobileNotebooksList.innerHTML = renderMobileNotebookList(state.notebooks) || '<p class="home-empty">No notebooks yet.</p>';
       }
       setStatus(`Notebook "${name}" ready`);
     } catch (error) {
