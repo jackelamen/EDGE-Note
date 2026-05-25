@@ -375,7 +375,7 @@ function sanitizeHtml(html) {
   const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span", "td", "th"]);
   const classAllowList = {
     li: new Set(["complete", "task-item"]),
-    table: new Set(["note-table"]),
+    table: new Set(["note-table", "bear-table"]),
     ul: new Set(["checklist"])
   };
 
@@ -962,6 +962,14 @@ function notifyEditorChanged() {
   elements.body?.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function selectedTableCell() {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return null;
+  let node = sel.getRangeAt(0).startContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  return node?.closest?.("td, th") || null;
+}
+
 function setFocusModeButtonState(entering) {
   if (!elements.focusMode) return;
   elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
@@ -1137,11 +1145,9 @@ function insertChecklistItem() {
 function insertInlineTable() {
   elements.body.focus();
 
-  // Build the table as a real DOM element — never use insertNode/insertHTML
-  // for block elements because placing a <table> inside a <p> is invalid HTML
-  // and causes unpredictable browser repairs.
   const table = document.createElement("table");
-  table.className = "note-table";
+  table.className = "note-table bear-table";
+  table.setAttribute("data-note-table", "");
   table.innerHTML =
     "<thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>" +
     "<tbody>" +
@@ -1183,6 +1189,7 @@ function insertInlineTable() {
   if (firstBodyCell) {
     placeCaretInNode(firstBodyCell, false);
   }
+  table.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   notifyEditorChanged();
 }
 
@@ -3107,6 +3114,20 @@ function bindEvents() {
   elements.body.addEventListener("mouseup", saveSelection);
   elements.body.addEventListener("selectionchange", saveSelection);
 
+  elements.body.addEventListener("click", (event) => {
+    const table = event.target.closest("table.note-table");
+    if (table) {
+      showTableControls(table);
+    }
+  });
+
+  elements.body.addEventListener("focusin", (event) => {
+    const table = event.target.closest("table.note-table");
+    if (table) {
+      showTableControls(table);
+    }
+  });
+
   // Table keyboard navigation: Tab/Shift+Tab moves between cells.
   // Tab on the last cell of the last row appends a new row.
   elements.body.addEventListener("keydown", (event) => {
@@ -3141,6 +3162,96 @@ function bindEvents() {
     }
   });
 
+  function currentTableContext(table, preferredCell = null) {
+    const cell = preferredCell || selectedTableCell() || table.querySelector("tbody td, th");
+    const row = cell?.closest("tr") || table.querySelector("tbody tr, tr");
+    const colIndex = row && cell ? Array.from(row.cells).indexOf(cell) : 0;
+    const isHeader = cell?.tagName === "TH";
+    return { cell, row, colIndex: Math.max(0, colIndex), isHeader };
+  }
+
+  function runTableAction(table, action, preferredCell = null) {
+    if (!table?.isConnected) return;
+    const { cell, row, colIndex, isHeader } = currentTableContext(table, preferredCell);
+    if (!row) return;
+
+    if (action === "add-row-above") {
+      const colCount = table.querySelector("tr")?.cells.length || 3;
+      row.parentElement.insertBefore(buildRow(colCount, false), row);
+    } else if (action === "add-row-below") {
+      const colCount = table.querySelector("tr")?.cells.length || 3;
+      row.after(buildRow(colCount, false));
+    } else if (action === "del-row") {
+      if (table.querySelectorAll("tbody tr").length > 1 || isHeader) {
+        row.remove();
+      } else {
+        deleteTable(table);
+        return;
+      }
+    } else if (action === "add-col-left") {
+      addColumn(table, colIndex);
+    } else if (action === "add-col-right") {
+      addColumn(table, colIndex + 1);
+    } else if (action === "del-col") {
+      deleteColumn(table, colIndex);
+    } else if (action === "del-table") {
+      deleteTable(table);
+      return;
+    }
+
+    const nextCell = cell?.isConnected ? cell : table.querySelector("tbody td, th");
+    if (nextCell) placeCaretInNode(nextCell, false);
+    showTableControls(table);
+    notifyEditorChanged();
+  }
+
+  function showTableControls(table) {
+    if (!table?.isConnected) return;
+    document.getElementById("table-controls")?.remove();
+
+    const controls = document.createElement("div");
+    controls.id = "table-controls";
+    controls.className = "table-controls";
+    controls.innerHTML = `
+      <span class="table-controls-label">Table</span>
+      <button type="button" data-tbl="add-row-above">Row above</button>
+      <button type="button" data-tbl="add-row-below">Row below</button>
+      <button type="button" data-tbl="del-row">Delete row</button>
+      <span class="table-controls-sep"></span>
+      <button type="button" data-tbl="add-col-left">Col left</button>
+      <button type="button" data-tbl="add-col-right">Col right</button>
+      <button type="button" data-tbl="del-col">Delete col</button>
+      <span class="table-controls-sep"></span>
+      <button type="button" class="table-controls-danger" data-tbl="del-table">Delete table</button>
+    `;
+    document.body.appendChild(controls);
+
+    const rect = table.getBoundingClientRect();
+    const top = Math.max(8, rect.top + window.scrollY - controls.offsetHeight - 8);
+    const left = Math.min(
+      window.innerWidth - controls.offsetWidth - 12,
+      Math.max(12, rect.left + window.scrollX)
+    );
+    controls.style.top = `${top}px`;
+    controls.style.left = `${left}px`;
+
+    controls.addEventListener("mousedown", (event) => event.preventDefault());
+    controls.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-tbl]");
+      if (!button) return;
+      runTableAction(table, button.dataset.tbl);
+    });
+  }
+
+  function hideTableControls() {
+    document.getElementById("table-controls")?.remove();
+  }
+
+  document.addEventListener("mousedown", (event) => {
+    if (event.target.closest("#table-controls") || event.target.closest("table.note-table")) return;
+    hideTableControls();
+  });
+
   // Table context menu — right-click any cell for row/column/delete actions.
   elements.body.addEventListener("contextmenu", (event) => {
     const cell = event.target.closest("td, th");
@@ -3150,11 +3261,6 @@ function bindEvents() {
 
     event.preventDefault();
     document.getElementById("table-ctx-menu")?.remove();
-
-    const row = cell.closest("tr");
-    const tbody = table.querySelector("tbody");
-    const colIndex = Array.from(row.cells).indexOf(cell);
-    const isHeader = cell.tagName === "TH";
 
     const menu = document.createElement("div");
     menu.id = "table-ctx-menu";
@@ -3191,32 +3297,8 @@ function bindEvents() {
     menu.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-tbl]");
       if (!btn) return;
-      const action = btn.dataset.tbl;
       closeMenu();
-
-      if (action === "add-row-above") {
-        const colCount = table.querySelector("tr").cells.length;
-        row.parentElement.insertBefore(buildRow(colCount, false), row);
-      } else if (action === "add-row-below") {
-        const colCount = table.querySelector("tr").cells.length;
-        row.after(buildRow(colCount, false));
-      } else if (action === "del-row") {
-        if (table.querySelectorAll("tbody tr").length > 1 || isHeader) {
-          row.remove();
-        } else {
-          // last body row — delete whole table
-          deleteTable(table);
-        }
-      } else if (action === "add-col-left") {
-        addColumn(table, colIndex);
-      } else if (action === "add-col-right") {
-        addColumn(table, colIndex + 1);
-      } else if (action === "del-col") {
-        deleteColumn(table, colIndex);
-      } else if (action === "del-table") {
-        deleteTable(table);
-      }
-      notifyEditorChanged();
+      runTableAction(table, btn.dataset.tbl, cell);
     });
   });
 
@@ -3252,6 +3334,7 @@ function bindEvents() {
   function deleteTable(table) {
     const next = table.nextElementSibling || table.previousElementSibling;
     table.remove();
+    hideTableControls();
     if (next) {
       placeCaretInNode(next, false);
     }
