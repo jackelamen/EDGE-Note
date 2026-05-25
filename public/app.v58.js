@@ -1018,6 +1018,9 @@ function noteMatchesSearch(note) {
 }
 
 function updateNavigationState() {
+  // Don't touch panel visibility while focus mode is active — it manages its own layout.
+  if (elements.appShell?.classList.contains("focus-mode")) return;
+
   const isHome = state.filter === "home";
 
   // Show/hide home view vs note list + editor
@@ -1117,33 +1120,48 @@ function insertInlineTable() {
   elements.body.focus();
   restoreSelection();
 
-  const template = document.createElement("template");
-  template.innerHTML = `
-    <table class="note-table">
-      <thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>
-      <tbody>
-        <tr><td></td><td></td><td></td></tr>
-        <tr><td></td><td></td><td></td></tr>
-      </tbody>
-    </table><p></p>
+  // Build the table element directly — don't use range.insertNode with a
+  // DocumentFragment because inserting a block <table> inside an inline
+  // context (e.g. a <p>) produces invalid HTML that browsers silently
+  // repair in unpredictable ways.
+  const table = document.createElement("table");
+  table.className = "note-table";
+  table.innerHTML = `
+    <thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>
+    <tbody>
+      <tr><td></td><td></td><td></td></tr>
+      <tr><td></td><td></td><td></td></tr>
+    </tbody>
   `;
-  const table = template.content.querySelector(".note-table");
-  const range = selectionIsInEditor(savedSelection)
-    ? savedSelection.cloneRange()
-    : window.getSelection()?.rangeCount
-      ? window.getSelection().getRangeAt(0)
-      : document.createRange();
-  if (!savedSelection || !selectionIsInEditor(range)) {
-    range.selectNodeContents(elements.body);
-    range.collapse(false);
-  }
-  range.deleteContents();
-  range.insertNode(template.content);
 
-  const firstBodyCell = table?.querySelector("tbody td");
+  // Find the block-level ancestor of the current selection that is a
+  // direct child of the editor, then insert the table after it.
+  const sel = window.getSelection();
+  const anchorNode = sel?.anchorNode;
+  let insertAfter = null;
+
+  if (anchorNode && elements.body.contains(anchorNode)) {
+    let node = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
+    while (node && node.parentElement !== elements.body) {
+      node = node.parentElement;
+    }
+    if (node && node.parentElement === elements.body) insertAfter = node;
+  }
+
+  const after = document.createElement("p");
+  after.innerHTML = "<br>";
+
+  if (insertAfter) {
+    insertAfter.after(table, after);
+  } else {
+    elements.body.appendChild(table);
+    elements.body.appendChild(after);
+  }
+
+  // Place caret in the first body cell
+  const firstBodyCell = table.querySelector("tbody td");
   if (firstBodyCell) {
     const cellRange = document.createRange();
-    const sel = window.getSelection();
     cellRange.selectNodeContents(firstBodyCell);
     cellRange.collapse(true);
     sel?.removeAllRanges();
