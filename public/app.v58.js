@@ -3227,10 +3227,12 @@ function bindEvents() {
     document.body.appendChild(controls);
 
     const rect = table.getBoundingClientRect();
-    const top = Math.max(8, rect.top + window.scrollY - controls.offsetHeight - 8);
+    const preferredTop = rect.top - controls.offsetHeight - 8;
+    const fallbackTop = Math.min(window.innerHeight - controls.offsetHeight - 8, rect.bottom + 8);
+    const top = Math.max(8, preferredTop >= 8 ? preferredTop : fallbackTop);
     const left = Math.min(
       window.innerWidth - controls.offsetWidth - 12,
-      Math.max(12, rect.left + window.scrollX)
+      Math.max(12, rect.left)
     );
     controls.style.top = `${top}px`;
     controls.style.left = `${left}px`;
@@ -3278,7 +3280,7 @@ function bindEvents() {
     `;
 
     // Position near cursor
-    menu.style.top = `${event.clientY + window.scrollY + 4}px`;
+    menu.style.top = `${Math.min(event.clientY + 4, window.innerHeight - 260)}px`;
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 200)}px`;
     document.body.appendChild(menu);
 
