@@ -974,7 +974,9 @@ function setFocusModeButtonState(entering) {
   if (!elements.focusMode) return;
   elements.focusMode.title = entering ? "Exit focus mode (Esc)" : "Focus mode";
   elements.focusMode.setAttribute("aria-pressed", entering ? "true" : "false");
-  const labelNode = Array.from(elements.focusMode.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+  const labelNode = Array.from(elements.focusMode.childNodes).find(
+    (node) => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0
+  );
   if (labelNode) labelNode.nodeValue = entering ? " Exit" : " Focus";
 }
 
