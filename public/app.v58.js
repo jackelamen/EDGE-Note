@@ -1126,7 +1126,10 @@ function insertInlineTable() {
   table.className = "note-table";
   table.innerHTML =
     "<thead><tr><th>Header</th><th>Header</th><th>Header</th></tr></thead>" +
-    "<tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody>";
+    "<tbody>" +
+    "<tr><td><br></td><td><br></td><td><br></td></tr>" +
+    "<tr><td><br></td><td><br></td><td><br></td></tr>" +
+    "</tbody>";
 
   const after = document.createElement("p");
   after.innerHTML = "<br>";
@@ -3228,6 +3231,7 @@ function bindEvents() {
     const tr = document.createElement("tr");
     for (let i = 0; i < colCount; i++) {
       const cell = document.createElement(isHeader ? "th" : "td");
+      cell.innerHTML = "<br>";
       tr.appendChild(cell);
     }
     return tr;
@@ -3237,6 +3241,7 @@ function bindEvents() {
     table.querySelectorAll("tr").forEach((row) => {
       const isHead = row.closest("thead") !== null;
       const cell = document.createElement(isHead ? "th" : "td");
+      cell.innerHTML = "<br>";
       const ref = row.cells[atIndex];
       if (ref) row.insertBefore(cell, ref);
       else row.appendChild(cell);

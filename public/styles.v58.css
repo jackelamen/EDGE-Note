@@ -2141,22 +2141,23 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 
 .wysiwyg-editor .note-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
   margin: 1.1em 0;
   table-layout: fixed;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
   font-size: .94em;
+  border-radius: 6px;
+  border: 1.5px solid var(--line);
+  overflow: hidden;
+  display: table;
 }
 
 .wysiwyg-editor .note-table th,
 .wysiwyg-editor .note-table td {
   min-width: 96px;
-  padding: 9px 11px;
-  border-right: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
+  min-height: 36px;
+  height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
   vertical-align: top;
   line-height: 1.45;
 }
@@ -2164,7 +2165,7 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 .wysiwyg-editor .note-table th {
   background: var(--surface-2);
   color: var(--ink-2);
-  font-weight: 800;
+  font-weight: 700;
   text-align: left;
 }
 
