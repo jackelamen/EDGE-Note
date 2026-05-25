@@ -967,6 +967,7 @@ function enterFocusMode() {
     state.filter = "all";
     state.notebookFilter = null;
     state.tagFilter = null;
+    updateNavigationState();
   }
 
   shell.classList.add("focus-mode");
@@ -3073,6 +3074,60 @@ function bindEvents() {
   elements.body.addEventListener("keyup", saveSelection);
   elements.body.addEventListener("mouseup", saveSelection);
   elements.body.addEventListener("selectionchange", saveSelection);
+
+  // Table keyboard navigation: Tab/Shift+Tab moves between cells.
+  // Tab on the last cell of the last row appends a new row.
+  elements.body.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const cell = event.target.closest("td, th");
+    if (!cell) return;
+    const table = cell.closest("table.note-table");
+    if (!table) return;
+    event.preventDefault();
+
+    const allCells = Array.from(table.querySelectorAll("th, td"));
+    const idx = allCells.indexOf(cell);
+
+    if (!event.shiftKey) {
+      // Forward
+      if (idx < allCells.length - 1) {
+        allCells[idx + 1].focus();
+        // place caret at end of next cell
+        const r = document.createRange();
+        const sel = window.getSelection();
+        r.selectNodeContents(allCells[idx + 1]);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      } else {
+        // Last cell — append a new body row
+        const colCount = table.querySelector("tr").querySelectorAll("th, td").length;
+        const newRow = table.querySelector("tbody").insertRow(-1);
+        for (let i = 0; i < colCount; i++) newRow.insertCell(-1);
+        const firstNew = newRow.cells[0];
+        firstNew.focus();
+        const r = document.createRange();
+        const sel = window.getSelection();
+        r.selectNodeContents(firstNew);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        saveDraftCache();
+      }
+    } else {
+      // Backward
+      if (idx > 0) {
+        allCells[idx - 1].focus();
+        const r = document.createRange();
+        const sel = window.getSelection();
+        r.selectNodeContents(allCells[idx - 1]);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    }
+  });
+
   // Handle checkbox clicks inside the editor directly.
   elements.body.addEventListener("click", (event) => {
     if (event.target.matches("input[data-task-check]")) {

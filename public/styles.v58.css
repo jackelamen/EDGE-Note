@@ -291,7 +291,31 @@ p { margin: 0; }
 .app-shell.focus-mode .note-list,
 .app-shell.focus-mode .home-view { display: none; }
 
-.app-shell.focus-mode .editor { border-left: 0; }
+.app-shell.focus-mode .editor {
+  border-left: 0;
+  background: var(--surface-2);
+}
+
+/* Hide the breadcrumb and action buttons — just the writing surface */
+.app-shell.focus-mode .editor-breadcrumb,
+.app-shell.focus-mode .editor-actions { display: none; }
+
+/* Shrink the header to a thin strip holding only the format toolbar */
+.app-shell.focus-mode .editor-header {
+  justify-content: center;
+  padding: 4px 16px;
+}
+
+/* Give the document a paper-card feel centered on the muted background */
+.app-shell.focus-mode .document {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 56px 80px 120px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 2px 24px rgba(0,0,0,.08);
+}
+
 body[data-focus-mode] .mobile-tabs { display: none; }
 
 .mobile-tabs { display: none; }
