@@ -3145,6 +3145,126 @@ function bindEvents() {
     }
   });
 
+  // Table context menu — right-click any cell for row/column/delete actions.
+  elements.body.addEventListener("contextmenu", (event) => {
+    const cell = event.target.closest("td, th");
+    if (!cell) return;
+    const table = cell.closest("table.note-table");
+    if (!table) return;
+
+    event.preventDefault();
+    document.getElementById("table-ctx-menu")?.remove();
+
+    const row = cell.closest("tr");
+    const tbody = table.querySelector("tbody");
+    const colIndex = Array.from(row.cells).indexOf(cell);
+    const isHeader = cell.tagName === "TH";
+
+    const menu = document.createElement("div");
+    menu.id = "table-ctx-menu";
+    menu.className = "table-ctx-menu";
+    menu.innerHTML = `
+      <button data-tbl="add-row-above">Insert row above</button>
+      <button data-tbl="add-row-below">Insert row below</button>
+      <button data-tbl="del-row">Delete row</button>
+      <div class="table-ctx-sep"></div>
+      <button data-tbl="add-col-left">Insert column left</button>
+      <button data-tbl="add-col-right">Insert column right</button>
+      <button data-tbl="del-col">Delete column</button>
+      <div class="table-ctx-sep"></div>
+      <button data-tbl="del-table" class="table-ctx-danger">Delete table</button>
+    `;
+
+    // Position near cursor
+    menu.style.top = `${event.clientY + window.scrollY + 4}px`;
+    menu.style.left = `${Math.min(event.clientX, window.innerWidth - 200)}px`;
+    document.body.appendChild(menu);
+
+    function closeMenu() {
+      menu.remove();
+      document.removeEventListener("mousedown", onOutside);
+      document.removeEventListener("keydown", onKey);
+    }
+    function onOutside(e) { if (!menu.contains(e.target)) closeMenu(); }
+    function onKey(e) { if (e.key === "Escape") closeMenu(); }
+    setTimeout(() => {
+      document.addEventListener("mousedown", onOutside);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+
+    menu.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-tbl]");
+      if (!btn) return;
+      const action = btn.dataset.tbl;
+      closeMenu();
+
+      if (action === "add-row-above") {
+        const colCount = table.querySelector("tr").cells.length;
+        row.parentElement.insertBefore(buildRow(colCount, false), row);
+      } else if (action === "add-row-below") {
+        const colCount = table.querySelector("tr").cells.length;
+        row.after(buildRow(colCount, false));
+      } else if (action === "del-row") {
+        if (table.querySelectorAll("tbody tr").length > 1 || isHeader) {
+          row.remove();
+        } else {
+          // last body row — delete whole table
+          deleteTable(table);
+        }
+      } else if (action === "add-col-left") {
+        addColumn(table, colIndex);
+      } else if (action === "add-col-right") {
+        addColumn(table, colIndex + 1);
+      } else if (action === "del-col") {
+        deleteColumn(table, colIndex);
+      } else if (action === "del-table") {
+        deleteTable(table);
+      }
+      saveDraftCache();
+    });
+  });
+
+  function buildRow(colCount, isHeader = false) {
+    const tr = document.createElement("tr");
+    for (let i = 0; i < colCount; i++) {
+      const cell = document.createElement(isHeader ? "th" : "td");
+      tr.appendChild(cell);
+    }
+    return tr;
+  }
+
+  function addColumn(table, atIndex) {
+    table.querySelectorAll("tr").forEach((row) => {
+      const isHead = row.closest("thead") !== null;
+      const cell = document.createElement(isHead ? "th" : "td");
+      const ref = row.cells[atIndex];
+      if (ref) row.insertBefore(cell, ref);
+      else row.appendChild(cell);
+    });
+  }
+
+  function deleteColumn(table, colIndex) {
+    const allRows = table.querySelectorAll("tr");
+    if (allRows[0]?.cells.length <= 1) { deleteTable(table); return; }
+    allRows.forEach((row) => {
+      if (row.cells[colIndex]) row.cells[colIndex].remove();
+    });
+  }
+
+  function deleteTable(table) {
+    const next = table.nextElementSibling || table.previousElementSibling;
+    table.remove();
+    if (next) {
+      const r = document.createRange();
+      r.selectNodeContents(next);
+      r.collapse(true);
+      const s = window.getSelection();
+      s?.removeAllRanges();
+      s?.addRange(r);
+    }
+    saveDraftCache();
+  }
+
   // Handle checkbox clicks inside the editor directly.
   elements.body.addEventListener("click", (event) => {
     if (event.target.matches("input[data-task-check]")) {

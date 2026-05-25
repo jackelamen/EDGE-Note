@@ -295,6 +295,7 @@ p { margin: 0; }
   border-left: 0;
   background: var(--surface-2);
   grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 /* Hide the breadcrumb and action buttons — just the writing surface */
@@ -2102,6 +2103,41 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 }
 
 .wysiwyg-editor strong { font-weight: 800; }
+
+/* ─── Table context menu ─────────────────────────────────────── */
+.table-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--sb-bg, #fff);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  padding: 4px;
+  min-width: 180px;
+  animation: nb-move-in 0.1s ease;
+}
+
+.table-ctx-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.table-ctx-menu button:hover { background: var(--surface-3); color: var(--ink); }
+.table-ctx-menu .table-ctx-danger { color: var(--red, #e53e3e); }
+.table-ctx-menu .table-ctx-danger:hover { background: #fff5f5; }
+.table-ctx-menu .table-ctx-sep {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 3px 4px;
+}
 
 .wysiwyg-editor .note-table {
   width: 100%;
