@@ -23,11 +23,14 @@ const state = {
   mobilePanel: "home",
   selectedId: null,
   focusModeReturnState: null,
+  autoSaveTimer: null,
+  lastAutoSaveSignature: "",
   pendingSave: false,
   saveAgainRequested: false
 };
 
 let pendingSyncTimer = null;
+const autoSaveDelayMs = 2500;
 
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
@@ -631,6 +634,15 @@ function currentDraft() {
   };
 }
 
+function draftSignature(draft = currentDraft()) {
+  return JSON.stringify({
+    notebookId: draft.notebookId || null,
+    title: String(draft.title || "").trim(),
+    body: draft.body || "",
+    tags: draft.tags || []
+  });
+}
+
 function hasMeaningfulDraft() {
   const draft = currentDraft();
   const selected = currentNote();
@@ -656,6 +668,21 @@ function saveDraftCache() {
     cachedAt: new Date().toISOString()
   });
   setCacheStatus("Draft cached", "Saved in this browser");
+}
+
+function scheduleAutoSave() {
+  window.clearTimeout(state.autoSaveTimer);
+  if (!hasMeaningfulDraft()) return;
+  state.autoSaveTimer = window.setTimeout(autoSaveNote, autoSaveDelayMs);
+}
+
+async function autoSaveNote() {
+  if (!hasMeaningfulDraft()) return;
+  const draft = currentDraft();
+  const signature = draftSignature(draft);
+  if (signature === state.lastAutoSaveSignature) return;
+  state.lastAutoSaveSignature = signature;
+  await saveNote({ autosave: true });
 }
 
 function clearDraftCache() {
@@ -1131,6 +1158,7 @@ function editorExec(command, value = null) {
   document.execCommand(command, false, value);
   saveDraftCache();
   renderTasks();
+  scheduleAutoSave();
 }
 
 function insertChecklistItem() {
@@ -1142,6 +1170,7 @@ function insertChecklistItem() {
   document.execCommand("insertHTML", false, html);
   saveDraftCache();
   renderTasks();
+  scheduleAutoSave();
 }
 
 function insertInlineTable() {
@@ -1249,6 +1278,7 @@ function applyInlineStyle(styles) {
   saveSelection();
   saveDraftCache();
   renderTasks();
+  scheduleAutoSave();
   return true;
 }
 
@@ -1260,6 +1290,7 @@ function applyToolbarSelect(kind, value) {
     document.execCommand("formatBlock", false, value || "p");
     saveDraftCache();
     renderTasks();
+    scheduleAutoSave();
     return;
   }
 
@@ -1396,6 +1427,7 @@ function applyWysiwygFormat(format) {
 
   saveDraftCache();
   renderTasks();
+  scheduleAutoSave();
 }
 
 function renderAttachments() {
@@ -2382,17 +2414,18 @@ async function loadHistory(noteId = state.selectedId) {
   }
 }
 
-async function saveNote() {
+async function saveNote({ autosave = false } = {}) {
   // If a save is already in flight, mark that we need another save and bail.
   // The in-flight save will re-run once it finishes (see finally block below).
   if (state.pendingSave) {
     state.saveAgainRequested = true;
     return;
   }
+  window.clearTimeout(state.autoSaveTimer);
   state.pendingSave = true;
   state.saveAgainRequested = false;
   elements.saveNote.textContent = "Saving";
-  setStatus("Saving...");
+  setStatus(autosave ? "Autosaving..." : "Saving...");
 
   try {
     const draft = currentDraft();
@@ -2440,6 +2473,7 @@ async function saveNote() {
     }
 
     state.localDraftRestored = false;
+    state.lastAutoSaveSignature = draftSignature(saved);
     clearDraftCache();
     writeCache(cacheKeys.notes, {
       notes: state.notes,
@@ -2447,7 +2481,7 @@ async function saveNote() {
     });
     await loadCollections();
     await loadHistory(saved.id);
-    setStatus(`Saved ${formatDate(saved.updatedAt)}`);
+    setStatus(`${autosave ? "Autosaved" : "Saved"} ${formatDate(saved.updatedAt)}`);
     setCacheStatus("Synced locally", "Server note cached");
     return saved;
   } catch (error) {
@@ -3104,12 +3138,16 @@ function bindEvents() {
 
   elements.passwordForm.addEventListener("submit", changePassword);
 
-  elements.title.addEventListener("input", saveDraftCache);
+  elements.title.addEventListener("input", () => {
+    saveDraftCache();
+    scheduleAutoSave();
+  });
   elements.body.addEventListener("input", () => {
     saveDraftCache();
     renderTasks();
     updateWordCount();
     if (state.attachments.length) renderAttachments();
+    scheduleAutoSave();
   });
   // Track selection so toolbar knows where to insert formatting.
   elements.body.addEventListener("keyup", saveSelection);
@@ -3350,6 +3388,7 @@ function bindEvents() {
     if (event.target.matches("input[data-task-check]")) {
       saveDraftCache();
       renderTasks();
+      scheduleAutoSave();
     }
   });
 
@@ -3485,8 +3524,14 @@ function bindEvents() {
   }
 
   // (Toolbar is now a static sticky bar — no show/hide listeners needed.)
-  elements.notebook.addEventListener("change", saveDraftCache);
-  elements.tags.addEventListener("input", saveDraftCache);
+  elements.notebook.addEventListener("change", () => {
+    saveDraftCache();
+    scheduleAutoSave();
+  });
+  elements.tags.addEventListener("input", () => {
+    saveDraftCache();
+    scheduleAutoSave();
+  });
 
   elements.search.addEventListener("input", () => {
     window.clearTimeout(elements.search.searchTimer);
