@@ -1593,20 +1593,6 @@ function applyWysiwygFormat(format) {
     return;
   }
 
-  if (format === "align-left" || format === "align-center" || format === "align-right") {
-    const command = format === "align-left"
-      ? "justifyLeft"
-      : format === "align-center"
-        ? "justifyCenter"
-        : "justifyRight";
-    document.execCommand(command, false, null);
-    if (editorSnapshot() !== beforeHtml) {
-      pushEditorUndoSnapshot(beforeHtml);
-      notifyEditorChanged();
-    }
-    return;
-  }
-
   elements.body.focus();
   restoreSelection();
 
@@ -1680,6 +1666,9 @@ function applyWysiwygFormat(format) {
   else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
   else if (format === "superscript") { document.execCommand("superscript", false, null); }
   else if (format === "subscript") { document.execCommand("subscript", false, null); }
+  else if (format === "align-left") { document.execCommand("justifyLeft", false, null); }
+  else if (format === "align-center") { document.execCommand("justifyCenter", false, null); }
+  else if (format === "align-right") { document.execCommand("justifyRight", false, null); }
   else if (format === "indent") { document.execCommand("indent", false, null); }
   else if (format === "outdent") { document.execCommand("outdent", false, null); }
   else if (format === "hr") {
