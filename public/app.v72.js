@@ -1593,6 +1593,20 @@ function applyWysiwygFormat(format) {
     return;
   }
 
+  if (format === "align-left" || format === "align-center" || format === "align-right") {
+    const command = format === "align-left"
+      ? "justifyLeft"
+      : format === "align-center"
+        ? "justifyCenter"
+        : "justifyRight";
+    document.execCommand(command, false, null);
+    if (editorSnapshot() !== beforeHtml) {
+      pushEditorUndoSnapshot(beforeHtml);
+      notifyEditorChanged();
+    }
+    return;
+  }
+
   elements.body.focus();
   restoreSelection();
 
@@ -1666,9 +1680,6 @@ function applyWysiwygFormat(format) {
   else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
   else if (format === "superscript") { document.execCommand("superscript", false, null); }
   else if (format === "subscript") { document.execCommand("subscript", false, null); }
-  else if (format === "align-left") { document.execCommand("justifyLeft", false, null); }
-  else if (format === "align-center") { document.execCommand("justifyCenter", false, null); }
-  else if (format === "align-right") { document.execCommand("justifyRight", false, null); }
   else if (format === "indent") { document.execCommand("indent", false, null); }
   else if (format === "outdent") { document.execCommand("outdent", false, null); }
   else if (format === "hr") {
@@ -3480,7 +3491,12 @@ function bindEvents() {
   // Tab on the last cell of the last row appends a new row.
   elements.body.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      const item = event.target.closest?.("ul.checklist > li");
+      const cell = selectedTableCell();
+      if (cell) return;
+      const sel = window.getSelection();
+      let node = sel?.rangeCount ? sel.getRangeAt(0).startContainer : null;
+      if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+      const item = node?.closest?.("ul.checklist > li");
       const text = item?.querySelector(".checklist-text");
       if (item && text) {
         event.preventDefault();
