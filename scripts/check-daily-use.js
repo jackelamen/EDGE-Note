@@ -9,7 +9,7 @@ function assert(condition, message) {
 const readme = await readFile("README.md", "utf8");
 const smoke = await readFile("docs/smoke-test.md", "utf8");
 const daily = await readFile("docs/daily-use-qa.md", "utf8");
-const app = await readFile("public/app.v63.js", "utf8");
+const app = await readFile("public/app.v66.js", "utf8");
 const html = await readFile("public/index.html", "utf8");
 
 assert(!readme.includes("Cmd/Ctrl+P"), "README still documents removed preview shortcut.");

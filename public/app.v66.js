@@ -28,7 +28,8 @@ const state = {
   pendingSave: false,
   saveAgainRequested: false,
   editorRedoStack: [],
-  editorUndoStack: []
+  editorUndoStack: [],
+  suppressSelectionSave: false
 };
 
 let pendingSyncTimer = null;
@@ -1149,6 +1150,7 @@ function renderTasks() {
 let savedSelection = null;
 
 function saveSelection() {
+  if (state.suppressSelectionSave) return;
   const sel = window.getSelection();
   const editorHasFocus = elements.body === document.activeElement || elements.body?.contains(document.activeElement);
   if (!editorHasFocus) return;
@@ -1182,9 +1184,13 @@ function cloneEditorSelection() {
 function restoreEditorSelection(range) {
   if (!selectionIsInEditor(range)) return;
   const sel = window.getSelection();
+  state.suppressSelectionSave = true;
   sel?.removeAllRanges();
   sel?.addRange(range);
   savedSelection = range.cloneRange();
+  requestAnimationFrame(() => {
+    state.suppressSelectionSave = false;
+  });
 }
 
 function editorSnapshot() {
@@ -1372,11 +1378,12 @@ function applyInlineStyle(styles) {
   return true;
 }
 
-function selectedEditorBlocks() {
-  const sel = window.getSelection();
-  if (!sel?.rangeCount) return [];
-
-  const range = sel.getRangeAt(0);
+function selectedEditorBlocks(range = null) {
+  if (!range) {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return [];
+    range = sel.getRangeAt(0);
+  }
   if (!selectionIsInEditor(range)) return [];
 
   const blockSelector = "p, div, blockquote, h2, h3, h4, li, td, th";
@@ -1405,19 +1412,13 @@ function selectedEditorBlocks() {
 }
 
 function applyBlockAlignment(alignment) {
-  // Prefer the live in-editor selection, but fall back to the savedSelection
-  // captured on toolbar mousedown. Without this fallback, when the editor
-  // briefly loses focus (e.g. clicking a toolbar button), the caret can
-  // collapse to the start of the editor and alignment jumps to the first line.
-  let currentSelection = cloneEditorSelection();
-  if (!currentSelection && selectionIsInEditor(savedSelection)) {
-    currentSelection = savedSelection.cloneRange();
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(currentSelection);
-  }
+  const currentSelection = selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : cloneEditorSelection();
+  if (!currentSelection) return false;
 
-  const blocks = selectedEditorBlocks();
+  restoreEditorSelection(currentSelection);
+  const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
 
   blocks.forEach((block) => {
@@ -1428,17 +1429,13 @@ function applyBlockAlignment(alignment) {
 }
 
 function applyBlockIndent(direction) {
-  // Same selection-recovery logic as applyBlockAlignment: keep the caret
-  // in place even if the editor lost focus when the toolbar was clicked.
-  let currentSelection = cloneEditorSelection();
-  if (!currentSelection && selectionIsInEditor(savedSelection)) {
-    currentSelection = savedSelection.cloneRange();
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(currentSelection);
-  }
+  const currentSelection = selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : cloneEditorSelection();
+  if (!currentSelection) return false;
 
-  const blocks = selectedEditorBlocks();
+  restoreEditorSelection(currentSelection);
+  const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
 
   const step = 32;
@@ -3260,7 +3257,11 @@ function bindEvents() {
       saveSelection();
     });
     button.addEventListener("click", () => {
+      state.suppressSelectionSave = true;
       applyWysiwygFormat(button.dataset.format);
+      requestAnimationFrame(() => {
+        state.suppressSelectionSave = false;
+      });
       // Keep toolbar visible after applying format if still a selection
       updateFloatingToolbar();
     });
@@ -4080,7 +4081,11 @@ function bindEvents() {
         saveSelection();
       });
       button.addEventListener("click", () => {
+        state.suppressSelectionSave = true;
         applyWysiwygFormat(button.dataset.format);
+        requestAnimationFrame(() => {
+          state.suppressSelectionSave = false;
+        });
       });
     });
   }
