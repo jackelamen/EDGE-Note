@@ -1152,15 +1152,19 @@ let savedSelection = null;
 
 function saveSelection() {
   if (state.suppressSelectionSave) return;
+  captureEditorSelection();
+}
+
+function captureEditorSelection() {
   const sel = window.getSelection();
-  const editorHasFocus = elements.body === document.activeElement || elements.body?.contains(document.activeElement);
-  if (!editorHasFocus) return;
   if (sel && sel.rangeCount > 0) {
     const range = sel.getRangeAt(0);
     if (selectionIsInEditor(range)) {
       savedSelection = range.cloneRange();
+      return true;
     }
   }
+  return false;
 }
 
 function restoreSelection() {
@@ -3347,11 +3351,11 @@ function bindEvents() {
   elements.formatButtons.forEach((button) => {
     // mousedown fires before the editor loses focus, so we save the selection first
     button.addEventListener("mousedown", (event) => {
+      captureEditorSelection();
+      state.suppressSelectionSave = true;
       event.preventDefault(); // prevent editor losing focus
-      saveSelection();
     });
     button.addEventListener("click", () => {
-      state.suppressSelectionSave = true;
       applyWysiwygFormat(button.dataset.format);
       requestAnimationFrame(() => {
         state.suppressSelectionSave = false;
@@ -4178,11 +4182,11 @@ function bindEvents() {
     // Wire format buttons on the mobile bar to the same handler
     elements.mobileFormatBar.querySelectorAll("[data-format]").forEach((button) => {
       button.addEventListener("mousedown", (event) => {
+        captureEditorSelection();
+        state.suppressSelectionSave = true;
         event.preventDefault();
-        saveSelection();
       });
       button.addEventListener("click", () => {
-        state.suppressSelectionSave = true;
         applyWysiwygFormat(button.dataset.format);
         requestAnimationFrame(() => {
           state.suppressSelectionSave = false;
