@@ -290,6 +290,13 @@
 
         <!-- Sticky format toolbar — always visible, pinned below header -->
         <div class="format-toolbar" data-floating-toolbar role="toolbar" aria-label="Text formatting">
+            <button type="button" data-format="undo" aria-label="Undo" title="Undo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg>
+            </button>
+            <button type="button" data-format="redo" aria-label="Redo" title="Redo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h2"/></svg>
+            </button>
+            <span class="toolbar-divider"></span>
             <select class="toolbar-select toolbar-select-block" data-format-select="block" aria-label="Text style">
               <option value="p">Text</option>
               <option value="h2">Heading</option>
@@ -453,6 +460,13 @@
       <!-- Mobile formatting toolbar (shown above keyboard when editor is focused) -->
       <div class="mobile-format-bar" data-mobile-format-bar aria-label="Formatting" role="toolbar" hidden>
         <div class="mobile-format-bar-scroll">
+          <button type="button" data-format="undo" aria-label="Undo" title="Undo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/></svg>
+          </button>
+          <button type="button" data-format="redo" aria-label="Redo" title="Redo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h2"/></svg>
+          </button>
+          <span class="mobile-format-divider"></span>
           <button type="button" data-format="bold" aria-label="Bold"><strong>B</strong></button>
           <button type="button" data-format="italic" aria-label="Italic"><em>I</em></button>
           <button type="button" data-format="underline" aria-label="Underline"><u>U</u></button>
@@ -536,6 +550,6 @@
       </nav>
     </main>
 
-    <script src="/app.v59.js" type="module"></script>
+    <script src="/app.v60.js" type="module"></script>
   </body>
 </html>
