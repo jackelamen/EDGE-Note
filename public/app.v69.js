@@ -1194,6 +1194,54 @@ function restoreEditorSelection(range) {
   });
 }
 
+function nodePathFromEditor(node) {
+  const path = [];
+  while (node && node !== elements.body) {
+    const parent = node.parentNode;
+    if (!parent) return null;
+    path.unshift(Array.prototype.indexOf.call(parent.childNodes, node));
+    node = parent;
+  }
+  return node === elements.body ? path : null;
+}
+
+function nodeFromEditorPath(path) {
+  let node = elements.body;
+  for (const index of path || []) {
+    node = node?.childNodes?.[index];
+    if (!node) return null;
+  }
+  return node;
+}
+
+function selectionBookmark(range) {
+  if (!selectionIsInEditor(range)) return null;
+  return {
+    startPath: nodePathFromEditor(range.startContainer),
+    startOffset: range.startOffset,
+    endPath: nodePathFromEditor(range.endContainer),
+    endOffset: range.endOffset
+  };
+}
+
+function restoreSelectionBookmark(bookmark) {
+  if (!bookmark?.startPath || !bookmark?.endPath) return false;
+  const startNode = nodeFromEditorPath(bookmark.startPath);
+  const endNode = nodeFromEditorPath(bookmark.endPath);
+  if (!startNode || !endNode) return false;
+
+  const clampOffset = (node, offset) => {
+    const max = node.nodeType === Node.TEXT_NODE ? node.nodeValue.length : node.childNodes.length;
+    return Math.min(offset, max);
+  };
+
+  const range = document.createRange();
+  range.setStart(startNode, clampOffset(startNode, bookmark.startOffset));
+  range.setEnd(endNode, clampOffset(endNode, bookmark.endOffset));
+  restoreEditorSelection(range);
+  return true;
+}
+
 function editorSnapshot() {
   return elements.body?.innerHTML || "";
 }
@@ -1446,6 +1494,7 @@ function applyBlockAlignment(alignment) {
     ? savedSelection.cloneRange()
     : cloneEditorSelection();
   if (!currentSelection) return false;
+  const bookmark = selectionBookmark(currentSelection);
 
   const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
@@ -1453,6 +1502,7 @@ function applyBlockAlignment(alignment) {
   blocks.forEach((block) => {
     block.style.textAlign = alignment;
   });
+  restoreSelectionBookmark(bookmark);
   return true;
 }
 
@@ -1461,6 +1511,7 @@ function applyBlockIndent(direction) {
     ? savedSelection.cloneRange()
     : cloneEditorSelection();
   if (!currentSelection) return false;
+  const bookmark = selectionBookmark(currentSelection);
 
   const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
@@ -1478,6 +1529,7 @@ function applyBlockIndent(direction) {
       block.style.removeProperty("margin-left");
     }
   });
+  restoreSelectionBookmark(bookmark);
   return true;
 }
 
@@ -3664,15 +3716,19 @@ function bindEvents() {
     notifyEditorChanged();
   }
 
-  // Handle checkbox toggles before the browser/contenteditable layer can
-  // rewrite the checked state underneath us.
-  elements.body.addEventListener("pointerdown", (event) => {
+  function handleChecklistToggleEvent(event) {
     if (event.target.matches("input[data-task-check]")) {
       event.preventDefault();
       event.stopPropagation();
       toggleChecklistCheckbox(event.target);
     }
-  }, true);
+  }
+
+  // Handle checkbox toggles before the browser/contenteditable layer can
+  // rewrite the checked state underneath us. The click fallback covers
+  // browsers that still dispatch click after a prevented pointerdown.
+  elements.body.addEventListener("pointerdown", handleChecklistToggleEvent, true);
+  elements.body.addEventListener("click", handleChecklistToggleEvent, true);
 
   // Image toolbar — click a note-img to get resize + delete controls
   elements.body.addEventListener("click", (event) => {
