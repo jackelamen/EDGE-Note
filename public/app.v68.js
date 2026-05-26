@@ -1447,14 +1447,12 @@ function applyBlockAlignment(alignment) {
     : cloneEditorSelection();
   if (!currentSelection) return false;
 
-  restoreEditorSelection(currentSelection);
   const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
 
   blocks.forEach((block) => {
     block.style.textAlign = alignment;
   });
-  if (currentSelection) restoreEditorSelection(currentSelection);
   return true;
 }
 
@@ -1464,7 +1462,6 @@ function applyBlockIndent(direction) {
     : cloneEditorSelection();
   if (!currentSelection) return false;
 
-  restoreEditorSelection(currentSelection);
   const blocks = selectedEditorBlocks(currentSelection);
   if (!blocks.length) return false;
 
@@ -1481,7 +1478,6 @@ function applyBlockIndent(direction) {
       block.style.removeProperty("margin-left");
     }
   });
-  if (currentSelection) restoreEditorSelection(currentSelection);
   return true;
 }
 
@@ -3651,29 +3647,32 @@ function bindEvents() {
     notifyEditorChanged();
   }
 
-  // Handle checkbox clicks inside the editor directly.
-  elements.body.addEventListener("mousedown", (event) => {
-    if (event.target.matches("input[data-task-check]")) {
-      // Prevent the checkbox click from collapsing the editor's selection
-      // to the first line. We toggle the state manually below.
-      event.preventDefault();
-      const checkbox = event.target;
-      const item = checkbox.closest("li");
-      const willBeChecked = !checkbox.checked;
-      checkbox.checked = willBeChecked;
-      if (willBeChecked) {
-        checkbox.setAttribute("checked", "");
-      } else {
-        checkbox.removeAttribute("checked");
-      }
-      if (item) {
-        // Always keep task-item; toggle complete to reflect state.
-        item.classList.add("task-item");
-        item.classList.toggle("complete", willBeChecked);
-      }
-      notifyEditorChanged();
+  function toggleChecklistCheckbox(checkbox) {
+    const item = checkbox.closest("li");
+    const willBeChecked = !checkbox.checked;
+    checkbox.checked = willBeChecked;
+    checkbox.defaultChecked = willBeChecked;
+    if (willBeChecked) {
+      checkbox.setAttribute("checked", "");
+    } else {
+      checkbox.removeAttribute("checked");
     }
-  });
+    if (item) {
+      item.classList.add("task-item");
+      item.classList.toggle("complete", willBeChecked);
+    }
+    notifyEditorChanged();
+  }
+
+  // Handle checkbox toggles before the browser/contenteditable layer can
+  // rewrite the checked state underneath us.
+  elements.body.addEventListener("pointerdown", (event) => {
+    if (event.target.matches("input[data-task-check]")) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleChecklistCheckbox(event.target);
+    }
+  }, true);
 
   // Image toolbar — click a note-img to get resize + delete controls
   elements.body.addEventListener("click", (event) => {
