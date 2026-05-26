@@ -2090,9 +2090,10 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 }
 
 .wysiwyg-editor ul.checklist li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 9px;
 }
 
 .wysiwyg-editor ul.checklist input[type="checkbox"] {
@@ -2104,7 +2105,11 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   cursor: pointer;
 }
 
-.wysiwyg-editor li.complete {
+.wysiwyg-editor .checklist-text {
+  min-width: 1px;
+}
+
+.wysiwyg-editor li.complete > .checklist-text {
   color: var(--ink-4);
   text-decoration: line-through;
 }

@@ -402,6 +402,7 @@ function sanitizeHtml(html) {
   const styleAllowedTags = new Set(["blockquote", "div", "h2", "h3", "h4", "li", "p", "span", "td", "th"]);
   const classAllowList = {
     li: new Set(["complete", "task-item"]),
+    span: new Set(["checklist-text"]),
     table: new Set(["note-table", "bear-table"]),
     ul: new Set(["checklist"])
   };
@@ -1249,22 +1250,51 @@ function editorExec(command, value = null) {
 }
 
 function insertChecklistItem() {
-  elements.body.focus();
-  restoreSelection();
-
-  const list = document.createElement("ul");
-  list.className = "checklist";
   const item = document.createElement("li");
   item.className = "task-item";
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.setAttribute("data-task-check", "");
-  item.append(checkbox, document.createTextNode(" "));
-  list.append(item);
+  const text = document.createElement("span");
+  text.className = "checklist-text";
+  text.innerHTML = "<br>";
+  item.append(checkbox, text);
 
-  document.execCommand("insertHTML", false, list.outerHTML);
-  const inserted = elements.body.querySelector("ul.checklist li.task-item:last-child");
-  if (inserted) placeCaretInNode(inserted, true);
+  const range = selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : cloneEditorSelection();
+  let inserted = item;
+
+  if (range) {
+    restoreEditorSelection(range);
+    let node = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    const currentItem = node?.closest?.("ul.checklist > li");
+
+    if (currentItem) {
+      currentItem.after(item);
+    } else {
+      const list = document.createElement("ul");
+      list.className = "checklist";
+      list.append(item);
+      let block = node?.closest?.("p, div, blockquote, h2, h3, h4, ul, ol, table");
+      while (block?.parentElement && block.parentElement !== elements.body) {
+        block = block.parentElement;
+      }
+      if (block && block.parentElement === elements.body) {
+        block.after(list);
+      } else {
+        elements.body.append(list);
+      }
+    }
+  } else {
+    const list = document.createElement("ul");
+    list.className = "checklist";
+    list.append(item);
+    elements.body.append(list);
+  }
+
+  placeCaretInNode(inserted.querySelector(".checklist-text"), false);
   notifyEditorChanged();
 }
 
@@ -1492,9 +1522,6 @@ function anchorBlock() {
 }
 
 function applyWysiwygFormat(format) {
-  elements.body.focus();
-  restoreSelection();
-
   if (format === "undo" || format === "redo") {
     if (format === "undo") {
       undoEditorChange();
@@ -1505,6 +1532,34 @@ function applyWysiwygFormat(format) {
   }
 
   const beforeHtml = editorSnapshot();
+
+  if (format === "checklist") {
+    insertChecklistItem();
+    if (editorSnapshot() !== beforeHtml) {
+      pushEditorUndoSnapshot(beforeHtml);
+    }
+    return;
+  }
+
+  if (format === "align-left" || format === "align-center" || format === "align-right" || format === "indent" || format === "outdent") {
+    const changed = format === "align-left"
+      ? applyBlockAlignment("left")
+      : format === "align-center"
+        ? applyBlockAlignment("center")
+        : format === "align-right"
+          ? applyBlockAlignment("right")
+          : format === "indent"
+            ? applyBlockIndent("in")
+            : applyBlockIndent("out");
+    if (changed && editorSnapshot() !== beforeHtml) {
+      pushEditorUndoSnapshot(beforeHtml);
+      notifyEditorChanged();
+    }
+    return;
+  }
+
+  elements.body.focus();
+  restoreSelection();
 
   if (format === "bold") {
     // execCommand("bold") produces <b>, which our sanitizer strips.
@@ -1532,10 +1587,6 @@ function applyWysiwygFormat(format) {
     }
   }
   else if (format === "underline") { document.execCommand("underline", false, null); }
-  else if (format === "checklist") {
-    insertChecklistItem();
-    return;
-  }
   else if (format === "heading") {
     // Toggle between h2 and normal paragraph
     const block = anchorBlock()?.closest("h2, h3, h4, p, div");
@@ -1580,11 +1631,6 @@ function applyWysiwygFormat(format) {
   else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
   else if (format === "superscript") { document.execCommand("superscript", false, null); }
   else if (format === "subscript") { document.execCommand("subscript", false, null); }
-  else if (format === "align-left") { applyBlockAlignment("left"); }
-  else if (format === "align-center") { applyBlockAlignment("center"); }
-  else if (format === "align-right") { applyBlockAlignment("right"); }
-  else if (format === "indent") { applyBlockIndent("in"); }
-  else if (format === "outdent") { applyBlockIndent("out"); }
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }
