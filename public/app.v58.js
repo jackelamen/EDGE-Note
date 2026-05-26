@@ -107,6 +107,8 @@ const elements = {
   title: document.querySelector("[data-note-title]"),
   archiveNote: document.querySelector("[data-action='archive-note']"),
   deleteNote: document.querySelector("[data-action='delete-note']"),
+  formatExtra: document.querySelector("[data-format-extra]"),
+  formatExtraToggle: document.querySelector("[data-action='toggle-format-extra']"),
   formatButtons: document.querySelectorAll("[data-format]"),
   formatColorInputs: document.querySelectorAll("[data-format-color]"),
   formatSelects: document.querySelectorAll("[data-format-select]"),
@@ -3053,6 +3055,13 @@ function bindEvents() {
   });
 
   elements.insertChecklist?.addEventListener("click", insertChecklistItem);
+  elements.formatExtraToggle?.addEventListener("click", () => {
+    const isExpanded = elements.formatExtraToggle.getAttribute("aria-expanded") === "true";
+    elements.formatExtraToggle.setAttribute("aria-expanded", isExpanded ? "false" : "true");
+    if (elements.formatExtra) {
+      elements.formatExtra.hidden = isExpanded;
+    }
+  });
   elements.formatButtons.forEach((button) => {
     // mousedown fires before the editor loses focus, so we save the selection first
     button.addEventListener("mousedown", (event) => {
@@ -3061,7 +3070,6 @@ function bindEvents() {
     });
     button.addEventListener("click", () => {
       applyWysiwygFormat(button.dataset.format);
-      button.closest(".format-more")?.removeAttribute("open");
       // Keep toolbar visible after applying format if still a selection
       updateFloatingToolbar();
     });
