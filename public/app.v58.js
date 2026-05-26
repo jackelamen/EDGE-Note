@@ -139,7 +139,12 @@ const shortcutFormats = {
 const toolbarFonts = {
   sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   serif: 'Georgia, "Times New Roman", serif',
-  mono: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+  mono: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+  system: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  rounded: '"SF Pro Rounded", "Avenir Next", Nunito, sans-serif',
+  editorial: 'Georgia, "Iowan Old Style", "Palatino Linotype", serif',
+  humanist: 'Avenir, "Avenir Next", "Trebuchet MS", sans-serif',
+  code: '"SF Mono", "Roboto Mono", Menlo, Consolas, monospace'
 };
 
 const safeToolbarFontValues = new Set(Object.values(toolbarFonts).map((value) => value.toLowerCase()));
@@ -3056,6 +3061,7 @@ function bindEvents() {
     });
     button.addEventListener("click", () => {
       applyWysiwygFormat(button.dataset.format);
+      button.closest(".format-more")?.removeAttribute("open");
       // Keep toolbar visible after applying format if still a selection
       updateFloatingToolbar();
     });

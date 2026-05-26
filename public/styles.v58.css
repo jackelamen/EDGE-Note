@@ -1913,16 +1913,15 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   padding: 4px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
   flex-shrink: 0;
+  min-width: 0;
 }
-
-.format-toolbar::-webkit-scrollbar { display: none; }
 
 .format-toolbar button,
 .toolbar-select,
-.toolbar-color {
+.toolbar-color,
+.format-more > summary {
   display: grid;
   place-items: center;
   height: 30px;
@@ -1933,18 +1932,22 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   transition: background var(--transition), color var(--transition);
 }
 
-.format-toolbar button {
+.format-toolbar button,
+.format-more > summary {
   min-width: 30px;
   padding: 0 5px;
 }
 
 .format-toolbar button:hover,
-.toolbar-color:hover {
+.toolbar-color:hover,
+.format-more > summary:hover,
+.format-more[open] > summary {
   background: var(--surface-3);
   color: var(--ink);
 }
 
-.format-toolbar button svg { width: 13px; height: 13px; stroke: currentColor; }
+.format-toolbar button svg,
+.format-more > summary svg { width: 13px; height: 13px; stroke: currentColor; }
 
 .toolbar-select {
   display: block;
@@ -1961,8 +1964,47 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 .toolbar-select option { color: var(--ink); background: var(--surface); }
 
 .toolbar-select-block { min-width: 80px; }
-.toolbar-select-font  { min-width: 82px; }
+.toolbar-select-font  { min-width: 96px; }
 .toolbar-select-size  { min-width: 54px; }
+
+.format-more {
+  position: relative;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.format-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.format-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.format-more-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 10px 26px rgba(15,23,42,.13);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.format-more-menu::-webkit-scrollbar { display: none; }
+
+.format-more:not([open]) .format-more-menu {
+  display: none;
+}
 
 .toolbar-color {
   position: relative;
