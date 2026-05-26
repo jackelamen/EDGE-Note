@@ -1966,7 +1966,6 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 .toolbar-select-size  { min-width: 54px; }
 
 .toolbar-more-toggle {
-  margin-left: auto;
   flex: 0 0 auto;
 }
 
