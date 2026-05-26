@@ -1722,12 +1722,15 @@ function renderHomeView() {
 function renderNotes() {
   const notes = filteredNotes();
   const search = elements.search.value.trim();
+  const childNotebooks = state.notebookFilter && !search && state.filter !== "archive"
+    ? state.notebooks.filter((notebook) => Number(notebook.parentId || 0) === Number(state.notebookFilter))
+    : [];
   updateNavigationState();
   elements.searchSummary.textContent = search
     ? `${notes.length} result${notes.length === 1 ? "" : "s"} for "${search}"`
-    : `${notes.length} note${notes.length === 1 ? "" : "s"} in ${viewLabel()}`;
+    : `${notes.length} note${notes.length === 1 ? "" : "s"}${childNotebooks.length ? `, ${childNotebooks.length} folder${childNotebooks.length === 1 ? "" : "s"}` : ""} in ${viewLabel()}`;
 
-  if (!notes.length) {
+  if (!notes.length && !childNotebooks.length) {
     elements.list.innerHTML = `
       <article class="note-card">
         <span class="note-card-notebook">Empty</span>
@@ -1739,7 +1742,18 @@ function renderNotes() {
     return;
   }
 
-  elements.list.innerHTML = notes.map((note) => {
+  const folderCards = childNotebooks.map((notebook) => `
+    <article class="notebook-list-card" data-notebook-filter="${notebook.id}" tabindex="0" aria-label="Open ${escapeHtml(notebook.name)}">
+      <span class="notebook-list-icon" aria-hidden="true">${escapeHtml(notebook.icon || "📓")}</span>
+      <div class="notebook-list-body">
+        <span class="note-card-notebook">Folder</span>
+        <h3 class="note-card-title">${escapeHtml(notebook.name)}</h3>
+        <p class="note-card-snippet">${Number(notebook.noteCount || 0).toLocaleString()} direct note${Number(notebook.noteCount || 0) === 1 ? "" : "s"}</p>
+      </div>
+    </article>
+  `).join("");
+
+  const noteCards = notes.map((note) => {
     const thumb = firstImageSrc(note);
     return `
     <article class="note-card ${note.id === state.selectedId ? "active" : ""}${thumb ? " note-card-has-thumb" : ""}" data-note-id="${note.id}" tabindex="0">
@@ -1752,6 +1766,8 @@ function renderNotes() {
       ${thumb ? `<img class="note-card-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" draggable="false">` : ""}
     </article>
   `}).join("");
+
+  elements.list.innerHTML = folderCards + noteCards;
 }
 
 async function updateCurrentNote(patch) {
@@ -3860,6 +3876,14 @@ function bindEvents() {
   });
 
   elements.list.addEventListener("click", (event) => {
+    const notebookCard = event.target.closest("[data-notebook-filter]");
+    if (notebookCard) {
+      state.notebookFilter = Number(notebookCard.dataset.notebookFilter);
+      state.tagFilter = null;
+      state.filter = "all";
+      loadNotes();
+      return;
+    }
     const card = event.target.closest("[data-note-id]");
     if (!card) return;
     const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
@@ -3867,6 +3891,15 @@ function bindEvents() {
   });
 
   elements.list.addEventListener("keydown", (event) => {
+    const notebookCard = event.target.closest("[data-notebook-filter]");
+    if (notebookCard && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      state.notebookFilter = Number(notebookCard.dataset.notebookFilter);
+      state.tagFilter = null;
+      state.filter = "all";
+      loadNotes();
+      return;
+    }
     const card = event.target.closest("[data-note-id]");
     if (!card) return;
     if (event.key === "Enter" || event.key === " ") {
