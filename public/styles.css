@@ -1791,8 +1791,8 @@ p { margin: 0; }
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 1px;
-  padding: 4px 10px;
+  gap: 2px;
+  padding: 5px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
   overflow-x: auto;
@@ -1802,6 +1802,43 @@ p { margin: 0; }
 
 .format-toolbar::-webkit-scrollbar { display: none; }
 
+/* ── Toolbar tooltip system ───────────────────────────────────── */
+.format-toolbar button,
+.toolbar-color {
+  position: relative;
+}
+
+.format-toolbar button[title]::after,
+.toolbar-color[title]::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  transform: translateX(-50%) translateY(-2px);
+  z-index: 100;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.format-toolbar button[title]:hover::after,
+.toolbar-color[title]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Toolbar base elements ────────────────────────────────────── */
 .format-toolbar button,
 .toolbar-select,
 .toolbar-color {
@@ -1809,15 +1846,15 @@ p { margin: 0; }
   place-items: center;
   height: 30px;
   border-radius: 6px;
-  color: var(--ink-2);
+  color: var(--ink-3, var(--ink-2));
   font-size: 0.8rem;
-  font-weight: 700;
-  transition: background var(--transition), color var(--transition);
+  font-weight: 500;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .format-toolbar button {
   min-width: 30px;
-  padding: 0 5px;
+  padding: 0 4px;
 }
 
 .format-toolbar button:hover,
@@ -1826,7 +1863,18 @@ p { margin: 0; }
   color: var(--ink);
 }
 
-.format-toolbar button svg { width: 13px; height: 13px; stroke: currentColor; }
+.format-toolbar button.active {
+  background: var(--surface-3);
+  color: var(--accent, var(--ink));
+}
+
+/* SVG icons — slightly larger and crisper than before */
+.format-toolbar button svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
 
 .toolbar-select {
   display: block;
@@ -1872,31 +1920,56 @@ p { margin: 0; }
   place-items: center;
   width: 20px;
   height: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, Georgia, serif;
+  color: var(--ink-2);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .toolbar-color-icon::after {
   content: "";
   position: absolute;
-  left: 3px;
-  right: 3px;
-  bottom: 1px;
+  left: 2px;
+  right: 2px;
+  bottom: 0px;
   height: 3px;
   border-radius: 999px;
   background: var(--toolbar-swatch);
 }
 
 .toolbar-color-icon-highlight::after {
-  height: 7px;
+  height: 6px;
   bottom: 0;
-  opacity: .9;
+  opacity: .85;
 }
 
 .toolbar-divider {
   width: 1px;
   height: 16px;
-  background: var(--line);
-  margin: 0 3px;
+  background: var(--line-soft);
+  margin: 0 4px;
   flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* ── More-formatting extra row ────────────────────────────────── */
+.format-toolbar-extra {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.format-toolbar-extra[hidden] { display: none; }
+
+.toolbar-more-toggle {
+  color: var(--ink-3, var(--ink-2));
+}
+
+.toolbar-more-toggle[aria-expanded="true"] {
+  background: var(--surface-3);
+  color: var(--ink);
 }
 
 /* ─── WYSIWYG editor body ────────────────────────────────────── */
