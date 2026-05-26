@@ -1584,6 +1584,7 @@ function applyWysiwygFormat(format) {
   }
 
   const beforeHtml = editorSnapshot();
+  const isAlignmentFormat = format === "align-left" || format === "align-center" || format === "align-right";
 
   if (format === "checklist") {
     insertChecklistItem();
@@ -1595,6 +1596,9 @@ function applyWysiwygFormat(format) {
 
   elements.body.focus();
   restoreSelection();
+  const alignmentBookmark = isAlignmentFormat
+    ? selectionBookmark(savedSelection || cloneEditorSelection())
+    : null;
 
   if (format === "bold") {
     // execCommand("bold") produces <b>, which our sanitizer strips.
@@ -1703,6 +1707,10 @@ function applyWysiwygFormat(format) {
     pushEditorUndoSnapshot(beforeHtml);
   }
   notifyEditorChanged();
+  if (alignmentBookmark) {
+    restoreSelectionBookmark(alignmentBookmark);
+    requestAnimationFrame(() => restoreSelectionBookmark(alignmentBookmark));
+  }
 }
 
 function renderAttachments() {
