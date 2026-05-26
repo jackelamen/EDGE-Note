@@ -1593,23 +1593,6 @@ function applyWysiwygFormat(format) {
     return;
   }
 
-  if (format === "align-left" || format === "align-center" || format === "align-right" || format === "indent" || format === "outdent") {
-    const changed = format === "align-left"
-      ? applyBlockAlignment("left")
-      : format === "align-center"
-        ? applyBlockAlignment("center")
-        : format === "align-right"
-          ? applyBlockAlignment("right")
-          : format === "indent"
-            ? applyBlockIndent("in")
-            : applyBlockIndent("out");
-    if (changed && editorSnapshot() !== beforeHtml) {
-      pushEditorUndoSnapshot(beforeHtml);
-      notifyEditorChanged();
-    }
-    return;
-  }
-
   elements.body.focus();
   restoreSelection();
 
@@ -1683,6 +1666,11 @@ function applyWysiwygFormat(format) {
   else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
   else if (format === "superscript") { document.execCommand("superscript", false, null); }
   else if (format === "subscript") { document.execCommand("subscript", false, null); }
+  else if (format === "align-left") { document.execCommand("justifyLeft", false, null); }
+  else if (format === "align-center") { document.execCommand("justifyCenter", false, null); }
+  else if (format === "align-right") { document.execCommand("justifyRight", false, null); }
+  else if (format === "indent") { document.execCommand("indent", false, null); }
+  else if (format === "outdent") { document.execCommand("outdent", false, null); }
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }
@@ -3491,6 +3479,36 @@ function bindEvents() {
   // Table keyboard navigation: Tab/Shift+Tab moves between cells.
   // Tab on the last cell of the last row appends a new row.
   elements.body.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const item = event.target.closest?.("ul.checklist > li");
+      const text = item?.querySelector(".checklist-text");
+      if (item && text) {
+        event.preventDefault();
+        const isEmpty = !text.textContent.trim();
+        if (isEmpty) {
+          const paragraph = document.createElement("p");
+          paragraph.innerHTML = "<br>";
+          item.closest("ul.checklist")?.after(paragraph);
+          item.remove();
+          placeCaretInNode(paragraph, false);
+        } else {
+          const next = document.createElement("li");
+          next.className = "task-item";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.setAttribute("data-task-check", "");
+          const nextText = document.createElement("span");
+          nextText.className = "checklist-text";
+          nextText.innerHTML = "<br>";
+          next.append(checkbox, nextText);
+          item.after(next);
+          placeCaretInNode(nextText, false);
+        }
+        notifyEditorChanged();
+        return;
+      }
+    }
+
     if (event.key !== "Tab") return;
     const cell = event.target.closest("td, th");
     if (!cell) return;
