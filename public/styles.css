@@ -1868,11 +1868,12 @@ p { margin: 0; }
   color: var(--accent, var(--ink));
 }
 
-/* SVG icons — slightly larger and crisper than before */
+/* SVG icons — Lucide sprite icons, slightly larger and crisper */
 .format-toolbar button svg {
   width: 15px;
   height: 15px;
   stroke: currentColor;
+  fill: none;
   flex-shrink: 0;
 }
 
