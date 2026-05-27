@@ -2652,12 +2652,12 @@ kbd {
 .nb-icon-picker {
   position: fixed;
   z-index: 9999;
-  width: 280px;
+  width: 320px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,.15);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .nb-icon-picker-header {
@@ -2747,8 +2747,10 @@ kbd {
 }
 
 .nb-color-swatch {
-  width: 22px;
-  height: 22px;
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;

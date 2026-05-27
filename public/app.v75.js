@@ -2591,7 +2591,7 @@ async function setNotebookIcon(notebookId) {
 
   // Try to position near the trigger button, otherwise center on screen
   const triggerBtn = document.querySelector(`[data-notebook-icon="${notebookId}"]`);
-  const pickerW = 280;
+  const pickerW = 320;
   let positioned = false;
   if (triggerBtn) {
     const rect = triggerBtn.getBoundingClientRect();
