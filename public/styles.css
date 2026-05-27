@@ -595,7 +595,7 @@ p { margin: 0; }
 }
 
 .notebook-icon {
-  font-size: 0.9rem;
+  font-size: 0;
   line-height: 1;
   flex: 0 0 22px;
   user-select: none;
@@ -1186,9 +1186,11 @@ p { margin: 0; }
 }
 
 .home-notebook-icon {
-  font-size: 1.05rem;
+  font-size: 0;
   line-height: 1;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .home-notebook-card strong {
@@ -2623,6 +2625,160 @@ kbd {
   color: var(--ink-4);
   line-height: 1.45;
 }
+
+/* ─── Notebook SVG icons ─────────────────────────────────────── */
+.nb-svg-icon {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  display: block;
+}
+
+.notebook-icon { font-size: 0; } /* suppress any lingering emoji baseline space */
+.home-notebook-icon { font-size: 0; }
+.notebook-list-icon { font-size: 0; }
+.mobile-nb-icon { font-size: 0; }
+.nb-move-icon { font-size: 0; }
+
+.home-notebook-icon .nb-svg-icon { width: 18px; height: 18px; }
+.notebook-list-icon .nb-svg-icon { width: 20px; height: 20px; }
+
+/* ─── Notebook icon picker modal ─────────────────────────────── */
+.nb-icon-picker {
+  position: absolute;
+  z-index: 9999;
+  width: 248px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  overflow: hidden;
+}
+
+.nb-icon-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.nb-icon-picker-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-3, var(--ink-2));
+}
+
+.nb-icon-picker-close svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.nb-icon-picker-close:hover { background: var(--surface-3); color: var(--ink); }
+
+.nb-icon-picker-icons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 10px;
+}
+
+.nb-icon-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-2);
+  transition: background 0.1s, color 0.1s;
+}
+
+.nb-icon-option svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.nb-icon-option:hover { background: var(--surface-3); color: var(--ink); }
+
+.nb-icon-option.selected {
+  background: var(--surface-3);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.nb-icon-picker-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.nb-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+
+.nb-color-swatch:hover { transform: scale(1.15); }
+
+.nb-color-swatch.selected {
+  border-color: var(--ink);
+  transform: scale(1.1);
+}
+
+.nb-icon-picker-footer {
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.nb-icon-picker-save {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  transition: opacity 0.1s;
+}
+
+.nb-icon-picker-save:hover { opacity: 0.88; }
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 .sr-only {

@@ -7,6 +7,7 @@ function mapNotebook(row) {
     parentId: row.parentId || null,
     name: row.name,
     icon: row.icon || null,
+    iconColor: row.iconColor || null,
     sortOrder: row.sortOrder,
     noteCount: row.noteCount || 0,
     createdAt: row.createdAt,
@@ -21,6 +22,7 @@ export async function listNotebooks({ userId }) {
        nb.parent_id AS parentId,
        nb.name,
        nb.icon,
+       nb.icon_color AS iconColor,
        nb.sort_order AS sortOrder,
        nb.created_at AS createdAt,
        nb.updated_at AS updatedAt,
@@ -31,7 +33,7 @@ export async function listNotebooks({ userId }) {
       AND n.deleted_at IS NULL
      WHERE nb.user_id = :userId
        AND nb.deleted_at IS NULL
-     GROUP BY nb.id, nb.parent_id, nb.name, nb.icon, nb.sort_order, nb.created_at, nb.updated_at
+     GROUP BY nb.id, nb.parent_id, nb.name, nb.icon, nb.icon_color, nb.sort_order, nb.created_at, nb.updated_at
      ORDER BY nb.sort_order ASC, nb.name ASC`,
     { userId }
   );
@@ -48,16 +50,18 @@ export async function createNotebook({ userId, input }) {
   }
 
   const parentId = input.parentId ? Number(input.parentId) : null;
-  const icon = input.icon ? String(input.icon).slice(0, 10) : null;
+  const icon = input.icon ? String(input.icon).slice(0, 50) : null;
+  const iconColor = input.iconColor ? String(input.iconColor).slice(0, 7) : null;
 
   const result = await query(
-    `INSERT INTO notebooks (user_id, parent_id, name, icon, sort_order)
-     VALUES (:userId, :parentId, :name, :icon, :sortOrder)`,
+    `INSERT INTO notebooks (user_id, parent_id, name, icon, icon_color, sort_order)
+     VALUES (:userId, :parentId, :name, :icon, :iconColor, :sortOrder)`,
     {
       userId,
       parentId,
       name,
       icon,
+      iconColor,
       sortOrder: Number(input.sortOrder || 100)
     }
   );
@@ -89,7 +93,12 @@ export async function updateNotebook({ userId, notebookId, input }) {
 
   if (input.icon !== undefined) {
     fields.push("icon = :icon");
-    params.icon = input.icon ? String(input.icon).slice(0, 10) : null;
+    params.icon = input.icon ? String(input.icon).slice(0, 50) : null;
+  }
+
+  if (input.iconColor !== undefined) {
+    fields.push("icon_color = :iconColor");
+    params.iconColor = input.iconColor ? String(input.iconColor).slice(0, 7) : null;
   }
 
   if (input.parentId !== undefined) {

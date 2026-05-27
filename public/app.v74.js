@@ -1776,13 +1776,12 @@ function renderMobileNotebookList(notebooks, parentId = null, depth = 0) {
   const children = notebooks.filter((nb) => (nb.parentId || null) === parentId);
   if (!children.length) return "";
   return children.map((nb) => {
-    const icon = nb.icon || "📓";
     const indent = `style="padding-left:${depth * 16 + 12}px"`;
     const sub = renderMobileNotebookList(notebooks, nb.id, depth + 1);
     return `
       <div class="mobile-nb-row" data-nb-row="${nb.id}">
         <div class="mobile-nb-row-inner" ${indent}>
-          <span class="mobile-nb-icon">${icon}</span>
+          <span class="mobile-nb-icon">${renderNotebookIcon(nb)}</span>
           <span class="mobile-nb-name">${escapeHtml(nb.name)}</span>
           <small class="mobile-nb-count">${nb.noteCount || 0}</small>
           <button type="button" class="mobile-nb-delete" data-notebook-delete="${nb.id}" aria-label="Delete ${escapeHtml(nb.name)}">
@@ -1801,7 +1800,6 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
   return children.map((notebook) => {
     const subtree = renderNotebookTree(notebooks, notebook.id, depth + 1);
     const hasChildren = subtree.length > 0;
-    const icon = notebook.icon || "📓";
     const isCollapsed = collapsedNotebooks.has(notebook.id);
     const indent = depth > 0 ? `style="padding-left:${depth * 14}px"` : "";
 
@@ -1814,7 +1812,7 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
             </button>
           ` : ``}
           <a href="#notebook-${notebook.id}" data-notebook-filter="${notebook.id}" class="notebook-row-link${hasChildren ? "" : " no-chevron"}">
-            <span class="notebook-icon" aria-hidden="true">${icon}</span>
+            <span class="notebook-icon">${renderNotebookIcon(notebook)}</span>
             <span class="notebook-row-name">${escapeHtml(notebook.name)}</span>
             <small>${notebook.noteCount || 0}</small>
           </a>
@@ -1846,9 +1844,8 @@ function buildNotebookParentOptions(excludeId = null) {
     ...state.notebooks
       .filter((nb) => nb.id !== excludeId)
       .map((nb) => {
-        const icon = nb.icon || "📓";
         const prefix = nb.parentId ? "  └ " : "";
-        return `<option value="${nb.id}">${icon} ${prefix}${escapeHtml(nb.name)}</option>`;
+        return `<option value="${nb.id}">${prefix}${escapeHtml(nb.name)}</option>`;
       })
   ].join("");
 }
@@ -1858,9 +1855,8 @@ function renderCollections() {
   const notebookOptions = [
     '<option value="">No notebook</option>',
     ...state.notebooks.map((notebook) => {
-      const icon = notebook.icon || "📓";
       const prefix = notebook.parentId ? "  └ " : "";
-      return `<option value="${notebook.id}">${icon} ${prefix}${escapeHtml(notebook.name)}</option>`;
+      return `<option value="${notebook.id}">${prefix}${escapeHtml(notebook.name)}</option>`;
     })
   ];
 
@@ -1922,7 +1918,7 @@ function renderHomeNotebooks() {
     const tile = `
       <button class="home-notebook-card${depth > 0 ? " home-notebook-card-child" : ""}" type="button"
               data-notebook-filter="${notebook.id}" style="${depth > 0 ? `margin-left:${depth * 16}px` : ""}">
-        <span class="home-notebook-icon" aria-hidden="true">${notebook.icon || "📓"}</span>
+        <span class="home-notebook-icon">${renderNotebookIcon(notebook)}</span>
         <strong>${escapeHtml(notebook.name)}</strong>
         <span>${notebook.noteCount || 0} note${notebook.noteCount === 1 ? "" : "s"}</span>
       </button>
@@ -2027,7 +2023,7 @@ function renderNotes() {
 
   const folderCards = childNotebooks.map((notebook) => `
     <article class="notebook-list-card" data-notebook-filter="${notebook.id}" tabindex="0" aria-label="Open ${escapeHtml(notebook.name)}">
-      <span class="notebook-list-icon" aria-hidden="true">${escapeHtml(notebook.icon || "📓")}</span>
+      <span class="notebook-list-icon">${renderNotebookIcon(notebook)}</span>
       <div class="notebook-list-body">
         <span class="note-card-notebook">Folder</span>
         <h3 class="note-card-title">${escapeHtml(notebook.name)}</h3>
@@ -2401,13 +2397,12 @@ async function moveNotebook(notebookId) {
       (nb) => (nb.parentId || null) === parentId && !excluded.has(nb.id)
     );
     return children.map((nb) => {
-      const icon = nb.icon || "📓";
       const isCurrent = nb.id === notebook.parentId;
       const indent = depth * 16;
       return `
         <button type="button" class="nb-move-option${isCurrent ? " nb-move-current" : ""}"
           data-move-target="${nb.id}" style="padding-left:${14 + indent}px">
-          <span class="nb-move-icon">${icon}</span>
+          <span class="nb-move-icon">${renderNotebookIcon(nb)}</span>
           <span>${escapeHtml(nb.name)}</span>
           ${isCurrent ? '<span class="nb-move-badge">current</span>' : ""}
         </button>
@@ -2433,7 +2428,7 @@ async function moveNotebook(notebookId) {
     <div class="nb-move-list">
       <button type="button" class="nb-move-option${!notebook.parentId ? " nb-move-current" : ""}"
         data-move-target="null" style="padding-left:14px">
-        <span class="nb-move-icon">📁</span>
+        <span class="nb-move-icon">${notebookIconSvg("folder", null)}</span>
         <span>Top level</span>
         ${!notebook.parentId ? '<span class="nb-move-badge">current</span>' : ""}
       </button>
@@ -2501,26 +2496,163 @@ async function moveNotebook(notebookId) {
   setTimeout(() => document.addEventListener("mousedown", onOutside), 0);
 }
 
+// ── Notebook icon picker ─────────────────────────────────────────
+const NOTEBOOK_ICONS = [
+  { id: "notebook",       label: "Notebook" },
+  { id: "book-open",      label: "Book open" },
+  { id: "book",           label: "Book" },
+  { id: "file-text",      label: "Document" },
+  { id: "folder",         label: "Folder" },
+  { id: "folder-open",    label: "Folder open" },
+  { id: "archive",        label: "Archive" },
+  { id: "star",           label: "Star" },
+  { id: "heart",          label: "Heart" },
+  { id: "bookmark",       label: "Bookmark" },
+  { id: "tag",            label: "Tag" },
+  { id: "pencil",         label: "Pencil" },
+  { id: "lightbulb",      label: "Idea" },
+  { id: "flask-conical",  label: "Research" },
+  { id: "briefcase",      label: "Work" },
+  { id: "graduation-cap", label: "Study" },
+  { id: "home",           label: "Home" },
+  { id: "camera",         label: "Camera" },
+  { id: "music",          label: "Music" },
+  { id: "dumbbell",       label: "Fitness" },
+];
+
+const NOTEBOOK_COLORS = [
+  "#6b7280",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#14b8a6",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#0ea5e9",
+];
+
+function notebookIconSvg(iconId, color) {
+  const c = color || "currentColor";
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" class="nb-svg-icon" style="color:${c}"><use href="#${iconId}"/></svg>`;
+}
+
+function renderNotebookIcon(nb) {
+  const isLucide = nb.icon && !/\p{Emoji_Presentation}/u.test(nb.icon);
+  if (isLucide) return notebookIconSvg(nb.icon, nb.iconColor);
+  if (nb.icon) return `<span aria-hidden="true">${nb.icon}</span>`;
+  return notebookIconSvg("notebook", null);
+}
+
 async function setNotebookIcon(notebookId) {
   const notebook = state.notebooks.find((nb) => nb.id === notebookId);
   if (!notebook) return;
-  const icon = window.prompt("Notebook icon (paste any emoji):", notebook.icon || "📓");
-  if (icon === null) return; // cancelled
-  try {
-    const payload = await requestJson(`/api/notebooks/${notebookId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ icon: icon.trim() || null })
-    });
-    state.notebooks = payload.notebooks || [];
-    writeCache(cacheKeys.collections, {
-      notebooks: state.notebooks,
-      tags: state.tags,
-      cachedAt: new Date().toISOString()
-    });
-    renderCollections();
-  } catch (error) {
-    setStatus(error.message);
+
+  document.getElementById("nb-icon-picker")?.remove();
+
+  const currentIcon = (notebook.icon && !/\p{Emoji_Presentation}/u.test(notebook.icon))
+    ? notebook.icon : "notebook";
+  const currentColor = notebook.iconColor || NOTEBOOK_COLORS[0];
+
+  const picker = document.createElement("div");
+  picker.id = "nb-icon-picker";
+  picker.className = "nb-icon-picker";
+  picker.setAttribute("role", "dialog");
+  picker.setAttribute("aria-label", "Choose notebook icon");
+
+  picker.innerHTML = `
+    <div class="nb-icon-picker-header">
+      <span>Notebook icon</span>
+      <button type="button" class="nb-icon-picker-close" aria-label="Close">
+        <svg viewBox="0 0 24 24"><use href="#x"/></svg>
+      </button>
+    </div>
+    <div class="nb-icon-picker-icons">
+      ${NOTEBOOK_ICONS.map(({ id, label }) => `
+        <button type="button" class="nb-icon-option${currentIcon === id ? " selected" : ""}"
+          data-icon-id="${id}" title="${label}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#${id}"/></svg>
+        </button>
+      `).join("")}
+    </div>
+    <div class="nb-icon-picker-colors">
+      ${NOTEBOOK_COLORS.map(color => `
+        <button type="button" class="nb-color-swatch${currentColor === color ? " selected" : ""}"
+          data-icon-color="${color}" title="${color}" style="background:${color}"></button>
+      `).join("")}
+    </div>
+    <div class="nb-icon-picker-footer">
+      <button type="button" class="nb-icon-picker-save">Apply</button>
+    </div>
+  `;
+
+  document.body.appendChild(picker);
+
+  // Position near the trigger button
+  const triggerBtn = document.querySelector(`[data-notebook-icon="${notebookId}"]`);
+  if (triggerBtn) {
+    const rect = triggerBtn.getBoundingClientRect();
+    const pickerW = 248;
+    let left = rect.left;
+    if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+    picker.style.top = `${rect.bottom + 6 + window.scrollY}px`;
+    picker.style.left = `${Math.max(8, left)}px`;
   }
+
+  let selectedIcon = currentIcon;
+  let selectedColor = currentColor;
+
+  function updatePreview() {
+    picker.querySelectorAll(".nb-icon-option").forEach(btn => {
+      const active = btn.dataset.iconId === selectedIcon;
+      btn.classList.toggle("selected", active);
+      btn.querySelector("svg").style.color = selectedColor;
+    });
+    picker.querySelectorAll(".nb-color-swatch").forEach(btn => {
+      btn.classList.toggle("selected", btn.dataset.iconColor === selectedColor);
+    });
+  }
+
+  picker.addEventListener("click", async (e) => {
+    const iconBtn = e.target.closest("[data-icon-id]");
+    if (iconBtn) { selectedIcon = iconBtn.dataset.iconId; updatePreview(); return; }
+
+    const colorBtn = e.target.closest("[data-icon-color]");
+    if (colorBtn) { selectedColor = colorBtn.dataset.iconColor; updatePreview(); return; }
+
+    if (e.target.closest(".nb-icon-picker-close")) { picker.remove(); return; }
+
+    if (e.target.closest(".nb-icon-picker-save")) {
+      picker.remove();
+      try {
+        const payload = await requestJson(`/api/notebooks/${notebookId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ icon: selectedIcon, iconColor: selectedColor })
+        });
+        state.notebooks = payload.notebooks || [];
+        writeCache(cacheKeys.collections, {
+          notebooks: state.notebooks,
+          tags: state.tags,
+          cachedAt: new Date().toISOString()
+        });
+        renderCollections();
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+  });
+
+  setTimeout(() => {
+    document.addEventListener("mousedown", function onOutside(e) {
+      if (!picker.contains(e.target)) {
+        picker.remove();
+        document.removeEventListener("mousedown", onOutside);
+      }
+    });
+  }, 0);
+
+  updatePreview();
 }
 
 async function loadNotes() {
