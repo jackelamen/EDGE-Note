@@ -2521,7 +2521,7 @@ const NOTEBOOK_ICONS = [
 ];
 
 const NOTEBOOK_COLORS = [
-  "#6b7280",
+  "#a0a0a8",
   "#ef4444",
   "#f97316",
   "#eab308",
@@ -2534,7 +2534,7 @@ const NOTEBOOK_COLORS = [
 ];
 
 function notebookIconSvg(iconId, color) {
-  const c = color || "currentColor";
+  const c = color || "#a0a0a8";
   return `<svg viewBox="0 0 24 24" aria-hidden="true" class="nb-svg-icon" style="color:${c}"><use href="#${iconId}"/></svg>`;
 }
 
@@ -2589,27 +2589,10 @@ async function setNotebookIcon(notebookId) {
 
   document.body.appendChild(picker);
 
-  // Try to position near the trigger button, otherwise center on screen
-  const triggerBtn = document.querySelector(`[data-notebook-icon="${notebookId}"]`);
-  const pickerW = 320;
-  let positioned = false;
-  if (triggerBtn) {
-    const rect = triggerBtn.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      let left = rect.left;
-      let top = rect.bottom + 6;
-      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
-      if (top + 320 > window.innerHeight) top = rect.top - 320 - 6;
-      picker.style.top = `${Math.max(8, top)}px`;
-      picker.style.left = `${Math.max(8, left)}px`;
-      positioned = true;
-    }
-  }
-  if (!positioned) {
-    picker.style.top = "50%";
-    picker.style.left = "50%";
-    picker.style.transform = "translate(-50%, -50%)";
-  }
+  // Center on screen
+  picker.style.top = "50%";
+  picker.style.left = "50%";
+  picker.style.transform = "translate(-50%, -50%)";
 
   let selectedIcon = currentIcon;
   let selectedColor = currentColor;
