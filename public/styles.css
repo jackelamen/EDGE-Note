@@ -2650,7 +2650,7 @@ kbd {
 
 /* ─── Notebook icon picker modal ─────────────────────────────── */
 .nb-icon-picker {
-  position: absolute;
+  position: fixed;
   z-index: 9999;
   width: 248px;
   background: var(--surface);

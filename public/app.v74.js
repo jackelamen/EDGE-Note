@@ -2514,7 +2514,7 @@ const NOTEBOOK_ICONS = [
   { id: "flask-conical",  label: "Research" },
   { id: "briefcase",      label: "Work" },
   { id: "graduation-cap", label: "Study" },
-  { id: "home",           label: "Home" },
+  { id: "house",          label: "Home" },
   { id: "camera",         label: "Camera" },
   { id: "music",          label: "Music" },
   { id: "dumbbell",       label: "Fitness" },
@@ -2589,15 +2589,30 @@ async function setNotebookIcon(notebookId) {
 
   document.body.appendChild(picker);
 
-  // Position near the trigger button
+  // Position near the trigger button, fallback to center of screen
   const triggerBtn = document.querySelector(`[data-notebook-icon="${notebookId}"]`);
+  const pickerW = 248;
   if (triggerBtn) {
     const rect = triggerBtn.getBoundingClientRect();
-    const pickerW = 248;
-    let left = rect.left;
-    if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
-    picker.style.top = `${rect.bottom + 6 + window.scrollY}px`;
-    picker.style.left = `${Math.max(8, left)}px`;
+    if (rect.width > 0) {
+      // Button is visible — position below it
+      let left = rect.left + window.scrollX;
+      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+      picker.style.position = "fixed";
+      picker.style.top = `${rect.bottom + 6}px`;
+      picker.style.left = `${Math.max(8, rect.left)}px`;
+    } else {
+      // Button is hidden/zero-size — center on screen
+      picker.style.position = "fixed";
+      picker.style.top = "50%";
+      picker.style.left = "50%";
+      picker.style.transform = "translate(-50%, -50%)";
+    }
+  } else {
+    picker.style.position = "fixed";
+    picker.style.top = "50%";
+    picker.style.left = "50%";
+    picker.style.transform = "translate(-50%, -50%)";
   }
 
   let selectedIcon = currentIcon;
