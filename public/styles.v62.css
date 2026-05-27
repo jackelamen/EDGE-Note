@@ -1792,13 +1792,12 @@ p { margin: 0; }
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 5px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
-  overflow-x: auto;
-  scrollbar-width: none;
   flex-shrink: 0;
 }
 
@@ -1962,6 +1961,10 @@ p { margin: 0; }
   display: flex;
   align-items: center;
   gap: 2px;
+  width: 100%;
+  padding: 3px 0 2px;
+  border-top: 1px solid var(--line-soft);
+  margin-top: 2px;
 }
 
 .format-toolbar-extra[hidden] { display: none; }
@@ -2905,6 +2908,9 @@ kbd {
   .document-meta { align-items: stretch; flex-direction: column; gap: 8px; }
   .meta-pill { width: 100%; justify-content: flex-start; }
   .inline-attachments-grid { gap: 12px; }
+
+  /* Hide desktop toolbar on mobile — use bottom mobile bar instead */
+  .format-toolbar { display: none; }
 
   .mobile-tabs {
     display: flex;
