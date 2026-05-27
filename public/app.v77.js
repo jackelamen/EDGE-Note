@@ -29,7 +29,9 @@ const state = {
   saveAgainRequested: false,
   editorRedoStack: [],
   editorUndoStack: [],
-  suppressSelectionSave: false
+  suppressSelectionSave: false,
+  tableSort: { col: "updatedAt", dir: "desc" },
+  tableShowArchived: false
 };
 
 let pendingSyncTimer = null;
@@ -2002,6 +2004,13 @@ function renderHomeView() {
 }
 
 function renderNotes() {
+  if (state.filter === "all" && !state.notebookFilter && !state.tagFilter) {
+    elements.list.classList.add("notes-table-view");
+    updateNavigationState();
+    renderTableView();
+    return;
+  }
+  elements.list.classList.remove("notes-table-view");
   const notes = filteredNotes();
   const search = elements.search.value.trim();
   const childNotebooks = state.notebookFilter && !search && state.filter !== "archive"
@@ -2050,6 +2059,88 @@ function renderNotes() {
   `}).join("");
 
   elements.list.innerHTML = folderCards + noteCards;
+}
+
+function renderTableView() {
+  const search = elements.search.value.trim();
+  let notes = state.notes.filter((note) => {
+    if (state.tableShowArchived) return true;
+    return !note.archivedAt;
+  });
+
+  if (search) {
+    const term = search.toLowerCase();
+    notes = notes.filter((note) =>
+      (note.title || "").toLowerCase().includes(term) ||
+      (note.body || "").toLowerCase().includes(term) ||
+      (note.tags || []).join(" ").toLowerCase().includes(term)
+    );
+  }
+
+  const { col, dir } = state.tableSort;
+  notes = [...notes].sort((a, b) => {
+    let av, bv;
+    if (col === "title") {
+      av = (a.title || "").toLowerCase();
+      bv = (b.title || "").toLowerCase();
+    } else if (col === "tags") {
+      av = (a.tags || []).join(",").toLowerCase();
+      bv = (b.tags || []).join(",").toLowerCase();
+    } else {
+      av = a[col] || "";
+      bv = b[col] || "";
+    }
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const arrow = (c) => {
+    if (state.tableSort.col !== c) return '<span class="tbl-sort-arrow tbl-sort-none">↕</span>';
+    return `<span class="tbl-sort-arrow">${state.tableSort.dir === "asc" ? "↑" : "↓"}</span>`;
+  };
+
+  const archivedCount = state.notes.filter((n) => n.archivedAt).length;
+
+  const header = `
+    <div class="tbl-toolbar">
+      <span class="tbl-count">${notes.length} note${notes.length === 1 ? "" : "s"}${search ? ` matching "${search}"` : ""}</span>
+      ${archivedCount > 0 ? `
+        <label class="tbl-archive-toggle">
+          <input type="checkbox" data-table-show-archived ${state.tableShowArchived ? "checked" : ""}>
+          Show archived (${archivedCount})
+        </label>` : ""}
+    </div>
+    <table class="notes-table">
+      <thead>
+        <tr>
+          <th class="tbl-col-title" data-sort-col="title">Title ${arrow("title")}</th>
+          <th class="tbl-col-tags" data-sort-col="tags">Tags ${arrow("tags")}</th>
+          <th class="tbl-col-date" data-sort-col="createdAt">Created ${arrow("createdAt")}</th>
+          <th class="tbl-col-date" data-sort-col="updatedAt">Modified ${arrow("updatedAt")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${notes.length ? notes.map((note) => `
+          <tr class="tbl-row${note.id === state.selectedId ? " tbl-row-active" : ""}${note.archivedAt ? " tbl-row-archived" : ""}" data-note-id="${note.id}">
+            <td class="tbl-title">
+              ${note.favorite ? '<span class="tbl-star">★</span>' : ""}
+              ${escapeHtml(note.title || "Untitled note")}
+              ${note.archivedAt ? '<span class="tbl-badge">archived</span>' : ""}
+            </td>
+            <td class="tbl-tags">${(note.tags || []).map((t) => `<span class="tbl-tag">#${escapeHtml(t)}</span>`).join("")}</td>
+            <td class="tbl-date">${escapeHtml(formatDate(note.createdAt))}</td>
+            <td class="tbl-date">${escapeHtml(formatDate(note.updatedAt))}</td>
+          </tr>
+        `).join("") : `
+          <tr><td colspan="4" class="tbl-empty">No notes found${search ? " — try a different search" : ""}.</td></tr>
+        `}
+      </tbody>
+    </table>
+  `;
+
+  elements.list.innerHTML = header;
+  elements.list.classList.add("notes-table-view");
 }
 
 async function updateCurrentNote(patch) {
@@ -2663,6 +2754,8 @@ async function loadNotes() {
   if (state.filter === "tasks") params.set("tasks", "1");
   if (state.filter === "archive") {
     params.set("archived", "only");
+  } else if (state.filter === "all" && state.tableShowArchived) {
+    params.set("archived", "all");
   } else {
     params.set("archived", "active");
   }
@@ -4104,6 +4197,7 @@ function bindEvents() {
     const link = event.target.closest("[data-view-filter]");
     if (!link) return;
     event.preventDefault();
+    if (link.dataset.viewFilter !== "all") state.tableShowArchived = false;
     state.filter = link.dataset.viewFilter;
     state.notebookFilter = null;
     state.tagFilter = null;
@@ -4375,6 +4469,29 @@ function bindEvents() {
       loadNotes();
       return;
     }
+
+    // Table view: sort column header
+    const sortTh = event.target.closest("[data-sort-col]");
+    if (sortTh) {
+      const col = sortTh.dataset.sortCol;
+      if (state.tableSort.col === col) {
+        state.tableSort.dir = state.tableSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.tableSort.col = col;
+        state.tableSort.dir = col === "title" || col === "tags" ? "asc" : "desc";
+      }
+      renderTableView();
+      return;
+    }
+
+    // Table view: archive toggle checkbox
+    const archiveToggle = event.target.closest("[data-table-show-archived]");
+    if (archiveToggle) {
+      state.tableShowArchived = archiveToggle.checked;
+      loadNotes();
+      return;
+    }
+
     const card = event.target.closest("[data-note-id]");
     if (!card) return;
     const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
