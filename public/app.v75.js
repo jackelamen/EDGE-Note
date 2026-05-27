@@ -2618,7 +2618,8 @@ async function setNotebookIcon(notebookId) {
     picker.querySelectorAll(".nb-icon-option").forEach(btn => {
       const active = btn.dataset.iconId === selectedIcon;
       btn.classList.toggle("selected", active);
-      btn.querySelector("svg").style.color = selectedColor;
+      // Selected icon shows white on accent background; others show chosen color
+      btn.querySelector("svg").style.color = active ? "#fff" : selectedColor;
     });
     picker.querySelectorAll(".nb-color-swatch").forEach(btn => {
       btn.classList.toggle("selected", btn.dataset.iconColor === selectedColor);
