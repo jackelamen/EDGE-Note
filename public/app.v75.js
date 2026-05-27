@@ -1771,7 +1771,7 @@ function saveCollapsedNotebooks() {
   localStorage.setItem("edge_collapsed_notebooks", JSON.stringify([...collapsedNotebooks]));
 }
 
-// Simple mobile notebook list — name, count, delete only. No desktop-only action buttons.
+// Simple mobile notebook list — name, count, icon picker, delete.
 function renderMobileNotebookList(notebooks, parentId = null, depth = 0) {
   const children = notebooks.filter((nb) => (nb.parentId || null) === parentId);
   if (!children.length) return "";
@@ -1781,7 +1781,9 @@ function renderMobileNotebookList(notebooks, parentId = null, depth = 0) {
     return `
       <div class="mobile-nb-row" data-nb-row="${nb.id}">
         <div class="mobile-nb-row-inner" ${indent}>
-          <span class="mobile-nb-icon">${renderNotebookIcon(nb)}</span>
+          <button type="button" class="mobile-nb-icon-btn" data-notebook-icon="${nb.id}" aria-label="Change icon" title="Change icon">
+            ${renderNotebookIcon(nb)}
+          </button>
           <span class="mobile-nb-name">${escapeHtml(nb.name)}</span>
           <small class="mobile-nb-count">${nb.noteCount || 0}</small>
           <button type="button" class="mobile-nb-delete" data-notebook-delete="${nb.id}" aria-label="Delete ${escapeHtml(nb.name)}">

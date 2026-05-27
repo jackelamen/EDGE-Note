@@ -2645,6 +2645,53 @@ kbd {
 .mobile-nb-icon { font-size: 0; }
 .nb-move-icon { font-size: 0; }
 
+/* Mobile notebook manager rows */
+.mobile-nb-row { display: flex; flex-direction: column; }
+.mobile-nb-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.mobile-nb-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  font-size: 0;
+  color: var(--ink-2);
+  transition: background 0.1s;
+}
+.mobile-nb-icon-btn:hover { background: var(--surface-3); }
+.mobile-nb-icon-btn .nb-svg-icon { width: 18px; height: 18px; }
+.mobile-nb-name { flex: 1; font-size: 0.9rem; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-nb-count { font-size: 0.75rem; color: var(--ink-3); flex-shrink: 0; }
+.mobile-nb-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-3);
+  transition: background 0.1s, color 0.1s;
+}
+.mobile-nb-delete:hover { background: var(--surface-3); color: var(--danger, #ef4444); }
+.mobile-nb-delete svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
 .home-notebook-icon .nb-svg-icon { width: 18px; height: 18px; }
 .notebook-list-icon .nb-svg-icon { width: 20px; height: 20px; }
 
