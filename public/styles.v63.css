@@ -2910,7 +2910,7 @@ kbd {
   .inline-attachments-grid { gap: 12px; }
 
   /* Hide desktop toolbar on mobile — use bottom mobile bar instead */
-  .format-toolbar { display: none; }
+  .format-toolbar { display: none !important; }
 
   .mobile-tabs {
     display: flex;

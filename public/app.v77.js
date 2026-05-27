@@ -1,7 +1,7 @@
 const cacheKeys = {
   draft: "edge_note_draft_v1",
   notes: "edge_note_notes_v1",
-  collections: "edge_note_collections_v1",
+  collections: "edge_note_collections_v2",
   pendingChanges: "edge_note_pending_changes_v1",
   selectedId: "edge_note_selected_note_v1",
   savedSearches: "edge_note_saved_searches_v1"
@@ -1882,11 +1882,12 @@ function renderCollections() {
     elements.nbManageList.innerHTML = tree || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
   }
 
-  elements.tagsNav.innerHTML = state.tags.length
-    ? state.tags.map((tag) => `
+  const visibleTags = state.tags.filter((tag) => tag.noteCount > 0);
+  elements.tagsNav.innerHTML = visibleTags.length
+    ? visibleTags.map((tag) => `
         <a href="#tag-${escapeHtml(tag.name)}" data-tag-filter="${escapeHtml(tag.name)}">
           <span>#${escapeHtml(tag.name)}</span>
-          <small>${tag.noteCount || 0}</small>
+          <small>${tag.noteCount}</small>
         </a>
       `).join("")
     : '<span class="sidebar-empty">No tags yet</span>';

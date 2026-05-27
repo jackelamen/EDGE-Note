@@ -26,6 +26,7 @@ export async function listTags({ userId }) {
        ON n.id = nt.note_id
       AND n.user_id = t.user_id
       AND n.deleted_at IS NULL
+      AND n.archived_at IS NULL
      WHERE t.user_id = :userId
      GROUP BY t.id, t.name, t.created_at
      ORDER BY t.name ASC`,

@@ -621,7 +621,7 @@ export async function handleApi(req, res, url) {
           tag: url.searchParams.get("tag") || "",
           favorite: url.searchParams.get("favorite") === "1",
           tasks: url.searchParams.get("tasks") === "1",
-          archived: url.searchParams.get("archived") || "all",
+          archived: url.searchParams.get("archived") || "active",
           limit: url.searchParams.get("limit") || 50
         });
         sendJson(res, 200, { notes, cursor: null });

@@ -97,7 +97,7 @@ export async function listNotes({
   tag = "",
   favorite = false,
   tasks = false,
-  archived = "all"
+  archived = "active"
 }) {
   const cleanLimit = Math.min(Math.max(Number(limit) || 50, 1), 1000);
   const term = String(search || "").trim();

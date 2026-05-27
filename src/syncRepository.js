@@ -59,6 +59,7 @@ async function syncNotes({ userId, ids = [] } = {}) {
      ) ts ON ts.note_id = n.id
      WHERE n.user_id = :userId
        AND n.deleted_at IS NULL
+       AND n.archived_at IS NULL
        ${idFilter}
      ORDER BY n.updated_at DESC`,
     params
@@ -132,6 +133,7 @@ async function syncTags({ userId }) {
        ON n.id = nt.note_id
       AND n.user_id = t.user_id
       AND n.deleted_at IS NULL
+      AND n.archived_at IS NULL
      WHERE t.user_id = :userId
      GROUP BY t.id, t.name, t.created_at
      ORDER BY t.name ASC`,
