@@ -1,7 +1,7 @@
 const cacheKeys = {
   draft: "edge_note_draft_v1",
   notes: "edge_note_notes_v1",
-  collections: "edge_note_collections_v2",
+  collections: "edge_note_collections_v1",
   pendingChanges: "edge_note_pending_changes_v1",
   selectedId: "edge_note_selected_note_v1",
   savedSearches: "edge_note_saved_searches_v1"
@@ -29,9 +29,7 @@ const state = {
   saveAgainRequested: false,
   editorRedoStack: [],
   editorUndoStack: [],
-  suppressSelectionSave: false,
-  tableSort: { col: "updatedAt", dir: "desc" },
-  tableShowArchived: false
+  suppressSelectionSave: false
 };
 
 let pendingSyncTimer = null;
@@ -1822,16 +1820,16 @@ function renderNotebookTree(notebooks, parentId = null, depth = 0) {
           </a>
           <div class="notebook-row-actions">
             <button type="button" class="btn-notebook-icon" data-notebook-icon="${notebook.id}" aria-label="Change icon" title="Change icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#palette"/></svg>
             </button>
             <button type="button" class="btn-notebook-rename" data-notebook-rename="${notebook.id}" aria-label="Rename" title="Rename">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#pencil-line"/></svg>
             </button>
             <button type="button" class="btn-notebook-move" data-notebook-move="${notebook.id}" aria-label="Move / nest" title="Move / nest">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l-3 3 3 3"/><path d="M2 12h14"/><path d="M19 4v7a4 4 0 0 1-4 4H2"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#folder-input"/></svg>
             </button>
             <button type="button" class="btn-notebook-delete" data-notebook-delete="${notebook.id}" aria-label="Delete" title="Delete">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#trash-2"/></svg>
             </button>
           </div>
         </div>
@@ -1884,12 +1882,11 @@ function renderCollections() {
     elements.nbManageList.innerHTML = tree || '<p style="padding:8px;color:var(--sb-ink-3);font-size:.8rem">No notebooks yet.</p>';
   }
 
-  const visibleTags = state.tags.filter((tag) => tag.noteCount > 0);
-  elements.tagsNav.innerHTML = visibleTags.length
-    ? visibleTags.map((tag) => `
+  elements.tagsNav.innerHTML = state.tags.length
+    ? state.tags.map((tag) => `
         <a href="#tag-${escapeHtml(tag.name)}" data-tag-filter="${escapeHtml(tag.name)}">
           <span>#${escapeHtml(tag.name)}</span>
-          <small>${tag.noteCount}</small>
+          <small>${tag.noteCount || 0}</small>
         </a>
       `).join("")
     : '<span class="sidebar-empty">No tags yet</span>';
@@ -2004,13 +2001,6 @@ function renderHomeView() {
 }
 
 function renderNotes() {
-  if (state.filter === "all" && !state.notebookFilter && !state.tagFilter) {
-    elements.list.classList.add("notes-table-view");
-    updateNavigationState();
-    renderTableView();
-    return;
-  }
-  elements.list.classList.remove("notes-table-view");
   const notes = filteredNotes();
   const search = elements.search.value.trim();
   const childNotebooks = state.notebookFilter && !search && state.filter !== "archive"
@@ -2059,88 +2049,6 @@ function renderNotes() {
   `}).join("");
 
   elements.list.innerHTML = folderCards + noteCards;
-}
-
-function renderTableView() {
-  const search = elements.search.value.trim();
-  let notes = state.notes.filter((note) => {
-    if (state.tableShowArchived) return true;
-    return !note.archivedAt;
-  });
-
-  if (search) {
-    const term = search.toLowerCase();
-    notes = notes.filter((note) =>
-      (note.title || "").toLowerCase().includes(term) ||
-      (note.body || "").toLowerCase().includes(term) ||
-      (note.tags || []).join(" ").toLowerCase().includes(term)
-    );
-  }
-
-  const { col, dir } = state.tableSort;
-  notes = [...notes].sort((a, b) => {
-    let av, bv;
-    if (col === "title") {
-      av = (a.title || "").toLowerCase();
-      bv = (b.title || "").toLowerCase();
-    } else if (col === "tags") {
-      av = (a.tags || []).join(",").toLowerCase();
-      bv = (b.tags || []).join(",").toLowerCase();
-    } else {
-      av = a[col] || "";
-      bv = b[col] || "";
-    }
-    if (av < bv) return dir === "asc" ? -1 : 1;
-    if (av > bv) return dir === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  const arrow = (c) => {
-    if (state.tableSort.col !== c) return '<span class="tbl-sort-arrow tbl-sort-none">↕</span>';
-    return `<span class="tbl-sort-arrow">${state.tableSort.dir === "asc" ? "↑" : "↓"}</span>`;
-  };
-
-  const archivedCount = state.notes.filter((n) => n.archivedAt).length;
-
-  const header = `
-    <div class="tbl-toolbar">
-      <span class="tbl-count">${notes.length} note${notes.length === 1 ? "" : "s"}${search ? ` matching "${search}"` : ""}</span>
-      ${archivedCount > 0 ? `
-        <label class="tbl-archive-toggle">
-          <input type="checkbox" data-table-show-archived ${state.tableShowArchived ? "checked" : ""}>
-          Show archived (${archivedCount})
-        </label>` : ""}
-    </div>
-    <table class="notes-table">
-      <thead>
-        <tr>
-          <th class="tbl-col-title" data-sort-col="title">Title ${arrow("title")}</th>
-          <th class="tbl-col-tags" data-sort-col="tags">Tags ${arrow("tags")}</th>
-          <th class="tbl-col-date" data-sort-col="createdAt">Created ${arrow("createdAt")}</th>
-          <th class="tbl-col-date" data-sort-col="updatedAt">Modified ${arrow("updatedAt")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${notes.length ? notes.map((note) => `
-          <tr class="tbl-row${note.id === state.selectedId ? " tbl-row-active" : ""}${note.archivedAt ? " tbl-row-archived" : ""}" data-note-id="${note.id}">
-            <td class="tbl-title">
-              ${note.favorite ? '<span class="tbl-star">★</span>' : ""}
-              ${escapeHtml(note.title || "Untitled note")}
-              ${note.archivedAt ? '<span class="tbl-badge">archived</span>' : ""}
-            </td>
-            <td class="tbl-tags">${(note.tags || []).map((t) => `<span class="tbl-tag">#${escapeHtml(t)}</span>`).join("")}</td>
-            <td class="tbl-date">${escapeHtml(formatDate(note.createdAt))}</td>
-            <td class="tbl-date">${escapeHtml(formatDate(note.updatedAt))}</td>
-          </tr>
-        `).join("") : `
-          <tr><td colspan="4" class="tbl-empty">No notes found${search ? " — try a different search" : ""}.</td></tr>
-        `}
-      </tbody>
-    </table>
-  `;
-
-  elements.list.innerHTML = header;
-  elements.list.classList.add("notes-table-view");
 }
 
 async function updateCurrentNote(patch) {
@@ -2754,8 +2662,6 @@ async function loadNotes() {
   if (state.filter === "tasks") params.set("tasks", "1");
   if (state.filter === "archive") {
     params.set("archived", "only");
-  } else if (state.filter === "all" && state.tableShowArchived) {
-    params.set("archived", "all");
   } else {
     params.set("archived", "active");
   }
@@ -4197,7 +4103,6 @@ function bindEvents() {
     const link = event.target.closest("[data-view-filter]");
     if (!link) return;
     event.preventDefault();
-    if (link.dataset.viewFilter !== "all") state.tableShowArchived = false;
     state.filter = link.dataset.viewFilter;
     state.notebookFilter = null;
     state.tagFilter = null;
@@ -4469,29 +4374,6 @@ function bindEvents() {
       loadNotes();
       return;
     }
-
-    // Table view: sort column header
-    const sortTh = event.target.closest("[data-sort-col]");
-    if (sortTh) {
-      const col = sortTh.dataset.sortCol;
-      if (state.tableSort.col === col) {
-        state.tableSort.dir = state.tableSort.dir === "asc" ? "desc" : "asc";
-      } else {
-        state.tableSort.col = col;
-        state.tableSort.dir = col === "title" || col === "tags" ? "asc" : "desc";
-      }
-      renderTableView();
-      return;
-    }
-
-    // Table view: archive toggle checkbox
-    const archiveToggle = event.target.closest("[data-table-show-archived]");
-    if (archiveToggle) {
-      state.tableShowArchived = archiveToggle.checked;
-      loadNotes();
-      return;
-    }
-
     const card = event.target.closest("[data-note-id]");
     if (!card) return;
     const note = state.notes.find((item) => item.id === Number(card.dataset.noteId));
