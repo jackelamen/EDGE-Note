@@ -1190,7 +1190,7 @@ function updateNavigationState() {
 }
 
 function setMobilePanel(panel) {
-  const allowedPanels = new Set(["home", "list", "editor", "tools"]);
+  const allowedPanels = new Set(["home", "list", "editor", "graph", "notebooks", "tools"]);
   state.mobilePanel = allowedPanels.has(panel) ? panel : "list";
   document.body.dataset.mobilePanel = state.mobilePanel;
   elements.mobileTabs?.querySelectorAll("[data-mobile-panel]").forEach((button) => {
@@ -3759,6 +3759,12 @@ function bindEvents() {
     const button = event.target.closest("[data-mobile-panel]");
     if (!button) return;
     const panel = button.dataset.mobilePanel;
+
+    if (panel === "graph") {
+      const selectedId = state.selectedId || readCache(cacheKeys.selectedId, null);
+      window.location.href = selectedId ? `/graph.html?note=${selectedId}` : "/graph.html";
+      return;
+    }
 
     if (panel === "home") {
       state.filter = "home";
