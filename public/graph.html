@@ -51,7 +51,16 @@
     .btn-topbar.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
 
     /* ── Canvas ── */
-    #graph-canvas { position: fixed; top: 48px; left: 0; right: 0; bottom: 0; }
+    #graph-canvas {
+      position: fixed;
+      top: 48px;
+      left: 0;
+      width: 100vw;
+      height: calc(100vh - 48px);
+      display: block;
+      overflow: hidden;
+      touch-action: none;
+    }
 
     /* ── Filter panel (left) ── */
     #filter-panel {
@@ -614,10 +623,14 @@ function renderGraph() {
   // Clear SVG
   svgEl.innerHTML = "";
 
-  const W = svgEl.clientWidth || window.innerWidth;
-  const H = svgEl.clientHeight || (window.innerHeight - 48);
+  const bounds = svgEl.getBoundingClientRect();
+  const W = Math.max(bounds.width, svgEl.clientWidth, window.innerWidth);
+  const H = Math.max(bounds.height, svgEl.clientHeight, window.innerHeight - 48);
 
-  const svg = d3.select(svgEl).attr("width", W).attr("height", H);
+  const svg = d3.select(svgEl)
+    .attr("width", W)
+    .attr("height", H)
+    .attr("viewBox", `0 0 ${W} ${H}`);
 
   // Defs
   const defs = svg.append("defs");
