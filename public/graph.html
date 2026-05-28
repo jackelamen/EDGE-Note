@@ -23,9 +23,43 @@
       --edge-active: rgba(124,106,247,0.55);
     }
 
-    html, body { height: 100%; background: var(--bg); color: var(--text);
+    html, body { height: 100%; background: #07080f; color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden; }
+
+    /* ── Nebula backdrop canvas ── */
+    #nebula-canvas {
+      position: fixed; top: 48px; left: 0; right: 0; bottom: 0;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Particle overlay canvas ── */
+    #particle-canvas {
+      position: fixed; top: 48px; left: 0; right: 0; bottom: 0;
+      pointer-events: none; z-index: 2;
+    }
+
+    /* ── SVG sits between the two canvases ── */
+    #graph-canvas { z-index: 1; }
+
+    /* ── Node breathing pulse ── */
+    @keyframes node-breathe {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50%       { opacity: 1;    transform: scale(1.12); }
+    }
+    @keyframes focal-breathe {
+      0%, 100% { opacity: 0.7;  transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.18); }
+    }
+    @keyframes ripple-out {
+      0%   { r: 0;  opacity: 0.6; }
+      100% { r: 60; opacity: 0; }
+    }
+    .node-pulse { animation: node-breathe 3s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+    .focal-pulse { animation: focal-breathe 2.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+    .ripple { animation: ripple-out 2.8s ease-out infinite; }
+    .ripple2 { animation: ripple-out 2.8s ease-out 0.9s infinite; }
+    .ripple3 { animation: ripple-out 2.8s ease-out 1.8s infinite; }
 
     /* ── Top bar ── */
     .topbar {
@@ -403,8 +437,14 @@
   </a>
 </div>
 
-<!-- Canvas -->
+<!-- Nebula backdrop -->
+<canvas id="nebula-canvas"></canvas>
+
+<!-- Graph SVG -->
 <svg id="graph-canvas"></svg>
+
+<!-- Particle overlay -->
+<canvas id="particle-canvas"></canvas>
 
 <!-- ── Filter Panel ── -->
 <div id="filter-panel">
@@ -801,12 +841,43 @@ function renderGraph() {
     .attr("height", H)
     .attr("viewBox", `0 0 ${W} ${H}`);
 
-  // Defs
+  // Defs — glow filters + radial gradients per notebook color
   const defs = svg.append("defs");
-  defs.append("filter").attr("id", "glow").html(
-    `<feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+
+  // Soft glow (nodes)
+  defs.append("filter").attr("id", "glow").attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%").html(
+    `<feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>`
   );
+  // Strong glow (focal)
+  defs.append("filter").attr("id", "glow-focal").attr("x", "-100%").attr("y", "-100%").attr("width", "300%").attr("height", "300%").html(
+    `<feGaussianBlur stdDeviation="8" result="b1"/>
+     <feGaussianBlur stdDeviation="14" result="b2"/>
+     <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>`
+  );
+  // Edge glow
+  defs.append("filter").attr("id", "glow-edge").attr("x", "-20%").attr("y", "-20%").attr("width", "140%").attr("height", "140%").html(
+    `<feGaussianBlur stdDeviation="2" result="eb"/>
+     <feMerge><feMergeNode in="eb"/><feMergeNode in="SourceGraphic"/></feMerge>`
+  );
+
+  // Radial gradients for each unique node color
+  const uniqueColors = [...new Set(nodes.map(n => nodeFill(n)))];
+  uniqueColors.forEach(col => {
+    const gradId = "grad-" + col.replace("#", "");
+    const rg = defs.append("radialGradient").attr("id", gradId)
+      .attr("cx", "35%").attr("cy", "35%").attr("r", "65%");
+    rg.append("stop").attr("offset", "0%").attr("stop-color", "#ffffff").attr("stop-opacity", "0.35");
+    rg.append("stop").attr("offset", "45%").attr("stop-color", col).attr("stop-opacity", "1");
+    rg.append("stop").attr("offset", "100%").attr("stop-color", col).attr("stop-opacity", "0.7");
+  });
+
+  // Focal gradient (violet to deep indigo)
+  const focalGrad = defs.append("radialGradient").attr("id", "grad-focal")
+    .attr("cx", "35%").attr("cy", "35%").attr("r", "65%");
+  focalGrad.append("stop").attr("offset", "0%").attr("stop-color", "#c4b5fd").attr("stop-opacity", "0.9");
+  focalGrad.append("stop").attr("offset", "50%").attr("stop-color", "#7c6af7").attr("stop-opacity", "1");
+  focalGrad.append("stop").attr("offset", "100%").attr("stop-color", "#3730a3").attr("stop-opacity", "0.8");
 
   const g = svg.append("g").attr("class", "root");
 
@@ -883,12 +954,19 @@ function renderGraph() {
     .force("center", d3.forceCenter(W / 2, H / 2).strength(0.08))
     .force("collision", d3.forceCollide().radius(d => nodeRadius(d, degreeMap) + 18));
 
-  // ── Links ──
+  // ── Links — glowing strands ──
+  // Shadow copy for soft bloom underneath
+  g.append("g").attr("class", "links-bloom")
+    .selectAll("line").data(linkData).join("line")
+    .attr("stroke", "rgba(124,106,247,0.12)")
+    .attr("stroke-width", d => filters.linkThickness * 3)
+    .attr("filter", "url(#glow-edge)")
+    .attr("class", "link-bloom");
+
   const link = g.append("g").attr("class", "links")
     .selectAll("line").data(linkData).join("line")
-    .attr("stroke", d => (d.types || []).includes("inline") ? "rgba(124,106,247,0.24)" : "rgba(255,255,255,0.07)")
-    .attr("stroke-width", d => (d.types || []).includes("inline") ? filters.linkThickness * 1.4 : filters.linkThickness)
-    .attr("stroke-dasharray", d => (d.types || []).includes("inline") && !(d.tags || []).length ? "4 4" : null);
+    .attr("stroke", "rgba(160,140,255,0.18)")
+    .attr("stroke-width", filters.linkThickness);
 
   // ── Link labels ──
   const linkLabel = filters.showLinkLabels
@@ -917,19 +995,39 @@ function renderGraph() {
         if (d.id !== focusId) { d.fx = null; d.fy = null; }
       }));
 
-  // Glow ring for focal
-  node.filter(d => d.id === focusId).append("circle")
-    .attr("r", d => nodeRadius(d, degreeMap) + 6)
-    .attr("fill", "rgba(124,106,247,0.15)")
-    .attr("filter", "url(#glow)");
+  // Ripple rings emanating from focal node
+  node.filter(d => d.id === focusId).each(function() {
+    const n = d3.select(this);
+    n.append("circle").attr("class", "ripple")
+      .attr("fill", "none").attr("stroke", "#7c6af7").attr("stroke-width", "1.5").attr("stroke-opacity", "0.6");
+    n.append("circle").attr("class", "ripple ripple2")
+      .attr("fill", "none").attr("stroke", "#7c6af7").attr("stroke-width", "1").attr("stroke-opacity", "0.4");
+    n.append("circle").attr("class", "ripple ripple3")
+      .attr("fill", "none").attr("stroke", "#a78bfa").attr("stroke-width", "0.7").attr("stroke-opacity", "0.3");
+  });
 
-  // Main circles
+  // Outer halo (large soft bloom)
+  node.filter(d => d.id === focusId).append("circle")
+    .attr("r", d => nodeRadius(d, degreeMap) + 20)
+    .attr("fill", "rgba(124,106,247,0.08)")
+    .attr("filter", "url(#glow-focal)");
+
+  // Mid glow ring
+  node.append("circle")
+    .attr("r", d => nodeRadius(d, degreeMap) + (d.id === focusId ? 7 : 4))
+    .attr("fill", d => d.id === focusId ? "rgba(124,106,247,0.2)" : `${nodeFill(d)}22`)
+    .attr("filter", "url(#glow)")
+    .attr("class", d => d.id === focusId ? "focal-pulse" : "node-pulse");
+
+  // Main circles with radial gradient fill
   node.append("circle")
     .attr("class", "node-circle")
     .attr("r", d => nodeRadius(d, degreeMap))
-    .attr("fill", d => nodeFill(d))
-    .attr("stroke", d => d.id === focusId ? "#a78bfa" : "rgba(255,255,255,0.1)")
-    .attr("stroke-width", d => d.id === focusId ? 2 : 1);
+    .attr("fill", d => d.id === focusId ? "url(#grad-focal)" : `url(#grad-${nodeFill(d).replace("#", "")})`)
+    .attr("stroke", d => d.id === focusId ? "#c4b5fd" : `${nodeFill(d)}99`)
+    .attr("stroke-width", d => d.id === focusId ? 1.5 : 0.8)
+    .attr("filter", d => d.id === focusId ? "url(#glow-focal)" : "url(#glow)")
+    .attr("class", d => `node-circle ${d.id === focusId ? "focal-pulse" : "node-pulse"}`);
 
   // Labels
   const label = node.append("text")
@@ -964,9 +1062,9 @@ function renderGraph() {
       label.attr("opacity", n => (n.id === d.id || neighborIds.has(n.id)) ? 1 : 0.08);
       link
         .attr("stroke", e => (eid(e.source) === d.id || eid(e.target) === d.id)
-          ? "rgba(124,106,247,0.65)" : "rgba(255,255,255,0.03)")
+          ? "rgba(180,160,255,0.7)" : "rgba(160,140,255,0.04)")
         .attr("stroke-width", e => (eid(e.source) === d.id || eid(e.target) === d.id)
-          ? filters.linkThickness * 1.8 : filters.linkThickness * 0.5);
+          ? filters.linkThickness * 2 : filters.linkThickness * 0.4);
 
       // Tooltip
       const sharedTags = [...new Set(
@@ -996,8 +1094,8 @@ function renderGraph() {
       node.selectAll(".node-circle").attr("opacity", 1);
       label.attr("opacity", d => d.id === focusId ? 1 : 0.8);
       link
-        .attr("stroke", d => (d.types || []).includes("inline") ? "rgba(124,106,247,0.24)" : "rgba(255,255,255,0.07)")
-        .attr("stroke-width", d => (d.types || []).includes("inline") ? filters.linkThickness * 1.4 : filters.linkThickness);
+        .attr("stroke", "rgba(160,140,255,0.18)")
+        .attr("stroke-width", filters.linkThickness);
       tooltip.classList.remove("show");
     })
     .on("click", (ev, d) => {
@@ -1016,7 +1114,8 @@ function renderGraph() {
 
   // Tick
   simulation.on("tick", () => {
-    link
+    // Update both main links and bloom shadow lines
+    svg.selectAll(".links line, .links-bloom line")
       .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
       .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
     if (linkLabel) {
@@ -1245,6 +1344,204 @@ document.getElementById("fp-note-search").addEventListener("input", ev => {
 
 // ── Resize ──
 window.addEventListener("resize", () => { if (focusId) renderGraph(); });
+
+// ═══════════════════════════════════════════════════════
+// BIOLUMINESCENT VISUAL SYSTEM
+// ═══════════════════════════════════════════════════════
+
+// ── 1. Nebula backdrop ──
+// Slowly drifting color clouds on a deep-space canvas
+(function initNebula() {
+  const canvas = document.getElementById("nebula-canvas");
+  const ctx = canvas.getContext("2d");
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  // Nebula blobs — each has position, drift velocity, size, and color
+  const blobs = [
+    { x: 0.2, y: 0.3, vx: 0.00006, vy: 0.00004, r: 0.32, hue: 260, sat: 60, lit: 12 },
+    { x: 0.7, y: 0.2, vx: -0.00005, vy: 0.00007, r: 0.28, hue: 220, sat: 50, lit: 10 },
+    { x: 0.5, y: 0.7, vx: 0.00004, vy: -0.00005, r: 0.35, hue: 280, sat: 55, lit: 11 },
+    { x: 0.15, y: 0.75, vx: 0.00007, vy: 0.00003, r: 0.22, hue: 200, sat: 45, lit: 9 },
+    { x: 0.82, y: 0.6, vx: -0.00004, vy: -0.00006, r: 0.26, hue: 300, sat: 40, lit: 8 },
+  ];
+
+  // Tiny star field
+  const stars = Array.from({ length: 180 }, () => ({
+    x: Math.random(), y: Math.random(),
+    r: Math.random() * 1.2 + 0.2,
+    alpha: Math.random() * 0.5 + 0.1,
+    twinkleSpeed: Math.random() * 0.015 + 0.005,
+    twinklePhase: Math.random() * Math.PI * 2
+  }));
+
+  let t = 0;
+  function drawNebula() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Deep space background
+    ctx.fillStyle = "#07080f";
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    t += 0.016;
+    for (const s of stars) {
+      const alpha = s.alpha * (0.6 + 0.4 * Math.sin(t * s.twinkleSpeed * 60 + s.twinklePhase));
+      ctx.beginPath();
+      ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(220,225,255,${alpha})`;
+      ctx.fill();
+    }
+
+    // Nebula clouds
+    for (const b of blobs) {
+      b.x += b.vx; b.y += b.vy;
+      if (b.x < -0.3) b.x = 1.1;
+      if (b.x > 1.1)  b.x = -0.3;
+      if (b.y < -0.3) b.y = 1.1;
+      if (b.y > 1.1)  b.y = -0.3;
+
+      const pulse = 1 + 0.08 * Math.sin(t * 0.3 + b.hue);
+      const grad = ctx.createRadialGradient(
+        b.x * W, b.y * H, 0,
+        b.x * W, b.y * H, b.r * Math.min(W, H) * pulse
+      );
+      grad.addColorStop(0,   `hsla(${b.hue},${b.sat}%,${b.lit + 4}%,0.22)`);
+      grad.addColorStop(0.4, `hsla(${b.hue},${b.sat}%,${b.lit}%,0.12)`);
+      grad.addColorStop(1,   `hsla(${b.hue},${b.sat}%,${b.lit}%,0)`);
+      ctx.beginPath();
+      ctx.arc(b.x * W, b.y * H, b.r * Math.min(W, H) * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(drawNebula);
+  }
+  drawNebula();
+})();
+
+// ── 2. Particle flow along edges ──
+// Tiny glowing particles travel from node to node along each edge
+(function initParticles() {
+  const canvas = document.getElementById("particle-canvas");
+  const ctx    = canvas.getContext("2d");
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  // Each particle lives on one edge and travels along it
+  const PARTICLES_PER_EDGE = 2;
+  let particles = [];
+
+  // Rebuild particle list whenever the graph re-renders
+  window._rebuildParticles = function() {
+    particles = [];
+    if (!currentLinkData || !currentLinkData.length) return;
+    for (const edge of currentLinkData) {
+      for (let i = 0; i < PARTICLES_PER_EDGE; i++) {
+        particles.push({
+          edge,
+          t: Math.random(),           // position along edge [0,1]
+          speed: 0.0008 + Math.random() * 0.0012,
+          size:  1.2 + Math.random() * 1.0,
+          alpha: 0.4 + Math.random() * 0.4,
+          hue:   250 + Math.random() * 60   // violet to blue range
+        });
+      }
+    }
+  };
+
+  // Also call rebuild after render settles
+  const origFitGraph = window._graphSvg; // placeholder — we hook below
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, W, H);
+
+    // We need the current zoom transform to map simulation coords to screen
+    const svgEl2 = document.getElementById("graph-canvas");
+    const gEl = svgEl2.querySelector(".root");
+    if (!gEl || !particles.length) {
+      requestAnimationFrame(drawParticles);
+      return;
+    }
+
+    // Parse the current SVG transform
+    let tx = 0, ty = 0, scale = 1;
+    try {
+      const tfm = gEl.getAttribute("transform") || "";
+      const tm = tfm.match(/translate\(([-\d.]+)[, ]+([-\d.]+)\)/);
+      const sm = tfm.match(/scale\(([-\d.]+)\)/);
+      if (tm) { tx = parseFloat(tm[1]); ty = parseFloat(tm[2]); }
+      if (sm) { scale = parseFloat(sm[1]); }
+      // D3 zoom uses matrix() not separate translate/scale
+      const mm = tfm.match(/matrix\(([-\d.e]+),([-\d.e]+),([-\d.e]+),([-\d.e]+),([-\d.e]+),([-\d.e]+)\)/);
+      if (mm) { scale = parseFloat(mm[1]); tx = parseFloat(mm[5]); ty = parseFloat(mm[6]); }
+    } catch(_) {}
+
+    for (const p of particles) {
+      const src = p.edge.source;
+      const tgt = p.edge.target;
+      if (!src || !tgt || src.x == null || tgt.x == null) continue;
+
+      p.t += p.speed;
+      if (p.t > 1) p.t -= 1;
+
+      // Interpolate along the edge
+      const sx = src.x * scale + tx;
+      const sy = src.y * scale + ty;
+      const ex = tgt.x * scale + tx;
+      const ey = tgt.y * scale + ty;
+
+      const px = sx + (ex - sx) * p.t;
+      const py = sy + (ey - sy) * p.t;
+
+      // Fade in/out at endpoints
+      const fade = Math.min(p.t * 6, 1) * Math.min((1 - p.t) * 6, 1);
+      const a = p.alpha * fade;
+      if (a < 0.01) continue;
+
+      // Draw glowing particle
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, p.size * 3);
+      grad.addColorStop(0,   `hsla(${p.hue},90%,85%,${a})`);
+      grad.addColorStop(0.4, `hsla(${p.hue},80%,65%,${a * 0.6})`);
+      grad.addColorStop(1,   `hsla(${p.hue},70%,50%,0)`);
+
+      ctx.beginPath();
+      ctx.arc(px, py, p.size * 3, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Bright core
+      ctx.beginPath();
+      ctx.arc(px, py, p.size * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue},100%,95%,${a})`;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // Rebuild particles whenever renderGraph completes
+  // We patch the simulation "end" hook indirectly via a MutationObserver
+  // watching for SVG changes (new render = new .root group)
+  const svgElObs = document.getElementById("graph-canvas");
+  const obs = new MutationObserver(() => {
+    setTimeout(() => window._rebuildParticles(), 200);
+  });
+  obs.observe(svgElObs, { childList: true, subtree: false });
+})();
 
 // ── Boot ──
 loadGraph().catch(err => {
