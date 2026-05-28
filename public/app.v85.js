@@ -39,6 +39,10 @@ let pendingSyncTimer = null;
 let allNotesCache = []; // full note list for @mention search, regardless of active filter
 const autoSaveDelayMs = 2500;
 
+function isMobileViewport() {
+  return window.matchMedia?.("(max-width: 660px)")?.matches || window.innerWidth <= 660;
+}
+
 function requestedNoteIdFromUrl() {
   const rawId = new URLSearchParams(window.location.search).get("note");
   const noteId = Number(rawId);
@@ -1192,6 +1196,10 @@ function updateNavigationState() {
 function setMobilePanel(panel) {
   const allowedPanels = new Set(["home", "list", "editor", "graph", "notebooks", "tools"]);
   state.mobilePanel = allowedPanels.has(panel) ? panel : "list";
+  if (isMobileViewport()) {
+    elements.appShell?.classList.remove("table-mode");
+    elements.list?.classList.remove("notes-table-view");
+  }
   document.body.dataset.mobilePanel = state.mobilePanel;
   elements.mobileTabs?.querySelectorAll("[data-mobile-panel]").forEach((button) => {
     const active = button.dataset.mobilePanel === state.mobilePanel;
@@ -2060,7 +2068,7 @@ function renderHomeView() {
 }
 
 function renderNotes() {
-  if (state.filter === "all" && !state.notebookFilter && !state.tagFilter && !state.forceEditorOpen) {
+  if (state.filter === "all" && !state.notebookFilter && !state.tagFilter && !state.forceEditorOpen && !isMobileViewport()) {
     elements.list.classList.add("notes-table-view");
     elements.appShell?.classList.add("table-mode");
     updateNavigationState();
@@ -3760,12 +3768,6 @@ function bindEvents() {
     if (!button) return;
     const panel = button.dataset.mobilePanel;
 
-    if (panel === "graph") {
-      const selectedId = state.selectedId || readCache(cacheKeys.selectedId, null);
-      window.location.href = selectedId ? `/graph.html?note=${selectedId}` : "/graph.html";
-      return;
-    }
-
     if (panel === "home") {
       state.filter = "home";
       state.notebookFilter = null;
@@ -3782,6 +3784,11 @@ function bindEvents() {
       state.tagFilter = null;
       updateNavigationState();
       loadNotes();
+    }
+
+    if (panel === "notebooks") {
+      openNotebooksModal();
+      return;
     }
 
     if (panel === "editor" && !state.selectedId && !state.localDraftRestored) {

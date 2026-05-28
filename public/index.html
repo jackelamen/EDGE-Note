@@ -6,7 +6,7 @@
     <title>EDGE Note</title>
     <link rel="icon" type="image/svg+xml" href="/edge-note-mark.v2.svg">
     <link rel="apple-touch-icon" href="/edge-note-mark.v2.svg">
-    <link rel="stylesheet" href="/styles.v69.css">
+    <link rel="stylesheet" href="/styles.v70.css">
   </head>
   <body>
 
@@ -575,10 +575,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           Write
         </button>
-        <button type="button" data-mobile-panel="graph" aria-label="Graph">
+        <a href="/graph.html" data-graph-link aria-label="Graph">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           Graph
-        </button>
+        </a>
         <button type="button" data-mobile-panel="notebooks" aria-label="Notebooks" data-action="open-notebooks-modal">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           Notebooks
@@ -586,15 +586,17 @@
       </nav>
     </main>
 
-    <script src="/app.v87.js" type="module"></script>
+    <script src="/app.v88.js" type="module"></script>
     <script>
       // Pass current note ID to graph view when clicking the Graph nav link
-      document.querySelector('a[href="/graph.html"]').addEventListener("click", function(e) {
-        const selectedId = localStorage.getItem("edge_note_selected_note_v1");
-        if (selectedId) {
-          e.preventDefault();
-          window.location.href = "/graph.html?note=" + selectedId;
-        }
+      document.querySelectorAll('a[href="/graph.html"], [data-graph-link]').forEach(function(link) {
+        link.addEventListener("click", function(e) {
+          const selectedId = localStorage.getItem("edge_note_selected_note_v1");
+          if (selectedId) {
+            e.preventDefault();
+            window.location.href = "/graph.html?note=" + selectedId;
+          }
+        });
       });
     </script>
   </body>
