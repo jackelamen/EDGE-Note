@@ -668,18 +668,19 @@ function renderGraph() {
 
   // Fix focal at center
   const focal = nodeMap.get(focusId);
-  if (focal) { focal.fx = W / 2; focal.fy = H / 2; }
+  if (focal) { focal.fx = W / 2; focal.fy = H / 2; focal.x = W / 2; focal.y = H / 2; }
 
-  // Orphans cluster loosely in the background
-  let orphanAngle = 0;
-  for (const n of nodes) {
-    if (n.orphan) {
-      const r = Math.min(W, H) * 0.38;
-      n.x = W / 2 + Math.cos(orphanAngle) * r + (Math.random() - 0.5) * 60;
-      n.y = H / 2 + Math.sin(orphanAngle) * r + (Math.random() - 0.5) * 60;
-      orphanAngle += (Math.PI * 2) / Math.max(1, nodes.filter(n => n.orphan).length);
-    }
-  }
+  // Pre-scatter all nodes radially so they never start at (0,0).
+  // Without this, D3 sees a zero-size bounding box and the fit zoom lands off-screen.
+  const orphanNodes = nodes.filter(n => n.orphan);
+  const nonOrphanNodes = nodes.filter(n => !n.orphan && n.id !== focusId);
+  const allNonFocal = [...nonOrphanNodes, ...orphanNodes];
+  allNonFocal.forEach((n, i) => {
+    const angle = (i / Math.max(allNonFocal.length, 1)) * Math.PI * 2;
+    const r = n.orphan ? Math.min(W, H) * 0.38 : 120 + n.level * 60;
+    n.x = W / 2 + Math.cos(angle) * r;
+    n.y = H / 2 + Math.sin(angle) * r;
+  });
 
   // Simulation
   simulation = d3.forceSimulation(nodes)
@@ -837,10 +838,17 @@ function renderGraph() {
     node.attr("transform", d => `translate(${d.x ?? 0},${d.y ?? 0})`);
   });
 
-  // Fit after settling
-  setTimeout(() => fitGraph(svg, g, W, H), 900);
+  // Fit once simulation settles — "end" fires when alpha drops below alphaMin
+  let fitted = false;
+  simulation.on("end", () => {
+    if (!fitted) { fitted = true; fitGraph(svg, g, W, H); }
+  });
+  // Safety fallback in case "end" never fires (very small graphs settle fast)
+  setTimeout(() => {
+    if (!fitted) { fitted = true; fitGraph(svg, g, W, H); }
+  }, 1500);
 
-  // Store refs for external use
+  // Store refs for external Fit button
   window._graphSvg = svg;
   window._graphG = g;
   window._graphW = W;
@@ -850,12 +858,17 @@ function renderGraph() {
 function fitGraph(svg, g, W, H) {
   try {
     const bb = g.node().getBBox();
-    if (!bb.width || !bb.height) return;
-    const padding = 80;
+    // If bounding box is degenerate (nodes still at origin), just center the view
+    if (!bb.width || !bb.height || bb.width < 10 || bb.height < 10) {
+      svg.transition().duration(400)
+        .call(zoomBehavior.transform, d3.zoomIdentity.translate(W / 2, H / 2).scale(1));
+      return;
+    }
+    const padding = 100;
     const scale = Math.min(
       (W - padding * 2) / bb.width,
       (H - padding * 2) / bb.height,
-      1.1
+      1.2
     );
     const tx = W / 2 - (bb.x + bb.width / 2) * scale;
     const ty = H / 2 - (bb.y + bb.height / 2) * scale;
