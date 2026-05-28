@@ -884,6 +884,7 @@ async function openNoteById(noteId) {
 
   if (!note) return false;
   selectNote(note);
+  setMobilePanel("editor");
   return true;
 }
 
