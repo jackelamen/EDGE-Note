@@ -830,21 +830,25 @@ p { margin: 0; }
 }
 
 .settings-section .backup-actions button,
+.settings-section .import-actions button,
 .settings-section .backup-status {
   color: var(--sb-ink-2);
 }
 
-.settings-section .backup-actions button {
+.settings-section .backup-actions button,
+.settings-section .import-actions button {
   background: var(--sb-surface);
   border-color: var(--sb-line);
 }
 
-.settings-section .backup-actions button:hover {
+.settings-section .backup-actions button:hover,
+.settings-section .import-actions button:hover {
   background: var(--sb-hover);
   color: var(--sb-ink);
 }
 
-.settings-section .backup-list { color: var(--sb-ink-2); }
+.settings-section .backup-list,
+.settings-section .import-status { color: var(--sb-ink-2); }
 .settings-section .backup-item {
   background: var(--sb-surface);
   border-color: var(--sb-line);
@@ -2649,7 +2653,14 @@ p { margin: 0; }
   gap: 4px;
 }
 
-.backup-actions button {
+.import-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.backup-actions button,
+.import-actions button {
   height: 26px;
   border-radius: var(--radius);
   border: 1px solid var(--line);
@@ -2660,13 +2671,20 @@ p { margin: 0; }
   transition: background var(--transition), color var(--transition);
 }
 
-.backup-actions button:hover { background: var(--surface-3); color: var(--ink-2); }
+.backup-actions button:hover,
+.import-actions button:hover { background: var(--surface-3); color: var(--ink-2); }
 
 .backup-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 8px;
+}
+
+.import-status {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 .backup-item {

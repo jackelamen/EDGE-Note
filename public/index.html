@@ -140,6 +140,15 @@
           </div>
 
           <div class="settings-section">
+            <div class="context-heading">Import</div>
+            <div class="import-actions">
+              <button type="button" data-action="import-markdown">MD files</button>
+              <input type="file" accept=".md,text/markdown,text/plain" multiple data-markdown-import hidden>
+            </div>
+            <div class="import-status" data-import-status>Choose one or more markdown files</div>
+          </div>
+
+          <div class="settings-section">
             <div class="context-heading">Security</div>
             <form class="security-form" data-password-form>
               <label>

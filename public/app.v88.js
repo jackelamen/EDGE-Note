@@ -76,6 +76,9 @@ const elements = {
   exportJson: document.querySelector("[data-export='json']"),
   exportArchive: document.querySelector("[data-export='archive']"),
   exportMarkdown: document.querySelector("[data-export='markdown']"),
+  importMarkdown: document.querySelector("[data-action='import-markdown']"),
+  markdownImport: document.querySelector("[data-markdown-import]"),
+  importStatus: document.querySelector("[data-import-status]"),
   list: document.querySelector("[data-notes-list]"),
   listEyebrow: document.querySelector("[data-list-eyebrow]"),
   listTitle: document.querySelector("[data-list-title]"),
@@ -3450,6 +3453,99 @@ async function createStoredBackup() {
   }
 }
 
+function cleanMarkdownTitle(value) {
+  return String(value || "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Imported note";
+}
+
+function markdownImportDraft(file, content) {
+  const text = String(content || "").replace(/^\uFEFF/, "");
+  const lines = text.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => /^#\s+\S/.test(line.trim()));
+  const title = headingIndex >= 0
+    ? lines[headingIndex].trim().replace(/^#\s+/, "").trim()
+    : cleanMarkdownTitle(file.name);
+  const bodyMarkdown = headingIndex >= 0
+    ? lines.filter((_, index) => index !== headingIndex).join("\n").trim()
+    : text.trim();
+
+  return {
+    notebookId: state.notebookFilter || null,
+    title: title || cleanMarkdownTitle(file.name),
+    body: markdownToHtml(bodyMarkdown || text || title),
+    bodyFormat: "html",
+    favorite: false,
+    tags: []
+  };
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("Could not read file")));
+    reader.readAsText(file);
+  });
+}
+
+async function importMarkdownFiles(files) {
+  const markdownFiles = [...files].filter((file) => /\.md$/i.test(file.name));
+  if (!markdownFiles.length) {
+    elements.importStatus.textContent = "No markdown files selected";
+    return;
+  }
+
+  elements.importMarkdown.disabled = true;
+  elements.importStatus.textContent = `Importing ${markdownFiles.length} file${markdownFiles.length === 1 ? "" : "s"}...`;
+  setStatus("Importing markdown");
+
+  const imported = [];
+  const failed = [];
+
+  for (const file of markdownFiles) {
+    try {
+      const content = await readFileAsText(file);
+      const payload = await requestJson("/api/notes", {
+        method: "POST",
+        body: JSON.stringify(markdownImportDraft(file, content))
+      });
+      if (payload.note) imported.push(payload.note);
+    } catch (error) {
+      failed.push(`${file.name}: ${error.message}`);
+    }
+  }
+
+  for (const note of imported.reverse()) {
+    const index = state.notes.findIndex((item) => item.id === note.id);
+    if (index >= 0) state.notes[index] = note;
+    else state.notes.unshift(note);
+  }
+
+  if (imported.length) {
+    state.filter = "all";
+    state.notebookFilter = null;
+    state.tagFilter = null;
+    updateNavigationState();
+    renderNotes();
+    renderHomeView();
+    selectNote(imported[imported.length - 1]);
+    writeCache(cacheKeys.notes, {
+      notes: state.notes,
+      cachedAt: new Date().toISOString()
+    });
+  }
+
+  elements.importStatus.textContent = failed.length
+    ? `Imported ${imported.length}; ${failed.length} failed`
+    : `Imported ${imported.length} markdown note${imported.length === 1 ? "" : "s"}`;
+  setStatus(failed.length ? "Markdown import finished with errors" : "Markdown import complete");
+  elements.importMarkdown.disabled = false;
+  elements.markdownImport.value = "";
+}
+
 function createNewNote() {
   state.forceEditorOpen = true;
   state.localDraftRestored = true;
@@ -3909,6 +4005,10 @@ function bindEvents() {
   elements.exportVerify.addEventListener("click", checkExportStatus);
   elements.exportCreateBackup.addEventListener("click", createStoredBackup);
   elements.exportListBackups.addEventListener("click", listStoredBackups);
+  elements.importMarkdown.addEventListener("click", () => elements.markdownImport.click());
+  elements.markdownImport.addEventListener("change", (event) => {
+    importMarkdownFiles(event.target.files || []);
+  });
 
   elements.passwordForm.addEventListener("submit", changePassword);
 
