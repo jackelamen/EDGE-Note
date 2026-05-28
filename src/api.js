@@ -80,6 +80,17 @@ function parseNoteAttachmentsPath(pathname) {
   return match ? Number(match[1]) : null;
 }
 
+function extractInlineNoteLinks(body = "") {
+  const links = new Set();
+  const pattern = /\bdata-note-link\s*=\s*(?:"(\d+)"|'(\d+)'|(\d+))/gi;
+  let match;
+  while ((match = pattern.exec(String(body || "")))) {
+    const noteId = Number(match[1] || match[2] || match[3]);
+    if (Number.isInteger(noteId) && noteId > 0) links.add(noteId);
+  }
+  return [...links];
+}
+
 function parseAttachmentDownloadPath(pathname) {
   const match = pathname.match(/^\/api\/attachments\/(\d+)\/download$/);
   return match ? Number(match[1]) : null;
@@ -625,21 +636,47 @@ export async function handleApi(req, res, url) {
         updatedAt: n.updatedAt
       }));
 
+      const nodeIds = new Set(nodes.map(n => n.id));
+      const edgeMap = new Map();
+      const edgeKey = (a, b) => [Math.min(a, b), Math.max(a, b)].join("-");
+      const ensureEdge = (source, target) => {
+        const key = edgeKey(source, target);
+        if (!edgeMap.has(key)) {
+          edgeMap.set(key, {
+            source: Math.min(source, target),
+            target: Math.max(source, target),
+            tags: [],
+            inlineLinks: 0,
+            types: []
+          });
+        }
+        return edgeMap.get(key);
+      };
+
       // Build edges from shared tags
-      const edges = [];
-      const seen = new Set();
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const sharedTags = nodes[i].tags.filter(t => nodes[j].tags.includes(t));
           if (sharedTags.length > 0) {
-            const key = `${nodes[i].id}-${nodes[j].id}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              edges.push({ source: nodes[i].id, target: nodes[j].id, tags: sharedTags });
-            }
+            const edge = ensureEdge(nodes[i].id, nodes[j].id);
+            edge.tags = [...new Set([...edge.tags, ...sharedTags])];
+            if (!edge.types.includes("tag")) edge.types.push("tag");
           }
         }
       }
+
+      // Build edges from explicit inline note links created by @mention linking.
+      for (const note of notes) {
+        const sourceId = Number(note.id);
+        for (const targetId of extractInlineNoteLinks(note.body)) {
+          if (targetId === sourceId || !nodeIds.has(targetId)) continue;
+          const edge = ensureEdge(sourceId, targetId);
+          edge.inlineLinks += 1;
+          if (!edge.types.includes("inline")) edge.types.push("inline");
+        }
+      }
+
+      const edges = [...edgeMap.values()].sort((a, b) => a.source - b.source || a.target - b.target);
 
       sendJson(res, 200, { nodes, edges });
     });
