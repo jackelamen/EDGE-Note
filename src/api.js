@@ -611,6 +611,41 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
+  if (url.pathname === "/api/graph") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const notes = await listNotes({ userId, limit: 1000, archived: "active" });
+
+      // Build nodes
+      const nodes = notes.map(n => ({
+        id: n.id,
+        title: n.title || "Untitled",
+        notebook: n.notebookName || "",
+        tags: n.tagsCsv ? n.tagsCsv.split(",").map(t => t.trim()).filter(Boolean) : [],
+        updatedAt: n.updatedAt
+      }));
+
+      // Build edges from shared tags
+      const edges = [];
+      const seen = new Set();
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const sharedTags = nodes[i].tags.filter(t => nodes[j].tags.includes(t));
+          if (sharedTags.length > 0) {
+            const key = `${nodes[i].id}-${nodes[j].id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              edges.push({ source: nodes[i].id, target: nodes[j].id, tags: sharedTags });
+            }
+          }
+        }
+      }
+
+      sendJson(res, 200, { nodes, edges });
+    });
+    return true;
+  }
+
   if (url.pathname === "/api/notes") {
     await safely(res, async () => {
       if (req.method === "GET") {
