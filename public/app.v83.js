@@ -4175,19 +4175,26 @@ function bindEvents() {
       event.preventDefault();
       const noteId = Number(link.dataset.noteLink);
       if (!noteId) return;
-      const note = state.notes.find((n) => n.id === noteId);
-      if (note) {
-        selectNote(note);
-      } else {
-        // Note not in current list — switch to all notes and reload
-        state.filter = "all";
-        state.notebookFilter = null;
+      // Check allNotesCache first so we can get the notebookId even if the note
+      // isn't in the current filtered list
+      const cached = allNotesCache.find((n) => n.id === noteId) || state.notes.find((n) => n.id === noteId);
+      if (cached) {
+        // Navigate into the note's notebook so we land in editor view, not table view
         state.tagFilter = null;
+        if (cached.notebookId) {
+          state.filter = "all";
+          state.notebookFilter = Number(cached.notebookId);
+        } else {
+          state.filter = "home";
+          state.notebookFilter = null;
+        }
         loadNotes().then(() => {
           const found = state.notes.find((n) => n.id === noteId);
           if (found) selectNote(found);
-          else setStatus("Linked note not found");
+          else selectNote(cached); // use cached data as fallback
         });
+      } else {
+        setStatus("Linked note not found");
       }
       return;
     }
@@ -4460,9 +4467,15 @@ function bindEvents() {
       if (noteCard) {
         const note = state.notes.find((item) => item.id === Number(noteCard.dataset.noteId));
         if (note) {
-          state.filter = "all";
-          state.notebookFilter = null;
+          // Navigate to the note's notebook so we land in editor view, not table view
           state.tagFilter = null;
+          if (note.notebookId) {
+            state.filter = "all";
+            state.notebookFilter = Number(note.notebookId);
+          } else {
+            state.filter = "home";
+            state.notebookFilter = null;
+          }
           updateNavigationState();
           selectNote(note);
         }
