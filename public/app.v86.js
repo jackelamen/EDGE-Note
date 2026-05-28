@@ -3452,7 +3452,7 @@ function createNewNote() {
     updateNavigationState();
   }
   setMobilePanel("editor");
-  elements.notebook.value = state.notebookFilter || state.notebooks[0]?.id || "";
+  elements.notebook.value = state.notebookFilter || "";
   elements.tags.value = "";
   elements.title.value = "Untitled note";
   setEditorHtml("");

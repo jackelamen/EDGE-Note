@@ -267,7 +267,9 @@ export async function updateNote({ userId, noteId, input }) {
   );
 
   const params = noteParams(userId, {
-    notebookId: input.notebookId ?? existing.notebookId,
+    notebookId: Object.prototype.hasOwnProperty.call(input, "notebookId")
+      ? input.notebookId
+      : existing.notebookId,
     title: input.title ?? existing.title,
     body: input.body ?? existing.body,
     bodyFormat: input.bodyFormat ?? existing.bodyFormat,
