@@ -38,6 +38,12 @@ let pendingSyncTimer = null;
 let allNotesCache = []; // full note list for @mention search, regardless of active filter
 const autoSaveDelayMs = 2500;
 
+function requestedNoteIdFromUrl() {
+  const rawId = new URLSearchParams(window.location.search).get("note");
+  const noteId = Number(rawId);
+  return Number.isInteger(noteId) && noteId > 0 ? noteId : null;
+}
+
 const elements = {
   attachmentFile: document.querySelector("[data-attachment-file]"),
   attachmentLimit: document.querySelector("[data-attachment-limit]"),
@@ -853,6 +859,32 @@ function selectNote(note) {
     renderHistory([]);
   }
   renderNotes();
+}
+
+async function openNoteById(noteId) {
+  const id = Number(noteId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+
+  state.filter = "all";
+  state.notebookFilter = null;
+  state.tagFilter = null;
+  if (elements.search) elements.search.value = "";
+  updateNavigationState();
+
+  let note = state.notes.find((item) => item.id === id)
+    || allNotesCache.find((item) => item.id === id);
+
+  if (!note) {
+    const payload = await requestJson(`/api/notes/${id}`);
+    note = payload.note;
+    if (note && !state.notes.some((item) => item.id === id)) {
+      state.notes = [note, ...state.notes];
+    }
+  }
+
+  if (!note) return false;
+  selectNote(note);
+  return true;
 }
 
 function renderEditorActions(note = currentNote()) {
@@ -4837,6 +4869,10 @@ async function init() {
   await loadCollections();
   const restoredDraft = restoreDraftCache();
   await loadNotes();
+  const requestedNoteId = requestedNoteIdFromUrl();
+  if (requestedNoteId) {
+    await openNoteById(requestedNoteId).catch(() => {});
+  }
   // Prime the mention search cache with all active notes in the background
   requestJson("/api/notes?archived=active&limit=1000")
     .then((p) => { allNotesCache = (p.notes || []).filter((n) => !n.archivedAt); })

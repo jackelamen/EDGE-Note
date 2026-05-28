@@ -464,6 +464,13 @@ function nbColor(nb) {
   return nbColorMap.get(nb);
 }
 
+function openNote(noteId) {
+  const id = Number(noteId);
+  if (!id) return;
+  localStorage.setItem("edge_note_selected_note_v1", String(id));
+  window.location.href = `/?note=${encodeURIComponent(id)}`;
+}
+
 // ── DOM refs ──
 const svgEl       = document.getElementById("graph-canvas");
 const tooltip     = document.getElementById("tooltip");
@@ -827,13 +834,7 @@ function renderGraph() {
     .on("dblclick", (ev, d) => {
       ev.stopPropagation();
       clearTimeout(clickTimer);
-      if (d.id === focusId) {
-        window.location.href = `/?note=${d.id}`;
-      } else {
-        focusId = d.id;
-        closeInfoPanel();
-        renderGraph();
-      }
+      openNote(d.id);
     });
 
   // Background click — deselect
@@ -944,7 +945,7 @@ function showInfoPanel(d) {
   });
 
   document.getElementById("btn-open-note").onclick = () => {
-    window.location.href = `/?note=${d.id}`;
+    openNote(d.id);
   };
 
   infoPanel.classList.add("open");
