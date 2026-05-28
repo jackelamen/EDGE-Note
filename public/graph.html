@@ -682,21 +682,22 @@ function renderGraph() {
     n.y = H / 2 + Math.sin(angle) * r;
   });
 
-  // Simulation
+  // Simulation — higher alpha + slower decay so nodes spread well before fit
   simulation = d3.forceSimulation(nodes)
+    .alpha(1)
+    .alphaDecay(0.02)
     .force("link", d3.forceLink(linkData)
       .id(d => d.id)
       .distance(d => {
         if (d.source.orphan || d.target.orphan) return 0;
-        return 70 + Math.max(d.source.level ?? 1, d.target.level ?? 1) * 28;
+        return 80 + Math.max(d.source.level ?? 1, d.target.level ?? 1) * 40;
       })
       .strength(d => (d.source.orphan || d.target.orphan) ? 0 : filters.linkStrength))
     .force("charge", d3.forceManyBody()
       .strength(d => d.id === focusId ? -filters.repulsion * 1.6
         : d.orphan ? -20 : -filters.repulsion))
-    .force("center", d3.forceCenter(W / 2, H / 2).strength(0.04))
-    .force("collision", d3.forceCollide().radius(d => nodeRadius(d, degreeMap) + 18))
-    .alphaDecay(0.03);
+    .force("center", d3.forceCenter(W / 2, H / 2).strength(0.08))
+    .force("collision", d3.forceCollide().radius(d => nodeRadius(d, degreeMap) + 18));
 
   // ── Links ──
   const link = g.append("g").attr("class", "links")
@@ -843,10 +844,10 @@ function renderGraph() {
   simulation.on("end", () => {
     if (!fitted) { fitted = true; fitGraph(svg, g, W, H); }
   });
-  // Safety fallback in case "end" never fires (very small graphs settle fast)
+  // Safety fallback — fires after 3s regardless of simulation state
   setTimeout(() => {
     if (!fitted) { fitted = true; fitGraph(svg, g, W, H); }
-  }, 1500);
+  }, 3000);
 
   // Store refs for external Fit button
   window._graphSvg = svg;
@@ -857,22 +858,30 @@ function renderGraph() {
 
 function fitGraph(svg, g, W, H) {
   try {
-    const bb = g.node().getBBox();
-    // If bounding box is degenerate (nodes still at origin), just center the view
-    if (!bb.width || !bb.height || bb.width < 10 || bb.height < 10) {
-      svg.transition().duration(400)
-        .call(zoomBehavior.transform, d3.zoomIdentity.translate(W / 2, H / 2).scale(1));
-      return;
-    }
-    const padding = 100;
+    // Use node positions from simulation data directly — getBBox() is unreliable
+    // because it reads the untransformed SVG coordinate space.
+    if (!currentNodeData.length) return;
+    const xs = currentNodeData.map(n => n.x).filter(v => v != null && isFinite(v));
+    const ys = currentNodeData.map(n => n.y).filter(v => v != null && isFinite(v));
+    if (!xs.length || !ys.length) return;
+
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const gw = maxX - minX || 1;
+    const gh = maxY - minY || 1;
+
+    const padding = 120;
     const scale = Math.min(
-      (W - padding * 2) / bb.width,
-      (H - padding * 2) / bb.height,
-      1.2
+      (W - padding * 2) / gw,
+      (H - padding * 2) / gh,
+      1.4
     );
-    const tx = W / 2 - (bb.x + bb.width / 2) * scale;
-    const ty = H / 2 - (bb.y + bb.height / 2) * scale;
-    svg.transition().duration(600)
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const tx = W / 2 - cx * scale;
+    const ty = H / 2 - cy * scale;
+
+    svg.transition().duration(650).ease(d3.easeCubicOut)
       .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
   } catch (_) {}
 }
