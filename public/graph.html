@@ -600,7 +600,7 @@ function renderGraph() {
 
   const { nodes, edges } = buildLocalGraph(focusId, filters.depth);
   currentNodeData = nodes;
-  currentLinkData = edges;
+  // currentLinkData is set later, after linkData is resolved to node objects
 
   const connected = nodes.filter(n => !n.orphan);
   if (connected.length <= 1 && edges.length === 0) {
@@ -643,19 +643,28 @@ function renderGraph() {
   svg.call(zoomBehavior);
   svg.on("dblclick.zoom", null);
 
-  // Degree map for sizing
-  const degreeMap = new Map();
-  for (const e of edges) {
-    degreeMap.set(e.source, (degreeMap.get(e.source) || 0) + 1);
-    degreeMap.set(e.target, (degreeMap.get(e.target) || 0) + 1);
-  }
-
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+  // Resolve source/target to node objects BEFORE building degree map
+  // D3 will mutate these objects in place during simulation, so we need
+  // object references (not raw IDs) from the start.
   const linkData = edges.map(e => ({
-    ...e,
-    source: nodeMap.get(e.source) || e.source,
-    target: nodeMap.get(e.target) || e.target
+    tags: e.tags,
+    source: nodeMap.get(e.source) ?? e.source,
+    target: nodeMap.get(e.target) ?? e.target
   }));
+
+  // Store resolved links so info panel can read .source.id / .target.id correctly
+  currentLinkData = linkData;
+
+  // Degree map for sizing — use resolved node objects
+  const degreeMap = new Map();
+  for (const e of linkData) {
+    const sId = e.source?.id ?? e.source;
+    const tId = e.target?.id ?? e.target;
+    degreeMap.set(sId, (degreeMap.get(sId) || 0) + 1);
+    degreeMap.set(tId, (degreeMap.get(tId) || 0) + 1);
+  }
 
   // Fix focal at center
   const focal = nodeMap.get(focusId);
@@ -756,23 +765,25 @@ function renderGraph() {
 
   node
     .on("mouseenter", (ev, d) => {
+      // After D3 simulation, source/target are node objects — extract IDs safely
+      const eid = x => (x && typeof x === "object") ? x.id : x;
       const neighborIds = new Set(
         linkData
-          .filter(e => e.source.id === d.id || e.target.id === d.id)
-          .flatMap(e => [e.source.id, e.target.id])
+          .filter(e => eid(e.source) === d.id || eid(e.target) === d.id)
+          .flatMap(e => [eid(e.source), eid(e.target)])
       );
       node.selectAll(".node-circle")
         .attr("opacity", n => (n.id === d.id || neighborIds.has(n.id)) ? 1 : 0.18);
       label.attr("opacity", n => (n.id === d.id || neighborIds.has(n.id)) ? 1 : 0.08);
       link
-        .attr("stroke", e => (e.source.id === d.id || e.target.id === d.id)
+        .attr("stroke", e => (eid(e.source) === d.id || eid(e.target) === d.id)
           ? "rgba(124,106,247,0.65)" : "rgba(255,255,255,0.03)")
-        .attr("stroke-width", e => (e.source.id === d.id || e.target.id === d.id)
+        .attr("stroke-width", e => (eid(e.source) === d.id || eid(e.target) === d.id)
           ? filters.linkThickness * 1.8 : filters.linkThickness * 0.5);
 
       // Tooltip
       const sharedTags = [...new Set(
-        linkData.filter(e => e.source.id === d.id || e.target.id === d.id)
+        linkData.filter(e => eid(e.source) === d.id || eid(e.target) === d.id)
           .flatMap(e => e.tags || [])
       )];
       document.getElementById("tip-title").textContent = d.title;
@@ -863,10 +874,13 @@ function showInfoPanel(d) {
     ? d.tags.map(t => `<span class="ip-tag">#${t}</span>`).join("")
     : `<span style="color:var(--text-dim);font-size:11px">No tags</span>`;
 
+  // After D3 simulation, source/target may be objects or raw IDs — handle both
+  const getId = x => (x && typeof x === "object") ? x.id : x;
+
   const neighbors = currentLinkData
-    .filter(e => e.source.id === d.id || e.target.id === d.id)
+    .filter(e => getId(e.source) === d.id || getId(e.target) === d.id)
     .map(e => {
-      const otherId = e.source.id === d.id ? e.target.id : e.source.id;
+      const otherId = getId(e.source) === d.id ? getId(e.target) : getId(e.source);
       const other = currentNodeData.find(n => n.id === otherId);
       return { node: other, tags: e.tags || [] };
     })
