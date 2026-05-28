@@ -616,12 +616,12 @@ export async function handleApi(req, res, url) {
       requireMethod(req, ["GET"]);
       const notes = await listNotes({ userId, limit: 1000, archived: "active" });
 
-      // Build nodes
+      // Build nodes — listNotes returns n.tags (already split array), not n.tagsCsv
       const nodes = notes.map(n => ({
         id: n.id,
         title: n.title || "Untitled",
         notebook: n.notebookName || "",
-        tags: n.tagsCsv ? n.tagsCsv.split(",").map(t => t.trim()).filter(Boolean) : [],
+        tags: Array.isArray(n.tags) ? n.tags.map(t => t.trim()).filter(Boolean) : [],
         updatedAt: n.updatedAt
       }));
 
