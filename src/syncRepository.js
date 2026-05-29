@@ -102,6 +102,7 @@ async function syncNotebooks({ userId, ids = [] } = {}) {
      LEFT JOIN notes n
        ON n.notebook_id = nb.id
       AND n.deleted_at IS NULL
+      AND n.archived_at IS NULL
      WHERE nb.user_id = :userId
        AND nb.deleted_at IS NULL
        ${idFilter}

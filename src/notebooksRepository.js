@@ -31,6 +31,7 @@ export async function listNotebooks({ userId }) {
      LEFT JOIN notes n
        ON n.notebook_id = nb.id
       AND n.deleted_at IS NULL
+      AND n.archived_at IS NULL
      WHERE nb.user_id = :userId
        AND nb.deleted_at IS NULL
      GROUP BY nb.id, nb.parent_id, nb.name, nb.icon, nb.icon_color, nb.sort_order, nb.created_at, nb.updated_at
