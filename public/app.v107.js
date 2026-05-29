@@ -6000,3 +6000,57 @@ async function init() {
 }
 
 init();
+
+/* ─── Theme management ───────────────────────────────────────── */
+(function () {
+  const THEME_KEY = "edge_theme";
+  const root = document.documentElement;
+
+  function applyTheme(theme) {
+    // Remove system-dark helper class before re-evaluating
+    root.classList.remove("system-dark");
+    root.setAttribute("data-theme", theme);
+
+    if (theme === "system") {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (prefersDark) root.classList.add("system-dark");
+    }
+
+    // Update active button state in settings
+    document.querySelectorAll("[data-theme-set]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.themeSet === theme);
+    });
+  }
+
+  function setTheme(theme) {
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme(theme);
+  }
+
+  // Apply saved theme immediately (before paint)
+  const saved = localStorage.getItem(THEME_KEY) || "system";
+  applyTheme(saved);
+
+  // Wire up buttons (settings panel may not exist yet — use delegation)
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-theme-set]");
+    if (btn) setTheme(btn.dataset.themeSet);
+  });
+
+  // Also re-apply active state whenever settings panel opens
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-action='open-settings']")) {
+      const current = localStorage.getItem(THEME_KEY) || "system";
+      document.querySelectorAll("[data-theme-set]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.themeSet === current);
+      });
+    }
+  });
+
+  // React to system preference changes when in system mode
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if ((localStorage.getItem(THEME_KEY) || "system") === "system") {
+      applyTheme("system");
+    }
+  });
+})();
