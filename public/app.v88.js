@@ -1650,6 +1650,11 @@ function applyWysiwygFormat(format) {
 
   const beforeHtml = editorSnapshot();
   const isAlignmentFormat = format === "align-left" || format === "align-center" || format === "align-right";
+  const startingSelection = selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : cloneEditorSelection();
+  const startingBookmark = selectionBookmark(startingSelection);
+  const shouldRestoreCaret = startingSelection?.collapsed && !["image", "table", "hr", "checklist"].includes(format);
 
   if (format === "checklist") {
     insertChecklistItem();
@@ -1660,9 +1665,13 @@ function applyWysiwygFormat(format) {
   }
 
   elements.body.focus();
-  restoreSelection();
+  if (startingSelection) {
+    restoreEditorSelection(startingSelection);
+  } else {
+    restoreSelection();
+  }
   const alignmentBookmark = isAlignmentFormat
-    ? selectionBookmark(savedSelection || cloneEditorSelection())
+    ? selectionBookmark(startingSelection || savedSelection || cloneEditorSelection())
     : null;
 
   if (format === "bold") {
@@ -1775,6 +1784,9 @@ function applyWysiwygFormat(format) {
   if (alignmentBookmark) {
     restoreSelectionBookmark(alignmentBookmark);
     requestAnimationFrame(() => restoreSelectionBookmark(alignmentBookmark));
+  } else if (shouldRestoreCaret && startingBookmark) {
+    restoreSelectionBookmark(startingBookmark);
+    requestAnimationFrame(() => restoreSelectionBookmark(startingBookmark));
   }
 }
 
