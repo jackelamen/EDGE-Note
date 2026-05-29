@@ -12,6 +12,9 @@
   --accent:        #e8553e;          /* Bear red-orange */
   --accent-soft:   #fdf1ef;
   --accent-hover:  #c93e2a;
+  --blue:          #4f7cff;          /* Complementary cool blue */
+  --blue-soft:     #eef2ff;
+  --blue-hover:    #3b63e0;
   --green:         #2a9d5c;
   --green-soft:    #e8f7ef;
   --danger:        #c0392b;
@@ -1041,7 +1044,7 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   align-items: flex-end;
   justify-content: space-between;
   padding: 40px 52px 36px;
-  background: linear-gradient(135deg, #1f1f23 0%, #2d2a35 60%, #3a2d2a 100%);
+  background: linear-gradient(140deg, #1a1a1f 0%, #252230 50%, #2e2220 100%);
   position: relative;
   overflow: hidden;
 }
@@ -1050,7 +1053,9 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 60% 80% at 80% 50%, rgba(232,85,62,.18) 0%, transparent 70%);
+  background:
+    radial-gradient(ellipse 55% 90% at 90% 60%, rgba(232,85,62,.22) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 10% 30%, rgba(79,124,255,.10) 0%, transparent 65%);
   pointer-events: none;
 }
 
@@ -1194,7 +1199,7 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .07em;
-  color: var(--accent);
+  color: var(--blue);
   margin-bottom: 6px;
 }
 
@@ -1714,7 +1719,7 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .07em;
-  color: var(--accent);
+  color: var(--blue);
   margin-bottom: 3px;
 }
 
@@ -1983,10 +1988,10 @@ body[data-focus-mode] .mobile-tabs { display: none; }
   border-radius: 99px;
   font-size: 0.63rem;
   font-weight: 500;
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  background: var(--blue-soft);
+  color: var(--blue-hover);
   white-space: nowrap;
-  border: 1px solid rgba(232, 85, 62, 0.15);
+  border: 1px solid rgba(79, 124, 255, 0.18);
 }
 
 .tbl-date {
@@ -2104,9 +2109,9 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 }
 
 .meta-pill:focus-within {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .meta-pill svg { width: 11px; height: 11px; color: var(--ink-4); }
@@ -2290,10 +2295,9 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 .toolbar-divider {
   width: 1px;
   height: 16px;
-  background: var(--line-soft);
+  background: var(--line);
   margin: 0 4px;
   flex-shrink: 0;
-  opacity: 0.7;
 }
 
 /* ── More-formatting extra row ────────────────────────────────── */
@@ -2389,7 +2393,7 @@ body[data-focus-mode] .mobile-tabs { display: none; }
 .wysiwyg-editor blockquote {
   margin: 1em 0;
   padding: .5em 0 .5em 18px;
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid rgba(232, 85, 62, 0.4);
   color: var(--ink-3);
   font-style: italic;
   font-size: 1.02em;
@@ -3072,8 +3076,8 @@ kbd {
 }
 
 .nb-move-current {
-  background: rgba(221, 92, 70, 0.1);
-  color: var(--accent);
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .nb-move-badge {
@@ -3343,9 +3347,9 @@ kbd {
 
 /* ── Note link mentions ──────────────────────────────────────── */
 span.note-link {
-  color: var(--accent);
+  color: var(--blue);
   text-decoration: none;
-  background: var(--accent-soft);
+  background: var(--blue-soft);
   border-radius: 3px;
   padding: 1px 4px;
   font-weight: 500;
@@ -3354,7 +3358,7 @@ span.note-link {
 }
 
 span.note-link:hover {
-  background: var(--accent);
+  background: var(--blue);
   color: #fff;
 }
 
@@ -3384,7 +3388,7 @@ span.note-link:hover {
 
 .mention-item:hover,
 .mention-item.mention-active {
-  background: var(--accent-soft);
+  background: var(--blue-soft);
 }
 
 .mention-title {
