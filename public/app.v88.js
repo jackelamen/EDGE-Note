@@ -129,7 +129,7 @@ const elements = {
   deleteNote: document.querySelector("[data-action='delete-note']"),
   formatExtra: document.querySelector("[data-format-extra]"),
   formatExtraToggle: document.querySelector("[data-action='toggle-format-extra']"),
-  formatButtons: document.querySelectorAll("[data-format]"),
+  formatButtons: document.querySelectorAll("[data-floating-toolbar] [data-format]"),
   formatColorInputs: document.querySelectorAll("[data-format-color]"),
   formatSelects: document.querySelectorAll("[data-format-select]"),
   historyList: document.querySelector("[data-history-list]"),
@@ -841,6 +841,7 @@ function selectNote(note) {
     : (note?.body || "");
   setEditorHtml(bodyHtml);
   updateWordCount();
+  updateToolbarState();
   setStatus(note?.updatedAt ? `Updated ${formatDate(note.updatedAt)}` : "Not saved yet");
 
   // Update editor breadcrumb with notebook or current view
@@ -1357,13 +1358,32 @@ function redoEditorChange() {
 // Format toolbar is now a static sticky bar — no positioning needed.
 function updateFloatingToolbar() { /* no-op — toolbar is always visible */ }
 
-function editorExec(command, value = null) {
-  elements.body.focus();
+function activeToolbarRange() {
+  return selectionIsInEditor(savedSelection)
+    ? savedSelection.cloneRange()
+    : cloneEditorSelection();
+}
+
+function focusEditorForToolbar(range = activeToolbarRange()) {
+  elements.body.focus({ preventScroll: true });
+  if (selectionIsInEditor(range)) {
+    restoreEditorSelection(range);
+    return range;
+  }
   restoreSelection();
-  document.execCommand(command, false, value);
-  saveDraftCache();
-  renderTasks();
-  scheduleAutoSave();
+  return selectionIsInEditor(savedSelection) ? savedSelection.cloneRange() : null;
+}
+
+function finishToolbarChange(beforeHtml) {
+  if (editorSnapshot() !== beforeHtml) {
+    pushEditorUndoSnapshot(beforeHtml);
+    notifyEditorChanged();
+  } else {
+    updateWordCount();
+  }
+  captureEditorSelection();
+  updateToolbarState();
+  requestAnimationFrame(updateToolbarState);
 }
 
 function insertChecklistItem() {
@@ -1558,15 +1578,23 @@ function selectedEditorBlocks(range = null) {
   return block ? [block] : [];
 }
 
-function applyBlockAlignment(alignment) {
-  const currentSelection = selectionIsInEditor(savedSelection)
-    ? savedSelection.cloneRange()
-    : cloneEditorSelection();
+function applyBlockAlignment(alignment, currentSelection = activeToolbarRange()) {
   if (!currentSelection) return false;
   const bookmark = selectionBookmark(currentSelection);
 
   const blocks = selectedEditorBlocks(currentSelection);
-  if (!blocks.length) return false;
+  if (!blocks.length) {
+    const command = {
+      left: "justifyLeft",
+      center: "justifyCenter",
+      right: "justifyRight"
+    }[alignment];
+    if (command) {
+      document.execCommand(command, false, null);
+      return true;
+    }
+    return false;
+  }
 
   blocks.forEach((block) => {
     block.style.textAlign = alignment;
@@ -1575,15 +1603,15 @@ function applyBlockAlignment(alignment) {
   return true;
 }
 
-function applyBlockIndent(direction) {
-  const currentSelection = selectionIsInEditor(savedSelection)
-    ? savedSelection.cloneRange()
-    : cloneEditorSelection();
+function applyBlockIndent(direction, currentSelection = activeToolbarRange()) {
   if (!currentSelection) return false;
   const bookmark = selectionBookmark(currentSelection);
 
   const blocks = selectedEditorBlocks(currentSelection);
-  if (!blocks.length) return false;
+  if (!blocks.length) {
+    document.execCommand(direction === "in" ? "indent" : "outdent", false, null);
+    return true;
+  }
 
   const step = 32;
   const max = 192;
@@ -1603,31 +1631,34 @@ function applyBlockIndent(direction) {
 }
 
 function applyToolbarSelect(kind, value) {
-  elements.body.focus();
-  restoreSelection();
+  const beforeHtml = editorSnapshot();
+  const range = focusEditorForToolbar();
 
   if (kind === "block") {
     document.execCommand("formatBlock", false, value || "p");
-    saveDraftCache();
-    renderTasks();
-    scheduleAutoSave();
+    finishToolbarChange(beforeHtml);
     return;
   }
 
   if (kind === "font" && toolbarFonts[value]) {
     applyInlineStyle({ fontFamily: toolbarFonts[value] });
+    updateToolbarState();
     return;
   }
 
   if (kind === "size" && sanitizeCssFontSize(value)) {
     applyInlineStyle({ fontSize: value });
+    updateToolbarState();
   }
+
+  if (!range) updateToolbarState();
 }
 
 function applyToolbarColor(property, value) {
   const color = sanitizeCssColor(value);
   if (!color || !["color", "backgroundColor"].includes(property)) return;
   applyInlineStyle({ [property]: color });
+  updateToolbarState();
 }
 
 function anchorBlock() {
@@ -1638,6 +1669,71 @@ function anchorBlock() {
     : sel.anchorNode.parentElement;
 }
 
+function commandState(command) {
+  try {
+    return document.queryCommandState(command);
+  } catch {
+    return false;
+  }
+}
+
+function updateToolbarState() {
+  const range = cloneEditorSelection() || (selectionIsInEditor(savedSelection) ? savedSelection : null);
+  const node = range?.startContainer?.nodeType === Node.ELEMENT_NODE
+    ? range.startContainer
+    : range?.startContainer?.parentElement;
+  const block = node?.closest?.("h2, h3, h4, blockquote, li, p, div, td, th");
+  const list = node?.closest?.("ul, ol");
+  const textAlign = block?.style?.textAlign || "";
+
+  const pressed = {
+    bold: Boolean(node?.closest?.("strong, b")) || commandState("bold"),
+    italic: Boolean(node?.closest?.("em, i")) || commandState("italic"),
+    underline: Boolean(node?.closest?.("u")) || commandState("underline"),
+    strikethrough: Boolean(node?.closest?.("s, strike")) || commandState("strikeThrough"),
+    superscript: Boolean(node?.closest?.("sup")) || commandState("superscript"),
+    subscript: Boolean(node?.closest?.("sub")) || commandState("subscript"),
+    heading: Boolean(block && /^H[2-4]$/.test(block.tagName)),
+    quote: block?.tagName === "BLOCKQUOTE",
+    bullet: list?.tagName === "UL" && !list.classList.contains("checklist"),
+    ordered: list?.tagName === "OL",
+    checklist: Boolean(node?.closest?.("ul.checklist")),
+    code: Boolean(node?.closest?.("code")),
+    "align-left": Boolean(block) && (!textAlign || textAlign === "left"),
+    "align-center": textAlign === "center",
+    "align-right": textAlign === "right"
+  };
+
+  elements.formatButtons.forEach((button) => {
+    const value = button.dataset.format;
+    const isPressed = Boolean(pressed[value]);
+    button.classList.toggle("active", isPressed);
+    if (Object.prototype.hasOwnProperty.call(pressed, value)) {
+      button.setAttribute("aria-pressed", isPressed ? "true" : "false");
+    } else {
+      button.removeAttribute("aria-pressed");
+    }
+  });
+
+  elements.mobileFormatBar?.querySelectorAll("[data-format]").forEach((button) => {
+    const value = button.dataset.format;
+    const isPressed = Boolean(pressed[value]);
+    button.classList.toggle("active", isPressed);
+    if (Object.prototype.hasOwnProperty.call(pressed, value)) {
+      button.setAttribute("aria-pressed", isPressed ? "true" : "false");
+    } else {
+      button.removeAttribute("aria-pressed");
+    }
+  });
+
+  elements.formatSelects.forEach((select) => {
+    if (select.dataset.formatSelect !== "block") return;
+    if (block?.tagName === "BLOCKQUOTE") select.value = "blockquote";
+    else if (block && ["H2", "H3"].includes(block.tagName)) select.value = block.tagName.toLowerCase();
+    else select.value = "p";
+  });
+}
+
 function applyWysiwygFormat(format) {
   if (format === "undo" || format === "redo") {
     if (format === "undo") {
@@ -1645,60 +1741,23 @@ function applyWysiwygFormat(format) {
     } else {
       redoEditorChange();
     }
+    updateToolbarState();
     return;
   }
 
   const beforeHtml = editorSnapshot();
-  const isAlignmentFormat = format === "align-left" || format === "align-center" || format === "align-right";
-  const startingSelection = selectionIsInEditor(savedSelection)
-    ? savedSelection.cloneRange()
-    : cloneEditorSelection();
-  const startingBookmark = selectionBookmark(startingSelection);
-  const shouldRestoreCaret = startingSelection?.collapsed && !["image", "table", "hr", "checklist"].includes(format);
+  const range = activeToolbarRange();
 
   if (format === "checklist") {
     insertChecklistItem();
-    if (editorSnapshot() !== beforeHtml) {
-      pushEditorUndoSnapshot(beforeHtml);
-    }
+    finishToolbarChange(beforeHtml);
     return;
   }
 
-  elements.body.focus();
-  if (startingSelection) {
-    restoreEditorSelection(startingSelection);
-  } else {
-    restoreSelection();
-  }
-  const alignmentBookmark = isAlignmentFormat
-    ? selectionBookmark(startingSelection || savedSelection || cloneEditorSelection())
-    : null;
+  focusEditorForToolbar(range);
 
-  if (format === "bold") {
-    // execCommand("bold") produces <b>, which our sanitizer strips.
-    // Instead wrap the selection in <strong>, or unwrap if already bold.
-    const sel = window.getSelection();
-    const alreadyBold = sel?.anchorNode?.parentElement?.closest("strong") ||
-      document.queryCommandState("bold");
-    if (alreadyBold) {
-      document.execCommand("removeFormat", false, null);
-    } else if (sel && !sel.isCollapsed) {
-      document.execCommand("insertHTML", false,
-        `<strong>${escapeHtml(sel.toString())}</strong>`);
-    }
-  }
-  else if (format === "italic") {
-    // Same issue: execCommand produces <i>, sanitizer only allows <em>.
-    const sel = window.getSelection();
-    const alreadyItalic = sel?.anchorNode?.parentElement?.closest("em") ||
-      document.queryCommandState("italic");
-    if (alreadyItalic) {
-      document.execCommand("removeFormat", false, null);
-    } else if (sel && !sel.isCollapsed) {
-      document.execCommand("insertHTML", false,
-        `<em>${escapeHtml(sel.toString())}</em>`);
-    }
-  }
+  if (format === "bold") { document.execCommand("bold", false, null); }
+  else if (format === "italic") { document.execCommand("italic", false, null); }
   else if (format === "underline") { document.execCommand("underline", false, null); }
   else if (format === "heading") {
     // Toggle between h2 and normal paragraph
@@ -1744,11 +1803,11 @@ function applyWysiwygFormat(format) {
   else if (format === "strikethrough") { document.execCommand("strikeThrough", false, null); }
   else if (format === "superscript") { document.execCommand("superscript", false, null); }
   else if (format === "subscript") { document.execCommand("subscript", false, null); }
-  else if (format === "align-left") { document.execCommand("justifyLeft", false, null); }
-  else if (format === "align-center") { document.execCommand("justifyCenter", false, null); }
-  else if (format === "align-right") { document.execCommand("justifyRight", false, null); }
-  else if (format === "indent") { document.execCommand("indent", false, null); }
-  else if (format === "outdent") { document.execCommand("outdent", false, null); }
+  else if (format === "align-left") { applyBlockAlignment("left", range); }
+  else if (format === "align-center") { applyBlockAlignment("center", range); }
+  else if (format === "align-right") { applyBlockAlignment("right", range); }
+  else if (format === "indent") { applyBlockIndent("in", range); }
+  else if (format === "outdent") { applyBlockIndent("out", range); }
   else if (format === "hr") {
     document.execCommand("insertHTML", false, "<hr><p></p>");
   }
@@ -1777,17 +1836,7 @@ function applyWysiwygFormat(format) {
     document.execCommand("removeFormat", false, null);
   }
 
-  if (editorSnapshot() !== beforeHtml) {
-    pushEditorUndoSnapshot(beforeHtml);
-  }
-  notifyEditorChanged();
-  if (alignmentBookmark) {
-    restoreSelectionBookmark(alignmentBookmark);
-    requestAnimationFrame(() => restoreSelectionBookmark(alignmentBookmark));
-  } else if (shouldRestoreCaret && startingBookmark) {
-    restoreSelectionBookmark(startingBookmark);
-    requestAnimationFrame(() => restoreSelectionBookmark(startingBookmark));
-  }
+  finishToolbarChange(beforeHtml);
 }
 
 function renderAttachments() {
@@ -3569,6 +3618,7 @@ function createNewNote() {
   elements.title.value = "Untitled note";
   setEditorHtml("");
   updateWordCount();
+  updateToolbarState();
   setStatus("New draft");
   renderTasks();
   renderEditorActions(null);
@@ -3917,16 +3967,15 @@ function bindEvents() {
       applyWysiwygFormat(button.dataset.format);
       requestAnimationFrame(() => {
         state.suppressSelectionSave = false;
+        updateToolbarState();
       });
-      // Keep toolbar visible after applying format if still a selection
-      updateFloatingToolbar();
     });
   });
   elements.formatSelects.forEach((select) => {
     select.addEventListener("mousedown", saveSelection);
     select.addEventListener("change", () => {
       applyToolbarSelect(select.dataset.formatSelect, select.value);
-      updateFloatingToolbar();
+      updateToolbarState();
     });
   });
   elements.formatColorInputs.forEach((input) => {
@@ -3940,7 +3989,7 @@ function bindEvents() {
     input.addEventListener("change", () => {
       input.closest(".toolbar-color")?.style.setProperty("--toolbar-swatch", input.value);
       applyToolbarColor(input.dataset.formatColor, input.value);
-      updateFloatingToolbar();
+      updateToolbarState();
     });
   });
   elements.toggleFavorite.addEventListener("click", toggleFavoriteNote);
@@ -4028,14 +4077,24 @@ function bindEvents() {
     saveDraftCache();
     renderTasks();
     updateWordCount();
+    updateToolbarState();
     if (state.attachments.length) renderAttachments();
     scheduleAutoSave();
     handleMentionInput();
   });
   // Track selection so toolbar knows where to insert formatting.
-  elements.body.addEventListener("keyup", saveSelection);
-  elements.body.addEventListener("mouseup", saveSelection);
-  document.addEventListener("selectionchange", saveSelection);
+  elements.body.addEventListener("keyup", () => {
+    saveSelection();
+    updateToolbarState();
+  });
+  elements.body.addEventListener("mouseup", () => {
+    saveSelection();
+    updateToolbarState();
+  });
+  document.addEventListener("selectionchange", () => {
+    saveSelection();
+    updateToolbarState();
+  });
 
   elements.body.addEventListener("click", (event) => {
     const table = event.target.closest("table.note-table");
@@ -4845,6 +4904,7 @@ function bindEvents() {
         applyWysiwygFormat(button.dataset.format);
         requestAnimationFrame(() => {
           state.suppressSelectionSave = false;
+          updateToolbarState();
         });
       });
     });

@@ -1315,6 +1315,11 @@ p { margin: 0; }
   .mobile-format-bar button:hover,
   .mobile-format-bar button:active { background: var(--sb-hover); color: var(--sb-ink); }
 
+  .mobile-format-bar button[aria-pressed="true"] {
+    background: var(--sb-hover);
+    color: var(--sb-active-ink);
+  }
+
   .mobile-format-bar button svg { width: 15px; height: 15px; }
 
   .mobile-format-divider {
@@ -1957,17 +1962,15 @@ p { margin: 0; }
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 5px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
   flex-shrink: 0;
 }
-
-.format-toolbar::-webkit-scrollbar { display: none; }
 
 /* ── Toolbar tooltip system ───────────────────────────────────── */
 .format-toolbar button,
@@ -2030,7 +2033,8 @@ p { margin: 0; }
   color: var(--ink);
 }
 
-.format-toolbar button.active {
+.format-toolbar button.active,
+.format-toolbar button[aria-pressed="true"] {
   background: var(--surface-3);
   color: var(--accent, var(--ink));
 }
@@ -2125,8 +2129,11 @@ p { margin: 0; }
 /* ── More-formatting extra row ────────────────────────────────── */
 .format-toolbar-extra {
   display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  padding-top: 4px;
 }
 
 .format-toolbar-extra[hidden] { display: none; }
