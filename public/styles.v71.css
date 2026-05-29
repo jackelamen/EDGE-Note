@@ -944,46 +944,6 @@ p { margin: 0; }
 .sync-dot.pending { background: #d69e2e; }
 .sync-dot.error { background: var(--danger); }
 
-/* Save button — black */
-[data-action="save-note"] {
-  background: #111;
-}
-[data-action="save-note"]:hover {
-  background: #333;
-}
-
-/* Save button status dot */
-.save-btn-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
-  flex-shrink: 0;
-  transition: background 0.2s ease;
-  vertical-align: middle;
-  margin-left: 2px;
-}
-.save-btn-dot.saved {
-  background: var(--green, #38a169);
-}
-.save-btn-dot.unsaved {
-  background: #d69e2e;
-}
-.save-btn-dot.error {
-  background: var(--danger, #e53e3e);
-}
-.save-btn-dot.saving {
-  background: transparent;
-  border: 2px solid currentColor;
-  opacity: 0.7;
-  animation: save-spin 0.7s linear infinite;
-}
-@keyframes save-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
 /* ─── Home view ──────────────────────────────────────────────── */
 .home-view {
   grid-column: 2 / -1;
@@ -1354,6 +1314,11 @@ p { margin: 0; }
 
   .mobile-format-bar button:hover,
   .mobile-format-bar button:active { background: var(--sb-hover); color: var(--sb-ink); }
+
+  .mobile-format-bar button[aria-pressed="true"] {
+    background: var(--sb-hover);
+    color: var(--sb-active-ink);
+  }
 
   .mobile-format-bar button svg { width: 15px; height: 15px; }
 
@@ -1997,17 +1962,15 @@ p { margin: 0; }
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 5px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
   flex-shrink: 0;
 }
-
-.format-toolbar::-webkit-scrollbar { display: none; }
 
 /* ── Toolbar tooltip system ───────────────────────────────────── */
 .format-toolbar button,
@@ -2070,7 +2033,8 @@ p { margin: 0; }
   color: var(--ink);
 }
 
-.format-toolbar button.active {
+.format-toolbar button.active,
+.format-toolbar button[aria-pressed="true"] {
   background: var(--surface-3);
   color: var(--accent, var(--ink));
 }
@@ -2165,8 +2129,11 @@ p { margin: 0; }
 /* ── More-formatting extra row ────────────────────────────────── */
 .format-toolbar-extra {
   display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  padding-top: 4px;
 }
 
 .format-toolbar-extra[hidden] { display: none; }
