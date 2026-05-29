@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-192.png">
     <link rel="apple-touch-icon" href="/edge-note-icon-512.png">
     <meta name="theme-color" content="#27272a">
-    <link rel="stylesheet" href="/styles.v78.css">
+    <link rel="stylesheet" href="/styles.v79.css">
   </head>
   <body>
 
@@ -146,9 +146,11 @@
             <div class="context-heading">Import</div>
             <div class="import-actions">
               <button type="button" data-action="import-markdown">MD files</button>
+              <button type="button" data-action="import-csv">CSV files</button>
               <input type="file" accept=".md,text/markdown,text/plain" multiple data-markdown-import hidden>
+              <input type="file" accept=".csv,text/csv,text/plain" multiple data-csv-import hidden>
             </div>
-            <div class="import-status" data-import-status>Choose one or more markdown files</div>
+            <div class="import-status" data-import-status>Choose markdown or CSV files</div>
           </div>
 
           <div class="settings-section">
@@ -598,7 +600,7 @@
       </nav>
     </main>
 
-    <script src="/app.v96.js" type="module"></script>
+    <script src="/app.v97.js" type="module"></script>
     <script>
       // Pass current note ID to graph view when clicking the Graph nav link
       document.querySelectorAll('a[href="/graph.html"], [data-graph-link]').forEach(function(link) {
