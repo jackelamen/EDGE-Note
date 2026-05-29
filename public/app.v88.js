@@ -666,11 +666,7 @@ function parseChecklistTasks(html) {
 
 function getEditorHtml() {
   syncEditorCheckboxAttributes();
-  const cleanHtml = sanitizeHtml(elements.body.innerHTML || "");
-  if (cleanHtml !== elements.body.innerHTML) {
-    elements.body.innerHTML = cleanHtml;
-  }
-  return cleanHtml;
+  return sanitizeHtml(elements.body.innerHTML || "");
 }
 
 function setEditorHtml(html) {
