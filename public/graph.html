@@ -20,9 +20,9 @@
       --border:      #3a3a3f;          /* sb-line */
       --text:        #e0e0e0;          /* sb-ink */
       --text-dim:    #a0a0a8;          /* sb-ink-2 */
-      --accent:      #e8553e;          /* Bear red-orange */
-      --accent-glow: rgba(232,85,62,0.18);
-      --accent-hover:#c93e2a;
+      --accent:      #4f7cff;          /* EDGE Note complementary blue */
+      --accent-glow: rgba(79,124,255,0.18);
+      --accent-hover:#3b63e0;
       --green:       #2a9d5c;
       --gold:        #b7860b;
     }
@@ -599,11 +599,11 @@
 
 <!-- Legend -->
 <div id="legend">
-  <div class="leg-row"><div class="leg-dot" style="background:#e8553e"></div> Focal note</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#4f7cff"></div> Focal note</div>
   <div class="leg-row"><div class="leg-dot" style="background:#2a9d5c"></div> Depth 1</div>
   <div class="leg-row"><div class="leg-dot" style="background:#b7860b"></div> Depth 2+</div>
   <div class="leg-row"><div class="leg-dot" style="background:#606068;opacity:0.6"></div> Orphan</div>
-  <div class="leg-row"><div class="leg-line" style="background:rgba(232,85,62,0.5)"></div> Tag link</div>
+  <div class="leg-row"><div class="leg-line" style="background:rgba(79,124,255,0.5)"></div> Tag link</div>
 </div>
 
 <div id="graph-stats"></div>
@@ -638,8 +638,8 @@ const filters = {
 // Notebook color palette
 const NB_PALETTE = [
   // EDGE Note design palette: accent red-orange + green + gold + muted tones
-  "#e8553e","#2a9d5c","#b7860b","#c93e2a",
-  "#5a8f6a","#d4702a","#8a9e6a","#c07030","#e87040","#3a7a50"
+  "#4f7cff","#2a9d5c","#b7860b","#3b63e0",
+  "#5a8f6a","#6b8fcc","#8a9e6a","#4a6ab8","#7090ee","#3a7a50"
 ];
 const nbColorMap = new Map();
 let nbColorIdx = 0;
@@ -782,7 +782,7 @@ function nodeRadius(n, degreeMap) {
 
 // ── Node fill ──
 function nodeFill(n) {
-  if (n.id === focusId) return "#e8553e";   // Bear accent
+  if (n.id === focusId) return "#4f7cff";   // EDGE Note blue
   if (n.orphan) return "#3a3a3f";           // sb-ink-3 tone
   if (n.level === 1) return nbColor(n.notebook);
   return "#b7860b";                         // gold for depth 2+
@@ -879,9 +879,9 @@ function renderGraph() {
   // Focal gradient — warm red-orange sphere
   const focalGrad = defs.append("radialGradient").attr("id", "grad-focal")
     .attr("cx", "35%").attr("cy", "35%").attr("r", "65%");
-  focalGrad.append("stop").attr("offset", "0%").attr("stop-color", "#f9a88e").attr("stop-opacity", "0.95");
-  focalGrad.append("stop").attr("offset", "50%").attr("stop-color", "#e8553e").attr("stop-opacity", "1");
-  focalGrad.append("stop").attr("offset", "100%").attr("stop-color", "#8b2010").attr("stop-opacity", "0.85");
+  focalGrad.append("stop").attr("offset", "0%").attr("stop-color", "#a8c0ff").attr("stop-opacity", "0.95");
+  focalGrad.append("stop").attr("offset", "50%").attr("stop-color", "#4f7cff").attr("stop-opacity", "1");
+  focalGrad.append("stop").attr("offset", "100%").attr("stop-color", "#1a3a99").attr("stop-opacity", "0.85");
 
   const g = svg.append("g").attr("class", "root");
 
@@ -962,14 +962,14 @@ function renderGraph() {
   // Bloom shadow layer
   g.append("g").attr("class", "links-bloom")
     .selectAll("line").data(linkData).join("line")
-    .attr("stroke", "rgba(232,85,62,0.10)")
+    .attr("stroke", "rgba(79,124,255,0.10)")
     .attr("stroke-width", d => filters.linkThickness * 3)
     .attr("filter", "url(#glow-edge)")
     .attr("class", "link-bloom");
 
   const link = g.append("g").attr("class", "links")
     .selectAll("line").data(linkData).join("line")
-    .attr("stroke", "rgba(200,120,80,0.22)")
+    .attr("stroke", "rgba(100,140,255,0.22)")
     .attr("stroke-width", filters.linkThickness);
 
   // ── Link labels ──
@@ -1003,23 +1003,23 @@ function renderGraph() {
   node.filter(d => d.id === focusId).each(function() {
     const n = d3.select(this);
     n.append("circle").attr("class", "ripple")
-      .attr("fill", "none").attr("stroke", "#e8553e").attr("stroke-width", "1.5").attr("stroke-opacity", "0.55");
+      .attr("fill", "none").attr("stroke", "#4f7cff").attr("stroke-width", "1.5").attr("stroke-opacity", "0.55");
     n.append("circle").attr("class", "ripple ripple2")
-      .attr("fill", "none").attr("stroke", "#e8553e").attr("stroke-width", "1").attr("stroke-opacity", "0.35");
+      .attr("fill", "none").attr("stroke", "#4f7cff").attr("stroke-width", "1").attr("stroke-opacity", "0.35");
     n.append("circle").attr("class", "ripple ripple3")
-      .attr("fill", "none").attr("stroke", "#f9a88e").attr("stroke-width", "0.7").attr("stroke-opacity", "0.25");
+      .attr("fill", "none").attr("stroke", "#a8c0ff").attr("stroke-width", "0.7").attr("stroke-opacity", "0.25");
   });
 
   // Outer halo (large soft bloom)
   node.filter(d => d.id === focusId).append("circle")
     .attr("r", d => nodeRadius(d, degreeMap) + 20)
-    .attr("fill", "rgba(232,85,62,0.07)")
+    .attr("fill", "rgba(79,124,255,0.07)")
     .attr("filter", "url(#glow-focal)");
 
   // Mid glow ring
   node.append("circle")
     .attr("r", d => nodeRadius(d, degreeMap) + (d.id === focusId ? 7 : 4))
-    .attr("fill", d => d.id === focusId ? "rgba(232,85,62,0.18)" : `${nodeFill(d)}22`)
+    .attr("fill", d => d.id === focusId ? "rgba(79,124,255,0.18)" : `${nodeFill(d)}22`)
     .attr("filter", "url(#glow)")
     .attr("class", d => d.id === focusId ? "focal-pulse" : "node-pulse");
 
@@ -1028,7 +1028,7 @@ function renderGraph() {
     .attr("class", "node-circle")
     .attr("r", d => nodeRadius(d, degreeMap))
     .attr("fill", d => d.id === focusId ? "url(#grad-focal)" : `url(#grad-${nodeFill(d).replace("#", "")})`)
-    .attr("stroke", d => d.id === focusId ? "#f9a88e" : `${nodeFill(d)}99`)
+    .attr("stroke", d => d.id === focusId ? "#a8c0ff" : `${nodeFill(d)}99`)
     .attr("stroke-width", d => d.id === focusId ? 1.5 : 0.8)
     .attr("filter", d => d.id === focusId ? "url(#glow-focal)" : "url(#glow)")
     .attr("class", d => `node-circle ${d.id === focusId ? "focal-pulse" : "node-pulse"}`);
@@ -1066,7 +1066,7 @@ function renderGraph() {
       label.attr("opacity", n => (n.id === d.id || neighborIds.has(n.id)) ? 1 : 0.08);
       link
         .attr("stroke", e => (eid(e.source) === d.id || eid(e.target) === d.id)
-          ? "rgba(232,100,62,0.75)" : "rgba(200,120,80,0.05)")
+          ? "rgba(79,124,255,0.75)" : "rgba(100,140,255,0.05)")
         .attr("stroke-width", e => (eid(e.source) === d.id || eid(e.target) === d.id)
           ? filters.linkThickness * 2 : filters.linkThickness * 0.4);
 
@@ -1098,7 +1098,7 @@ function renderGraph() {
       node.selectAll(".node-circle").attr("opacity", 1);
       label.attr("opacity", d => d.id === focusId ? 1 : 0.8);
       link
-        .attr("stroke", "rgba(200,120,80,0.22)")
+        .attr("stroke", "rgba(100,140,255,0.22)")
         .attr("stroke-width", filters.linkThickness);
       tooltip.classList.remove("show");
     })
@@ -1367,13 +1367,13 @@ window.addEventListener("resize", () => { if (focusId) renderGraph(); });
   resize();
   window.addEventListener("resize", resize);
 
-  // Nebula blobs — warm red-orange-amber palette matching EDGE Note's Bear theme
+  // Nebula blobs — cool blue-indigo palette matching EDGE Note's blue accent
   const blobs = [
-    { x: 0.2, y: 0.3, vx: 0.00006, vy: 0.00004, r: 0.32, hue: 14,  sat: 65, lit: 12 },  // red-orange
-    { x: 0.7, y: 0.2, vx: -0.00005, vy: 0.00007, r: 0.28, hue: 38,  sat: 55, lit: 10 },  // amber
-    { x: 0.5, y: 0.7, vx: 0.00004, vy: -0.00005, r: 0.35, hue: 22,  sat: 50, lit: 11 },  // warm orange
-    { x: 0.15, y: 0.75, vx: 0.00007, vy: 0.00003, r: 0.22, hue: 140, sat: 35, lit: 9  },  // muted green accent
-    { x: 0.82, y: 0.6, vx: -0.00004, vy: -0.00006, r: 0.26, hue: 6,  sat: 45, lit: 8  },  // deep red
+    { x: 0.2, y: 0.3, vx: 0.00006, vy: 0.00004, r: 0.32, hue: 224, sat: 65, lit: 12 },  // blue
+    { x: 0.7, y: 0.2, vx: -0.00005, vy: 0.00007, r: 0.28, hue: 210, sat: 55, lit: 10 },  // light blue
+    { x: 0.5, y: 0.7, vx: 0.00004, vy: -0.00005, r: 0.35, hue: 238, sat: 50, lit: 11 },  // indigo-blue
+    { x: 0.15, y: 0.75, vx: 0.00007, vy: 0.00003, r: 0.22, hue: 150, sat: 30, lit: 9  },  // muted green accent
+    { x: 0.82, y: 0.6, vx: -0.00004, vy: -0.00006, r: 0.26, hue: 195, sat: 40, lit: 8  }, // cyan-blue
   ];
 
   // Tiny star field
@@ -1460,7 +1460,7 @@ window.addEventListener("resize", () => { if (focusId) renderGraph(); });
           speed: 0.0008 + Math.random() * 0.0012,
           size:  1.2 + Math.random() * 1.0,
           alpha: 0.4 + Math.random() * 0.4,
-          hue:   10 + Math.random() * 35    // red-orange to amber range
+          hue:   210 + Math.random() * 40   // blue to indigo range
         });
       }
     }
