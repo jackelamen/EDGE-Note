@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-192.png">
     <link rel="apple-touch-icon" href="/edge-note-icon-512.png">
     <meta name="theme-color" content="#27272a">
-    <link rel="stylesheet" href="/styles.v96.css">
+    <link rel="stylesheet" href="/styles.v97.css">
   </head>
   <body>
 
@@ -466,12 +466,13 @@
                 <option value="">No notebook</option>
               </select>
             </label>
-            <label class="meta-pill">
+            <label class="meta-pill" data-tag-pill>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg>
               <span class="sr-only">Tags</span>
-              <input type="text" placeholder="Add tags…" data-note-tags list="known-tags">
+              <input type="text" placeholder="Add tags…" data-note-tags autocomplete="off">
               <datalist id="known-tags" data-tags-list></datalist>
             </label>
+            <div class="tag-dropdown" hidden data-tag-dropdown></div>
             <span class="meta-saved" data-note-meta>Not saved yet</span>
           </div>
 
@@ -620,7 +621,7 @@
       </nav>
     </main>
 
-    <script src="/app.v107.js" type="module"></script>
+    <script src="/app.v108.js" type="module"></script>
     <script>
       // Pass current note ID to graph view when clicking the Graph nav link
       document.querySelectorAll('a[href="/graph.html"], [data-graph-link]').forEach(function(link) {
