@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="en-title en-desc">
   <title id="en-title">EDGE Note</title>
-  <desc id="en-desc">EDGE Note app icon: a single bold E monogram in cream on a dark charcoal squircle, the three arms reading as lines of text, with a red accent middle bar.</desc>
+  <desc id="en-desc">EDGE Note maskable app icon: full-bleed dark charcoal background with a centered cream E monogram and red accent middle bar, kept inside the maskable safe zone.</desc>
 
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
@@ -12,12 +12,11 @@
     </filter>
   </defs>
 
-  <!-- Dark charcoal tile -->
-  <rect width="1024" height="1024" rx="230" fill="url(#tile)"/>
+  <!-- Full-bleed dark charcoal background (no rounded corners: the OS mask supplies the shape) -->
+  <rect width="1024" height="1024" fill="url(#tile)"/>
 
   <g filter="url(#lift)">
-    <!-- E monogram: spine + top arm + bottom arm as one seamless cream shape.
-         Outer corners rounded (r=26), inner corners crisp. -->
+    <!-- E monogram: spine + top arm + bottom arm as one seamless cream shape. -->
     <path fill="#f7f6f3" d="
       M380 300
       L644 300
