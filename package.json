@@ -12,7 +12,7 @@
     "mysql2": "^3.11.5"
   },
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node --env-file=.env src/server.js",
     "dev": "EDGE_NOTE_ENV=development node src/server.js",
     "check": "for file in src/*.js public/*.js scripts/*.js; do node --check \"$file\"; done",
     "verify": "npm run check && node scripts/verify-setup.js",
