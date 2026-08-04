@@ -223,14 +223,34 @@ export async function findRelatedNotes({ userId, noteId, limit = 6 }) {
   ).then((rows) => rows.map(mapNote));
 }
 
-export async function createNote({ userId, input }) {
+export async function findNoteBySyncClientId({ userId, syncClientId }) {
+  if (!syncClientId) return null;
+  const rows = await query(
+    `${listSelect}
+     WHERE n.user_id = :userId
+       AND n.sync_client_id = :syncClientId
+     LIMIT 1`,
+    { userId, syncClientId }
+  );
+  return rows[0] ? mapNote(rows[0]) : null;
+}
+
+export async function createNote({ userId, input, syncClientId = null }) {
   const params = noteParams(userId, input);
+
+  if (syncClientId) {
+    const existing = await findNoteBySyncClientId({ userId, syncClientId });
+    if (existing) {
+      return existing;
+    }
+  }
+
   const result = await query(
     `INSERT INTO notes
-       (user_id, notebook_id, title, body, body_format, favorite, sync_version)
+       (user_id, notebook_id, title, body, body_format, favorite, sync_version, sync_client_id)
      VALUES
-       (:userId, :notebookId, :title, :body, :bodyFormat, :favorite, 1)`,
-    params
+       (:userId, :notebookId, :title, :body, :bodyFormat, :favorite, 1, :syncClientId)`,
+    { ...params, syncClientId }
   );
 
   if (params.tags.length) {

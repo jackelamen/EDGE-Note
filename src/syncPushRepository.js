@@ -30,7 +30,17 @@ function validateChange(change) {
 
 async function applyNoteChange({ userId, change }) {
   if (change.action === "create") {
-    const note = await createNote({ userId, input: change.data });
+    // Idempotency guard: if this exact queued change (identified by the
+    // client-generated clientId) was already applied on a previous retry,
+    // return that existing note instead of inserting a duplicate. This is
+    // what was creating repeated "Untitled note" copies whenever the
+    // client retried a create after a slow response, a timeout, or a
+    // server outage without ever getting a clean "applied" result back.
+    const note = await createNote({
+      userId,
+      input: change.data,
+      syncClientId: change.clientId
+    });
     return { status: "applied", note };
   }
 
