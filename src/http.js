@@ -1,9 +1,9 @@
 const maxJsonBytes = 1024 * 1024;
 
-export const securityHeaders = {
-  "content-security-policy": [
+export function contentSecurityPolicy({ extraScriptSrc = [] } = {}) {
+  return [
     "default-src 'self'",
-    "script-src 'self'",
+    ["script-src 'self'", ...extraScriptSrc].join(" "),
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "connect-src 'self'",
@@ -12,7 +12,11 @@ export const securityHeaders = {
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'"
-  ].join("; "),
+  ].join("; ");
+}
+
+export const securityHeaders = {
+  "content-security-policy": contentSecurityPolicy(),
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
   "referrer-policy": "same-origin",
@@ -36,10 +40,25 @@ export function sendJson(res, status, payload) {
   res.end(body);
 }
 
+// Node rejects header values containing characters above U+00FF, so a raw
+// non-ASCII filename (Korean, emoji, ...) makes writeHead throw. Send an ASCII
+// fallback in filename= and the exact name in RFC 5987 filename*=.
+export function contentDisposition(type, filename) {
+  const name = String(filename || "download");
+  const fallback = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7e]/g, "_")
+    .replace(/["\\]/g, "_") || "download";
+  const encoded = encodeURIComponent(name)
+    .replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `${type}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
+
 export function sendDownload(res, status, { filename, contentType, body }) {
   res.writeHead(status, withSecurityHeaders({
     "content-type": contentType,
-    "content-disposition": `attachment; filename="${filename}"`,
+    "content-disposition": contentDisposition("attachment", filename),
     "cache-control": "no-store"
   }));
   res.end(body);
@@ -142,17 +161,23 @@ export async function readMultipart(req, { limitBytes }) {
 }
 
 export async function readJson(req) {
-  let body = "";
+  // Collect raw bytes and decode once. Decoding chunk by chunk splits
+  // multi-byte UTF-8 characters that straddle a chunk boundary into U+FFFD,
+  // which silently corrupted larger notes containing non-ASCII text.
+  const chunks = [];
+  let size = 0;
 
   for await (const chunk of req) {
-    body += chunk;
-    if (Buffer.byteLength(body) > maxJsonBytes) {
+    size += chunk.length;
+    if (size > maxJsonBytes) {
       const error = new Error("JSON request body is too large.");
       error.status = 413;
       throw error;
     }
+    chunks.push(chunk);
   }
 
+  const body = Buffer.concat(chunks).toString("utf8");
   if (!body.trim()) {
     return {};
   }

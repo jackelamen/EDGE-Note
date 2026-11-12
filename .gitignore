@@ -1,5 +1,7 @@
 node_modules/
-.env
+# Any env file variant (.env, .env 2, .env.production, ...) except the example.
+.env*
+!.env.example
 .DS_Store
 uploads/*
 !uploads/.gitkeep

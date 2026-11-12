@@ -15,11 +15,6 @@
 
     <!-- Lucide icon sprite — loaded once, referenced via <use> throughout -->
     <div hidden aria-hidden="true" id="lucide-sprite-container"></div>
-    <script>
-      fetch('/lucide-sprite.svg').then(r=>r.text()).then(t=>{
-        document.getElementById('lucide-sprite-container').innerHTML=t;
-      });
-    </script>
 
     <!-- Auth screen -->
     <section class="auth-panel" data-auth-panel hidden>
@@ -621,19 +616,6 @@
       </nav>
     </main>
 
-    <script src="/app.v108.js" type="module"></script>
-    <script>
-      // Pass current note ID to graph view when clicking the Graph nav link
-      document.querySelectorAll('a[href="/graph.html"], [data-graph-link]').forEach(function(link) {
-        link.addEventListener("click", function(e) {
-          const selectedId = localStorage.getItem("edge_note_selected_note_v1");
-          sessionStorage.setItem("edge_note_internal_navigation_v1", "1");
-          if (selectedId) {
-            e.preventDefault();
-            window.location.href = "/graph.html?note=" + selectedId;
-          }
-        });
-      });
-    </script>
+    <script src="/app.v109.js" type="module"></script>
   </body>
 </html>

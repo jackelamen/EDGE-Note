@@ -89,15 +89,18 @@ async function checkAuthStatus(baseUrl) {
 }
 
 async function checkDatabaseDiagnostics(baseUrl) {
+  // In production the diagnostics endpoint requires login, because it
+  // reveals the database host, name and user. Unauthenticated callers
+  // (like this smoke test) must be refused.
   const { response, json } = await getJson(baseUrl, "/api/setup/database-diagnostics");
-  if (response.status !== 200 || typeof json?.ok !== "boolean") {
-    fail("/api/setup/database-diagnostics did not return diagnostic state.");
+  if (response.status !== 401) {
+    fail(`/api/setup/database-diagnostics should require login in production (got ${response.status}).`);
   }
-  if (!json?.target?.host || !json?.target?.database || !json?.target?.user) {
-    fail("/api/setup/database-diagnostics is missing database target details.");
+  if (json?.target) {
+    fail("/api/setup/database-diagnostics leaked database target details without login.");
   }
   assertSecurityHeaders(response, "/api/setup/database-diagnostics");
-  pass(`/api/setup/database-diagnostics ${json.ok ? "connected" : "reported an error"}`);
+  pass("/api/setup/database-diagnostics requires login");
 }
 
 async function checkOriginProtection(baseUrl) {

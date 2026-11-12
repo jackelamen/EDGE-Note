@@ -89,6 +89,33 @@ function noteParams(userId, input) {
   };
 }
 
+// Raw user text inside MATCH ... AGAINST (... IN BOOLEAN MODE) is parsed as
+// operators: an "@" (e.g. searching an email address), stray quotes or
+// parentheses make InnoDB raise a syntax error, which surfaced as
+// "Database unavailable". Strip operator characters and prefix-match words.
+export function booleanSearchTerm(term) {
+  return String(term || "")
+    .replace(/[+\-<>()~*"@]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `${word}*`)
+    .join(" ");
+}
+
+const versionSnapshotIntervalMinutes = 5;
+
+async function hasRecentVersion(noteId) {
+  const rows = await query(
+    `SELECT 1 AS recent
+     FROM note_versions
+     WHERE note_id = :noteId
+       AND created_at > (NOW() - INTERVAL ${versionSnapshotIntervalMinutes} MINUTE)
+     LIMIT 1`,
+    { noteId }
+  );
+  return rows.length > 0;
+}
+
 export async function listNotes({
   userId,
   search = "",
@@ -107,7 +134,7 @@ export async function listNotes({
     likeTerm: `%${term}%`,
     notebookId: Number(notebookId) || null,
     tag: cleanTag,
-    booleanTerm: term ? `${term.split(/\s+/).map((word) => `${word}*`).join(" ")}` : ""
+    booleanTerm: booleanSearchTerm(term)
   };
   const where = [
     "n.user_id = :userId",
@@ -241,7 +268,13 @@ export async function createNote({ userId, input, syncClientId = null }) {
   if (syncClientId) {
     const existing = await findNoteBySyncClientId({ userId, syncClientId });
     if (existing) {
-      return existing;
+      // Same draft retried (lost response, offline queue). Don't insert a
+      // duplicate, but do keep the newest content the client sent.
+      if (existing.title === params.title && existing.body === params.body) {
+        return existing;
+      }
+      // updateNote returns null if that note was deleted meanwhile.
+      return (await updateNote({ userId, noteId: existing.id, input })) || existing;
     }
   }
 
@@ -269,22 +302,29 @@ export async function createNote({ userId, input, syncClientId = null }) {
   return note;
 }
 
-export async function updateNote({ userId, noteId, input }) {
+export async function updateNote({ userId, noteId, input, forceVersion = false }) {
   const existing = await getNote({ userId, noteId });
   if (!existing) {
     return null;
   }
 
-  await query(
-    `INSERT INTO note_versions (note_id, title, body, body_format)
-     VALUES (:noteId, :title, :body, :bodyFormat)`,
-    {
-      noteId,
-      title: existing.title,
-      body: existing.body,
-      bodyFormat: existing.bodyFormat
-    }
-  );
+  // Snapshot the previous content, but at most once per editing burst.
+  // Autosave fires every 2.5s; snapshotting each one stored a full copy of
+  // the note body per save and grew note_versions without bound.
+  const contentChanged = (input.title ?? existing.title) !== existing.title
+    || (input.body ?? existing.body) !== existing.body;
+  if (forceVersion || (contentChanged && !(await hasRecentVersion(noteId)))) {
+    await query(
+      `INSERT INTO note_versions (note_id, title, body, body_format)
+       VALUES (:noteId, :title, :body, :bodyFormat)`,
+      {
+        noteId,
+        title: existing.title,
+        body: existing.body,
+        bodyFormat: existing.bodyFormat
+      }
+    );
+  }
 
   const params = noteParams(userId, {
     notebookId: Object.prototype.hasOwnProperty.call(input, "notebookId")
@@ -433,6 +473,7 @@ export async function restoreNoteVersion({ userId, noteId, versionId }) {
   return updateNote({
     userId,
     noteId,
+    forceVersion: true,
     input: {
       notebookId: existing.notebookId,
       title: version.title,

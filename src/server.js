@@ -1,11 +1,11 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { extname, join, normalize, relative } from "node:path";
+import { basename, extname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleApi } from "./api.js";
 import { config } from "./config.js";
-import { sendJson, withSecurityHeaders } from "./http.js";
+import { contentSecurityPolicy, sendJson, withSecurityHeaders } from "./http.js";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const publicDir = join(rootDir, "public");
@@ -34,12 +34,28 @@ function safePublicPath(pathname) {
 }
 
 async function serveStatic(req, res, url) {
-  const filePath = safePublicPath(url.pathname);
+  let filePath;
+  try {
+    filePath = safePublicPath(url.pathname);
+  } catch {
+    // Malformed %-encoding in the path (decodeURIComponent throws).
+    res.writeHead(400, withSecurityHeaders({ "content-type": "text/plain; charset=utf-8" }));
+    res.end("Bad request");
+    return;
+  }
   const type = contentTypes[extname(filePath)] || "application/octet-stream";
 
   try {
-    await readFile(filePath, { flag: "r" });
+    // stat instead of reading the whole file just to test that it exists.
+    const info = await stat(filePath);
+    if (!info.isFile()) throw new Error("Not a file");
+    // Only the graph page may load d3 from the CDN; everything else keeps
+    // the strict script-src 'self'.
+    const pageHeaders = basename(filePath) === "graph.html"
+      ? { "content-security-policy": contentSecurityPolicy({ extraScriptSrc: ["https://cdn.jsdelivr.net"] }) }
+      : {};
     res.writeHead(200, withSecurityHeaders({
+      ...pageHeaders,
       "content-type": type,
       "cache-control": "no-store, no-cache, must-revalidate",
       "pragma": "no-cache",

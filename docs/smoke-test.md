@@ -32,7 +32,7 @@ It checks:
 1. `GET /api/health` returns `ok: true`.
 2. `GET /api/config` returns attachment limit, sync mode, and AI state.
 3. `GET /api/auth/status` returns either setup required or authenticated state.
-4. `GET /api/setup/database-diagnostics` can reach the configured database and reports target details without the password.
+4. `GET /api/setup/database-diagnostics` returns 401 without login in production (it reports database target details, so it is only public in development).
 5. Security headers are present on public JSON responses.
 6. A cross-origin write request is rejected in production.
 

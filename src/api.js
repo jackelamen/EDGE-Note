@@ -29,7 +29,7 @@ import {
   replaceAttachment,
   saveAttachment
 } from "./attachmentsRepository.js";
-import { readJson, readMultipart, requireMethod, sendDownload, sendJson, withSecurityHeaders } from "./http.js";
+import { contentDisposition, readJson, readMultipart, requireMethod, sendDownload, sendJson, withSecurityHeaders } from "./http.js";
 import { createNotebook, deleteNotebook, listNotebooks, renameNotebook, updateNotebook } from "./notebooksRepository.js";
 import {
   createNote,
@@ -198,9 +198,13 @@ export async function handleApi(req, res, url) {
     return true;
   }
 
-  if (url.pathname === "/api/setup/database-diagnostics") {
-    requireMethod(req, ["GET"]);
-    sendJson(res, 200, await databaseDiagnostics());
+  // Diagnostics reveal the DB host, database name and MySQL user. Allow them
+  // without login only outside production (first-time local setup).
+  if (url.pathname === "/api/setup/database-diagnostics" && config.env !== "production") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await databaseDiagnostics());
+    });
     return true;
   }
 
@@ -216,7 +220,7 @@ export async function handleApi(req, res, url) {
     await safelyAuth(req, res, async () => {
       requireMethod(req, ["POST"]);
       const userId = await setupOwnerPassword(await readJson(req));
-      setSessionCookie(res, userId);
+      await setSessionCookie(res, userId);
       sendJson(res, 201, { authenticated: true });
     });
     return true;
@@ -226,7 +230,7 @@ export async function handleApi(req, res, url) {
     await safelyAuth(req, res, async () => {
       requireMethod(req, ["POST"]);
       const userId = await loginOwner(await readJson(req));
-      setSessionCookie(res, userId);
+      await setSessionCookie(res, userId);
       sendJson(res, 200, { authenticated: true });
     });
     return true;
@@ -256,6 +260,14 @@ export async function handleApi(req, res, url) {
     return true;
   }
   const userId = authUser.id;
+
+  if (url.pathname === "/api/setup/database-diagnostics") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      sendJson(res, 200, await databaseDiagnostics());
+    });
+    return true;
+  }
 
   if (url.pathname === "/api/auth/change-password") {
     await safelyAuth(req, res, async () => {
@@ -545,7 +557,7 @@ export async function handleApi(req, res, url) {
       const isInlineImage = String(attachment.mimeType || "").startsWith("image/");
       res.writeHead(200, withSecurityHeaders({
         "content-type": attachment.mimeType,
-        "content-disposition": `${isInlineImage ? "inline" : "attachment"}; filename="${attachment.filename}"`,
+        "content-disposition": contentDisposition(isInlineImage ? "inline" : "attachment", attachment.filename),
         "content-length": attachment.sizeBytes,
         "cache-control": "private, max-age=300"
       }));
@@ -701,10 +713,13 @@ export async function handleApi(req, res, url) {
       }
 
       requireMethod(req, ["POST"]);
-      const note = await createNote({
-        userId,
-        input: await readJson(req)
-      });
+      const input = await readJson(req);
+      // The client sends a stable per-draft clientId so a create whose
+      // response was lost is not inserted again by a later retry/queued sync.
+      const syncClientId = typeof input.clientId === "string" && input.clientId.length <= 191
+        ? input.clientId
+        : null;
+      const note = await createNote({ userId, input, syncClientId });
       sendJson(res, 201, { note });
     });
     return true;

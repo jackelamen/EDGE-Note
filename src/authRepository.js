@@ -14,18 +14,47 @@ function parseCookies(req) {
   }).filter(([key]) => key));
 }
 
+const placeholderSecrets = new Set([
+  "",
+  "change-me",
+  "change-this-session-secret",
+  "replace-with-a-long-random-secret"
+]);
+
+function assertSessionSecret() {
+  const secret = config.auth.sessionSecret || "";
+  if (config.env === "production" && (placeholderSecrets.has(secret) || secret.length < 32)) {
+    // Fail closed: with a known/short secret anyone can forge an owner cookie.
+    const error = new Error("Server session secret is not configured. Set EDGE_NOTE_SESSION_SECRET (32+ random characters).");
+    error.status = 503;
+    throw error;
+  }
+}
+
 function sign(value) {
   return createHmac("sha256", config.auth.sessionSecret).update(value).digest("base64url");
 }
 
-function sessionValue({ userId, expiresAt }) {
-  const body = Buffer.from(JSON.stringify({ userId, expiresAt })).toString("base64url");
+function signaturesMatch(expected, actual) {
+  const a = Buffer.from(String(expected));
+  const b = Buffer.from(String(actual));
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// Binds a session to the current password hash: changing the password
+// invalidates every session issued before the change, on every device.
+function passwordVersion(passwordHash) {
+  return sign(`pv:${passwordHash || ""}`).slice(0, 16);
+}
+
+function sessionValue({ userId, expiresAt, pv }) {
+  const body = Buffer.from(JSON.stringify({ userId, expiresAt, pv })).toString("base64url");
   return `${body}.${sign(body)}`;
 }
 
 function verifySession(value) {
   const [body, signature] = String(value || "").split(".");
-  if (!body || !signature || sign(body) !== signature) return null;
+  if (!body || !signature || !signaturesMatch(sign(body), signature)) return null;
 
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
@@ -47,9 +76,11 @@ function cookieOptions({ clear = false } = {}) {
   ].filter(Boolean).join("; ");
 }
 
-export function setSessionCookie(res, userId) {
+export async function setSessionCookie(res, userId) {
+  assertSessionSecret();
+  const owner = await getOwner();
   const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
-  const value = sessionValue({ userId, expiresAt });
+  const value = sessionValue({ userId, expiresAt, pv: passwordVersion(owner?.passwordHash) });
   res.setHeader("set-cookie", cookieOptions().replace("%VALUE%", encodeURIComponent(value)));
 }
 
@@ -84,10 +115,22 @@ async function verifyPassword(password, passwordHash) {
 }
 
 export async function authStatus(req) {
+  assertSessionSecret();
   const owner = await getOwner();
-  const session = verifySession(parseCookies(req)[sessionCookie]);
+  let cookies = {};
+  try {
+    cookies = parseCookies(req);
+  } catch {
+    // Malformed %-encoding in some unrelated cookie: treat as logged out.
+  }
+  const session = verifySession(cookies[sessionCookie]);
   const setupRequired = !owner?.passwordHash;
-  const authenticated = Boolean(owner && session?.userId === owner.id && !setupRequired);
+  const authenticated = Boolean(
+    owner
+    && !setupRequired
+    && session?.userId === owner.id
+    && session.pv === passwordVersion(owner.passwordHash)
+  );
 
   return {
     authenticated,
