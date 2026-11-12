@@ -54,12 +54,21 @@ async function serveStatic(req, res, url) {
     const pageHeaders = basename(filePath) === "graph.html"
       ? { "content-security-policy": contentSecurityPolicy({ extraScriptSrc: ["https://cdn.jsdelivr.net"] }) }
       : {};
+    // Files whose name carries a version (app.v109.js, styles.v97.css,
+    // graph.v1.js) never change in place - a change means a new filename -
+    // so browsers may keep them. Everything else (index.html, manifest,
+    // unversioned assets) stays uncached so updates show up immediately.
+    const versioned = /\.v\d+\.(js|css)$/.test(filePath);
     res.writeHead(200, withSecurityHeaders({
       ...pageHeaders,
       "content-type": type,
-      "cache-control": "no-store, no-cache, must-revalidate",
-      "pragma": "no-cache",
-      "expires": "0"
+      ...(versioned
+        ? { "cache-control": "public, max-age=31536000, immutable" }
+        : {
+          "cache-control": "no-store, no-cache, must-revalidate",
+          "pragma": "no-cache",
+          "expires": "0"
+        })
     }));
     createReadStream(filePath).pipe(res);
   } catch {
