@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="en-title en-desc">
+  <title id="en-title">EDGE Note</title>
+  <desc id="en-desc">EDGE Note app icon: a white E monogram on an ink blue-black squircle with a cobalt middle bar.</desc>
+
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1a2a44"/>
+      <stop offset="1" stop-color="#0b1524"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Dark charcoal tile -->
+  <rect width="1024" height="1024" rx="230" fill="url(#tile)"/>
+
+  <g filter="url(#lift)">
+    <!-- E monogram: spine + top arm + bottom arm as one seamless cream shape.
+         Outer corners rounded (r=26), inner corners crisp. -->
+    <path fill="#ffffff" d="
+      M380 300
+      L644 300
+      A26 26 0 0 1 670 326
+      L670 366
+      A26 26 0 0 1 644 392
+      L446 392
+      L446 632
+      L644 632
+      A26 26 0 0 1 670 658
+      L670 698
+      A26 26 0 0 1 644 724
+      L380 724
+      A26 26 0 0 1 354 698
+      L354 326
+      A26 26 0 0 1 380 300
+      Z"/>
+
+    <!-- Middle arm: red accent. Flush to the spine on the left, rounded right terminal. -->
+    <path fill="#4d74ff" d="
+      M354 466
+      L568 466
+      A22 22 0 0 1 590 488
+      L590 532
+      A22 22 0 0 1 568 554
+      L354 554
+      Z"/>
+  </g>
+</svg>

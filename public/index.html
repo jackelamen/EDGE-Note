@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>EDGE Note</title>
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" type="image/svg+xml" href="/edge-note-mark.v2.svg">
-    <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-192.png">
-    <link rel="apple-touch-icon" href="/edge-note-icon-512.png">
-    <meta name="theme-color" content="#27272a">
+    <link rel="icon" type="image/svg+xml" href="/edge-note-mark.v3.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-v3-192.png">
+    <link rel="apple-touch-icon" href="/edge-note-icon-v3-512.png">
+    <meta name="theme-color" content="#0e1a2b">
     <link rel="preload" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/styles.v99.css">
+    <link rel="stylesheet" href="/styles.v100.css">
   </head>
   <body>
 
@@ -21,7 +21,7 @@
     <section class="auth-panel" data-auth-panel hidden>
       <form class="auth-box" data-auth-form>
         <div class="auth-brand">
-          <img class="brand-mark" src="/edge-note-mark.v2.svg" alt="" aria-hidden="true" width="26" height="26">
+          <img class="brand-mark" src="/edge-note-mark.v3.svg" alt="" aria-hidden="true" width="26" height="26">
           <strong>EDGE Note</strong>
         </div>
         <p class="auth-tagline" data-auth-mode>Sign in to continue</p>
@@ -46,7 +46,7 @@
       <!-- Sidebar -->
       <aside class="sidebar" aria-label="Navigation">
         <div class="sidebar-brand">
-          <img class="brand-mark" src="/edge-note-mark.v2.svg" alt="Toggle sidebar" title="Toggle sidebar" role="button" tabindex="0" width="26" height="26">
+          <img class="brand-mark" src="/edge-note-mark.v3.svg" alt="Toggle sidebar" title="Toggle sidebar" role="button" tabindex="0" width="26" height="26">
           <strong>EDGE Note</strong>
         </div>
 
@@ -219,8 +219,43 @@
         </header>
 
         <div class="home-content">
-          <!-- Scratchpad -->
-          <section class="home-section home-scratchpad-section">
+          <!-- Today: quick capture into the daily note -->
+          <form class="today-capture" data-today-capture autocomplete="off">
+            <label class="sr-only" for="today-capture-input">Capture to today's note</label>
+            <input id="today-capture-input" data-today-capture-input type="text" maxlength="2000" placeholder="Capture a thought, task or idea…">
+            <button type="button" class="today-capture-icon" data-today-task-toggle aria-pressed="false" aria-label="Capture as a task" title="Capture as a task">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/></svg>
+            </button>
+            <button type="button" class="today-capture-icon" data-today-voice aria-label="Dictate to today's note" title="Dictate to today's note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/></svg>
+            </button>
+            <button type="submit" class="today-capture-submit">Add <span aria-hidden="true">↵</span></button>
+          </form>
+          <p class="today-capture-status" data-today-capture-status aria-live="polite"></p>
+
+          <div class="today-grid">
+            <section class="today-panel today-daily" aria-labelledby="today-daily-title">
+              <div class="today-section-head">
+                <div>
+                  <p class="today-eyebrow">Daily note</p>
+                  <h2 id="today-daily-title" data-today-daily-title>Today</h2>
+                </div>
+                <button class="today-link" type="button" data-today-open-daily>Open note</button>
+              </div>
+              <ol class="today-entries" data-today-entries></ol>
+            </section>
+
+            <section class="today-panel today-tasks" aria-labelledby="today-tasks-title">
+              <div class="today-section-head">
+                <h2 id="today-tasks-title">Open tasks</h2>
+                <span class="today-muted">from all notes</span>
+              </div>
+              <ul class="today-task-list" data-today-tasks></ul>
+            </section>
+          </div>
+
+          <!-- Scratchpad (legacy: only shown while it still holds text) -->
+          <section class="home-section home-scratchpad-section" data-scratchpad-section>
             <div class="home-section-header">
               <h2>Scratchpad</h2>
               <button class="home-scratchpad-convert btn-text" type="button" data-action="scratchpad-to-note" title="Convert to note">
@@ -248,7 +283,7 @@
           <!-- Recent notes -->
           <section class="home-section">
             <div class="home-section-header">
-              <h2>Recent notes</h2>
+              <h2>Continue writing</h2>
               <a href="#all-notes" data-view-filter="all" class="home-see-all">See all</a>
             </div>
             <div class="home-cards" data-home-recent></div>
@@ -659,6 +694,6 @@
       <div class="ai-result" data-ai-result aria-live="polite"></div>
     </aside>
 
-    <script src="/app.v111.js" type="module"></script>
+    <script src="/app.v112.js" type="module"></script>
   </body>
 </html>

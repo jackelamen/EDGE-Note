@@ -154,7 +154,8 @@ export async function listNotes({
   }
 
   if (tasks) {
-    where.push("(n.body LIKE '%- [ ]%' OR n.body LIKE '%- [x]%' OR n.body LIKE '%- [X]%')");
+    // Markdown checklists ("- [ ]") and editor checklists (HTML checkboxes).
+    where.push("(n.body LIKE '%- [ ]%' OR n.body LIKE '%- [x]%' OR n.body LIKE '%- [X]%' OR n.body LIKE '%type=\"checkbox\"%')");
   }
 
   if (archived === "only") {
