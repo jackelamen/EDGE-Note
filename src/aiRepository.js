@@ -7,6 +7,25 @@ import { findRelatedNotes, getNote, searchNotesByTerms } from "./notesRepository
 // the note's own language (EDGE Note is used in English and Korean).
 const sameLanguage = "Write in the same language as the note (Korean notes get Korean output).";
 
+// House style for everything shown in the app: no em dashes.
+const styleRule = "Never use em dashes; use commas, colons or periods instead.";
+
+// Backstop for the style rule: models still slip, and older cached answers
+// predate it. Applied to every AI output (strings, arrays, objects).
+export function withoutEmDashes(value) {
+  if (typeof value === "string") {
+    return value
+      .replace(/(\S)\s*\u2014\s*(\S)/g, "$1, $2")
+      .replace(/\s*\u2014\s*/g, " ")
+      .trim();
+  }
+  if (Array.isArray(value)) return value.map(withoutEmDashes);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withoutEmDashes(item)]));
+  }
+  return value;
+}
+
 const actions = {
   summarize: {
     label: "summarize",
@@ -115,7 +134,7 @@ async function getCachedOutput({ noteId, outputType, modelName, inputChecksum })
     if (!row) return null;
     // MySQL returns a JSON column parsed; MariaDB (JSON = LONGTEXT) returns text.
     const outputJson = typeof row.outputJson === "string" ? JSON.parse(row.outputJson) : row.outputJson;
-    return { ...row, outputJson };
+    return { ...row, outputJson: withoutEmDashes(outputJson) };
   } catch (error) {
     logCacheProblem("read", error);
     return null;
@@ -260,7 +279,7 @@ async function postAiChat(body) {
     error.status = 502;
     throw error;
   }
-  return parseJsonContent(content);
+  return withoutEmDashes(parseJsonContent(content));
 }
 
 async function callAiEndpoint({ action, note, question = "" }) {
@@ -269,7 +288,7 @@ async function callAiEndpoint({ action, note, question = "" }) {
     messages: [
       {
         role: "system",
-        content: "You are EDGE Note's private notes assistant. Follow the requested JSON shape exactly. Return compact valid JSON only."
+        content: `You are EDGE Note's private notes assistant. Follow the requested JSON shape exactly. ${styleRule} Return compact valid JSON only.`
       },
       {
         role: "user",
@@ -452,7 +471,7 @@ export async function askAllNotes({ userId, question }) {
     messages: [
       {
         role: "system",
-        content: "You are EDGE Note's private notes assistant. Answer only from the notes provided. Return compact valid JSON only."
+        content: `You are EDGE Note's private notes assistant. Answer only from the notes provided. ${styleRule} Return compact valid JSON only.`
       },
       {
         role: "user",
@@ -524,5 +543,5 @@ export async function transcribeAudio({ file }) {
   }
 
   const payload = await response.json();
-  return { text: String(payload.text || "").trim(), modelName: config.ai.transcribeModel };
+  return { text: withoutEmDashes(String(payload.text || "").trim()), modelName: config.ai.transcribeModel };
 }
