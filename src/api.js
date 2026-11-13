@@ -696,6 +696,7 @@ export async function handleApi(req, res, url) {
         title: n.title || "Untitled",
         notebook: n.notebookName || "",
         tags: Array.isArray(n.tags) ? n.tags.map(t => t.trim()).filter(Boolean) : [],
+        snippet: graphSnippet(n.body),
         updatedAt: n.updatedAt
       }));
 
@@ -807,4 +808,17 @@ export async function handleApi(req, res, url) {
   }
 
   return false;
+}
+
+// Plain-text preview for the graph's hover card (the client escapes it).
+function graphSnippet(body) {
+  return String(body || "")
+    .replace(/<(br|\/p|\/li|\/h[1-6]|\/div)[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
 }

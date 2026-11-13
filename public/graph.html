@@ -8,610 +8,343 @@
   <link rel="icon" type="image/svg+xml" href="/edge-note-mark.v3.svg">
   <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-v3-192.png">
   <link rel="apple-touch-icon" href="/edge-note-icon-v3-512.png">
-  <meta name="theme-color" content="#0e1a2b">
+  <link rel="preload" href="/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="theme-color" content="#0b1524">
   <style>
+    @font-face {
+      font-family: "Schibsted Grotesk"; font-style: normal; font-display: swap; font-weight: 400 900;
+      src: url("/fonts/schibsted-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    @font-face {
+      font-family: "Newsreader"; font-style: normal; font-display: swap; font-weight: 200 800;
+      src: url("/fonts/newsreader-latin-opsz-normal.woff2") format("woff2-variations");
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      /* Pulled directly from EDGE Note's design tokens */
-      --bg:          #1e1e21;          /* slightly lighter than sb-bg for depth */
-      --surface:     #27272a;          /* sb-bg — same as sidebar */
-      --surface2:    #2f2f33;          /* sb-surface */
-      --border:      #3a3a3f;          /* sb-line */
-      --text:        #e0e0e0;          /* sb-ink */
-      --text-dim:    #a0a0a8;          /* sb-ink-2 */
-      --accent:      #4f7cff;          /* EDGE Note complementary blue */
-      --accent-glow: rgba(79,124,255,0.18);
-      --accent-hover:#3b63e0;
-      --green:       #2a9d5c;
-      --gold:        #b7860b;
+      --stage:      #0b1524;
+      --field:      #0e1a2b;
+      --glass:      #121f36;
+      --glass-2:    #1b2b46;
+      --line:       rgba(255,255,255,.08);
+      --text:       #e9edf5;
+      --text-2:     #c9d1de;
+      --text-dim:   #a3aec0;
+      --accent:     #4d74ff;
+      --accent-ink: #7d99ff;
+      --serif: "Newsreader", "AppleMyungjo", "Noto Serif KR", "Nanum Myeongjo", Georgia, serif;
+      --sans:  "Schibsted Grotesk", "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --dock-w: 96px;
+      --head-h: 116px;
     }
 
-    html, body { height: 100%; background: #1a1a1d; color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      overflow: hidden; }
-
-    /* ── Nebula backdrop canvas ── */
-    #nebula-canvas {
-      position: fixed; top: 48px; left: 0; right: 0; bottom: 0;
-      pointer-events: none; z-index: 0;
-    }
-
-    /* ── Particle overlay canvas ── */
-    #particle-canvas {
-      position: fixed; top: 48px; left: 0; right: 0; bottom: 0;
-      pointer-events: none; z-index: 2;
-    }
-
-    /* ── SVG sits between the two canvases ── */
-    #graph-canvas { z-index: 1; }
-
-    /* ── Node breathing pulse ── */
-    @keyframes node-breathe {
-      0%, 100% { opacity: 0.85; transform: scale(1); }
-      50%       { opacity: 1;    transform: scale(1.12); }
-    }
-    @keyframes focal-breathe {
-      0%, 100% { opacity: 0.7;  transform: scale(1); }
-      50%       { opacity: 1;   transform: scale(1.18); }
-    }
-    @keyframes ripple-out {
-      0%   { r: 0;  opacity: 0.6; }
-      100% { r: 60; opacity: 0; }
-    }
-    .node-pulse { animation: node-breathe 3s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
-    .focal-pulse { animation: focal-breathe 2.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
-    .ripple { animation: ripple-out 2.8s ease-out infinite; }
-    .ripple2 { animation: ripple-out 2.8s ease-out 0.9s infinite; }
-    .ripple3 { animation: ripple-out 2.8s ease-out 1.8s infinite; }
-
-    /* ── Top bar ── */
-    .topbar {
-      position: fixed; top: 0; left: 0; right: 0; height: 48px;
-      background: var(--surface); border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px; padding: 0 14px; z-index: 100;
-    }
-    .topbar-brand { display: flex; align-items: center; gap: 7px;
-      text-decoration: none; color: var(--text); font-weight: 600; font-size: 14px; }
-    .topbar-brand img { width: 20px; height: 20px; }
-    .topbar-sep { width: 1px; height: 18px; background: var(--border); }
-    .topbar-title { font-size: 12px; color: var(--text-dim); flex: 1;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .topbar-title strong { color: var(--text); font-weight: 500; }
-
-    .btn-topbar {
-      display: flex; align-items: center; gap: 5px; padding: 5px 10px;
-      border-radius: 5px; border: 1px solid var(--border); background: transparent;
-      color: var(--text-dim); font-size: 12px; cursor: pointer; transition: all 0.15s;
-      text-decoration: none; white-space: nowrap;
-    }
-    .btn-topbar:hover { background: var(--surface2); color: var(--text); }
-    .btn-topbar.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
-    .btn-mobile-menu { display: none; }
-    #mobile-graph-menu { display: none; }
-
-    /* ── Canvas ── */
-    #graph-canvas {
-      position: fixed;
-      top: 48px;
-      left: 0;
-      width: 100vw;
-      height: calc(100vh - 48px);
-      display: block;
+    html, body {
+      height: 100%;
+      background: var(--stage);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
       overflow: hidden;
-      touch-action: none;
     }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+    :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 
-    /* ── Filter panel (left) ── */
+    /* ── Dock ── */
+    .dock {
+      position: fixed; top: 40px; left: 18px; z-index: 120;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      width: 62px; padding: 12px 8px;
+      background: var(--glass); border: 1px solid var(--line); border-radius: 22px;
+      box-shadow: 0 30px 60px -30px rgba(0,0,0,.75);
+    }
+    .dock-brand { display: grid; place-items: center; margin-bottom: 6px; }
+    .dock-brand img { width: 34px; height: 34px; border-radius: 10px; }
+    .dock-btn {
+      position: relative; display: grid; place-items: center;
+      width: 44px; height: 44px; border-radius: 14px; color: var(--text-dim);
+      transition: background .14s, color .14s;
+    }
+    .dock-btn:hover { background: rgba(255,255,255,.07); color: #fff; }
+    .dock-btn.active, .dock-btn[aria-current="page"] { background: rgba(255,255,255,.1); color: #fff; }
+    .dock-btn[aria-current="page"]::before {
+      content: ""; position: absolute; left: -8px; top: 14px;
+      width: 3px; height: 16px; border-radius: 2px; background: var(--accent);
+    }
+    .dock-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .dock-sep { width: 24px; height: 1px; margin: 4px 0; background: var(--line); }
+    .dock-btn::after {
+      content: attr(data-label); position: absolute; left: calc(100% + 12px); top: 50%;
+      transform: translateY(-50%); padding: 4px 8px; border-radius: 8px;
+      background: var(--glass-2); color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap;
+      pointer-events: none; opacity: 0; transition: opacity .14s;
+    }
+    .dock-btn:hover::after, .dock-btn:focus-visible::after { opacity: 1; }
+
+    /* ── Header ── */
+    .graph-head {
+      position: fixed; top: 0; left: var(--dock-w); right: 24px; height: var(--head-h); z-index: 100;
+      display: flex; flex-wrap: nowrap; align-items: flex-end; justify-content: space-between;
+      gap: 10px 24px; padding: 0 0 18px 8px;
+    }
+    .graph-head-text { min-width: 0; flex: 1 1 auto; }
+    .graph-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .09em; color: var(--text-dim); }
+    .graph-title {
+      margin-top: 4px;
+      font-family: var(--serif); font-size: 40px; font-weight: 500; letter-spacing: -.02em; line-height: 1.05;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .graph-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 46%; max-height: 72px; overflow: hidden; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--text-2);
+    }
+    .chip-solid { background: rgba(255,255,255,.1); border-color: transparent; color: var(--text); }
+    .chip-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+
+    /* ── Field ── */
+    .field {
+      position: fixed; top: var(--head-h); left: var(--dock-w); right: 24px; bottom: 24px;
+      background: var(--field); border: 1px solid rgba(255,255,255,.06); border-radius: 22px;
+      overflow: hidden;
+    }
+    #graph-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+    #graph-stats { position: absolute; left: 18px; bottom: 14px; font-size: 12px; color: var(--text-dim); pointer-events: none; }
+
+    .node-label { font-family: var(--sans); paint-order: stroke; stroke: var(--field); stroke-width: 4px; stroke-linejoin: round; }
+    .node-label.is-focal { font-family: var(--serif); }
+    @keyframes halo { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }
+    .focal-halo { animation: halo 3.2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .focal-halo { animation: none; } }
+
+    /* ── Note card (hover preview, click to pin) ── */
+    #note-card {
+      position: absolute; right: 20px; bottom: 20px; z-index: 20;
+      width: 300px; max-height: calc(100% - 40px); overflow-y: auto;
+      padding: 16px;
+      background: rgba(18,31,54,.94); border: 1px solid var(--line); border-radius: 16px;
+      box-shadow: 0 20px 50px -20px rgba(0,0,0,.75);
+      opacity: 0; transform: translateY(8px); pointer-events: none;
+      transition: opacity .16s, transform .16s;
+    }
+    #note-card.show { opacity: 1; transform: none; pointer-events: auto; }
+    .nc-title { display: flex; align-items: baseline; gap: 8px; font-family: var(--serif); font-size: 19px; font-weight: 500; line-height: 1.2; }
+    .nc-title .chip-dot { transform: translateY(-2px); }
+    .nc-meta { margin-top: 4px; font-size: 12px; color: var(--text-dim); }
+    .nc-snippet { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-dim); }
+    .nc-snippet:empty { display: none; }
+    .nc-conns { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .nc-conns:empty { display: none; }
+    .nc-conns-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--text-dim); margin-bottom: 4px; }
+    .nc-conn {
+      display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 0; text-align: left;
+      font-size: 13px; color: var(--text-2);
+    }
+    .nc-conn:hover { color: #fff; }
+    .nc-conn span:nth-child(2) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nc-conn small { color: var(--text-dim); font-size: 11px; }
+    .nc-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .nc-open {
+      display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 10px;
+      background: #fff; color: #0e1a2b; font-size: 13.5px; font-weight: 600;
+    }
+    .nc-open:hover { background: #e9edf5; }
+    .nc-focus {
+      display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 10px;
+      border: 1px solid var(--line); font-size: 13px; color: var(--text-2);
+    }
+    .nc-focus:hover { background: rgba(255,255,255,.07); color: #fff; }
+    .nc-hint { margin-top: 10px; font-size: 11px; color: var(--text-dim); }
+
+    /* ── Filter drawer ── */
     #filter-panel {
-      position: fixed; top: 48px; left: 0; bottom: 0; width: 260px;
-      background: var(--surface); border-right: 1px solid var(--border);
-      overflow-y: auto; z-index: 90; transform: translateX(-100%);
-      transition: transform 0.22s ease;
+      position: absolute; top: 12px; left: 12px; bottom: 12px; z-index: 30; width: 268px;
+      background: var(--glass); border: 1px solid var(--line); border-radius: 18px;
+      box-shadow: 0 30px 60px -30px rgba(0,0,0,.8);
+      overflow-y: auto;
+      opacity: 0; transform: translateX(-12px); pointer-events: none;
+      transition: opacity .18s, transform .18s;
     }
-    #filter-panel.open { transform: translateX(0); }
-
-    .fp-section {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    .fp-section-label {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--text-dim); margin-bottom: 10px; display: flex;
-      align-items: center; justify-content: space-between;
-    }
-    .fp-row {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px; gap: 8px;
-    }
+    #filter-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+    .fp-section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .fp-section:last-child { border-bottom: 0; }
+    .fp-section-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--text-dim); margin-bottom: 12px; }
+    .fp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
     .fp-row:last-child { margin-bottom: 0; }
-    .fp-label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
-
-    .fp-slider-wrap { display: flex; align-items: center; gap: 6px; }
-    .fp-slider {
-      -webkit-appearance: none; appearance: none; height: 3px;
-      background: var(--border); border-radius: 2px; outline: none;
-      cursor: pointer; width: 100px;
-    }
-    .fp-slider::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
-      background: var(--accent); border-radius: 50%; cursor: pointer;
-    }
-    .fp-slider-val { font-size: 12px; color: var(--text); min-width: 20px; text-align: right; }
-
-    .fp-toggle {
-      position: relative; width: 32px; height: 18px; flex-shrink: 0;
-    }
-    .fp-toggle input { opacity: 0; width: 0; height: 0; }
-    .fp-toggle-track {
-      position: absolute; inset: 0; background: var(--border); border-radius: 10px;
-      cursor: pointer; transition: background 0.2s;
-    }
+    .fp-label { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+    .fp-slider-wrap { display: flex; align-items: center; gap: 8px; }
+    .fp-slider { width: 100px; accent-color: var(--accent); cursor: pointer; }
+    .fp-slider-val { min-width: 26px; text-align: right; font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+    .fp-toggle { position: relative; width: 34px; height: 20px; flex: 0 0 auto; }
+    .fp-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+    .fp-toggle-track { position: absolute; inset: 0; border-radius: 10px; background: rgba(255,255,255,.14); transition: background .2s; }
     .fp-toggle input:checked + .fp-toggle-track { background: var(--accent); }
+    .fp-toggle input:focus-visible + .fp-toggle-track { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
     .fp-toggle-track::after {
-      content: ""; position: absolute; top: 2px; left: 2px;
-      width: 14px; height: 14px; background: #fff; border-radius: 50%;
-      transition: transform 0.2s;
+      content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+      border-radius: 50%; background: #fff; transition: transform .2s;
     }
     .fp-toggle input:checked + .fp-toggle-track::after { transform: translateX(14px); }
-
     .fp-search {
-      width: 100%; padding: 6px 10px; border-radius: 5px;
-      background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); font-size: 12px; outline: none;
+      width: 100%; height: 36px; padding: 0 12px; border-radius: 10px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--line);
+      color: var(--text); font: inherit; font-size: 13px; outline: none;
     }
-    .fp-search:focus { border-color: var(--accent); }
+    .fp-search:focus { border-color: var(--accent-ink); }
     .fp-search::placeholder { color: var(--text-dim); }
+    .fp-nb-list { display: flex; flex-direction: column; gap: 8px; }
+    .fp-nb-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+    .fp-nb-item input { accent-color: var(--accent); cursor: pointer; }
+    .fp-empty { font-size: 12px; color: var(--text-dim); }
 
-    .fp-nb-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-    .fp-nb-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .fp-nb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .fp-nb-name { font-size: 12px; color: var(--text-dim); }
-    .fp-nb-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
-
-    /* ── Info panel (right) ── */
-    #info-panel {
-      position: fixed; top: 48px; right: 0; bottom: 0; width: 260px;
-      background: var(--surface); border-left: 1px solid var(--border);
-      transform: translateX(100%); transition: transform 0.22s ease;
-      z-index: 90; display: flex; flex-direction: column; overflow: hidden;
-    }
-    #info-panel.open { transform: translateX(0); }
-
-    .ip-header {
-      padding: 14px 16px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-    }
-    .ip-title { font-weight: 600; font-size: 13px; line-height: 1.4; color: var(--text); }
-    .ip-nb { font-size: 11px; color: var(--accent); margin-top: 3px; }
-    .btn-icon-sm {
-      background: none; border: none; color: var(--text-dim); cursor: pointer;
-      padding: 2px; line-height: 0; flex-shrink: 0;
-    }
-    .btn-icon-sm:hover { color: var(--text); }
-
-    .ip-section { padding: 10px 16px; border-bottom: 1px solid var(--border); }
-    .ip-section-label {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--text-dim); margin-bottom: 7px;
-    }
-    .ip-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-    .ip-tag {
-      background: var(--surface2); border: 1px solid var(--border); border-radius: 3px;
-      padding: 1px 7px; font-size: 11px; color: var(--text-dim);
-    }
-    .ip-conns { flex: 1; overflow-y: auto; padding: 10px 16px; }
-    .ip-conn-item {
-      display: flex; align-items: center; gap: 7px; padding: 6px 0;
-      border-bottom: 1px solid var(--border); cursor: pointer; transition: all 0.1s;
-    }
-    .ip-conn-item:last-child { border-bottom: none; }
-    .ip-conn-item:hover .ip-conn-title { color: var(--accent); }
-    .ip-conn-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: #2a9d5c; }
-    .ip-conn-title { font-size: 12px; color: var(--text); flex: 1;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ip-conn-meta { font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
-
-    .ip-actions { padding: 12px 16px; border-top: 1px solid var(--border); }
-    .btn-open {
-      display: block; width: 100%; padding: 8px; border-radius: 5px;
-      background: var(--accent); color: #fff; font-size: 12px; font-weight: 500;
-      text-align: center; border: none; cursor: pointer; transition: opacity 0.15s;
-    }
-    .btn-open:hover { opacity: 0.85; }
-
-    /* ── Tooltip ── */
-    #tooltip {
-      position: fixed; pointer-events: none;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 7px; padding: 9px 12px; font-size: 12px;
-      max-width: 210px; z-index: 200; opacity: 0; transition: opacity 0.1s;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
-    #tooltip.show { opacity: 1; }
-    .tip-title { font-weight: 600; color: var(--text); margin-bottom: 3px; line-height: 1.3; }
-    .tip-nb { font-size: 10px; color: var(--accent); margin-bottom: 3px; }
-    .tip-tags { font-size: 10px; color: var(--text-dim); }
-    .tip-hint { font-size: 10px; color: var(--text-dim); margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); }
-
-    /* ── Loading ── */
+    /* ── Loading / empty ── */
     #loading {
-      position: fixed; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 12px;
-      background: var(--bg); z-index: 300;
-    }
-    .spinner {
-      width: 32px; height: 32px; border: 3px solid var(--border);
-      border-top-color: var(--accent); border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-label { font-size: 13px; color: var(--text-dim); }
-
-    /* Sits below the centred focal node (it used to print on top of the
-       node's label), and never blocks clicks on the graph. */
-    #empty-state {
-      position: fixed; inset: 0; top: 48px; display: none; flex-direction: column;
-      align-items: center; justify-content: center; gap: 10px;
-      padding-top: 180px;
-      pointer-events: none;
+      position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px; background: var(--stage);
       color: var(--text-dim); font-size: 13px;
     }
-    #empty-state svg { opacity: 0.25; }
-
-    /* ── Mini legend ── */
-    #legend {
-      position: fixed; bottom: 16px; left: 16px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 7px; padding: 9px 12px; font-size: 10px;
-      color: var(--text-dim); line-height: 2; z-index: 90;
-      pointer-events: none;
+    .spinner { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.12); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #empty-state {
+      position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%);
+      display: none; max-width: 320px; text-align: center; font-size: 13px; line-height: 1.5;
+      color: var(--text-dim); pointer-events: none;
     }
-    #legend.fp-open { left: 276px; }
-    .leg-row { display: flex; align-items: center; gap: 7px; }
-    .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .leg-line { width: 16px; height: 2px; flex-shrink: 0; border-radius: 1px; }
 
-    /* ── Node count badge ── */
-    #graph-stats {
-      position: fixed; bottom: 16px; right: 16px; font-size: 10px;
-      color: var(--text-dim); z-index: 90; pointer-events: none;
-    }
-    #graph-stats.ip-open { right: 276px; }
-
+    /* ── Phone ── */
+    .head-actions { display: none; }
     @media (max-width: 700px) {
-      .topbar {
-        height: 52px;
-        gap: 8px;
-        padding: 0 10px;
-      }
-      .topbar-brand {
-        font-size: 0;
-        gap: 0;
-      }
-      .topbar-brand img {
-        width: 24px;
-        height: 24px;
-      }
-      .topbar-sep { display: none; }
-      .topbar-title {
-        font-size: 13px;
-        min-width: 0;
-      }
-      .topbar-title span,
-      .topbar-title strong {
-        display: inline;
-      }
-      .topbar > .btn-topbar {
-        display: none;
-      }
-      .btn-mobile-menu {
-        display: inline-flex;
-        width: 38px;
-        height: 38px;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-        border-radius: 7px;
-        border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text-dim);
-        cursor: pointer;
-      }
-      .btn-mobile-menu.active,
-      .btn-mobile-menu:hover {
-        background: var(--surface2);
-        color: var(--text);
-      }
-      #mobile-graph-menu {
-        position: fixed;
-        top: 58px;
-        right: 10px;
-        z-index: 220;
-        width: min(220px, calc(100vw - 20px));
-        padding: 6px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--surface);
-        box-shadow: 0 14px 34px rgba(0,0,0,0.45);
-      }
-      #mobile-graph-menu.open {
-        display: grid;
-        gap: 4px;
-      }
-      .mobile-menu-item {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        width: 100%;
-        min-height: 42px;
-        padding: 0 10px;
-        border: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: var(--text);
-        font-size: 13px;
-        text-align: left;
-        text-decoration: none;
-        cursor: pointer;
-      }
-      .mobile-menu-item:hover,
-      .mobile-menu-item.active {
-        background: var(--surface2);
-      }
-      #graph-canvas {
-        top: 52px;
-        height: calc(100vh - 52px);
-      }
-      #filter-panel {
-        top: 52px;
-        width: min(340px, 92vw);
-        z-index: 180;
-        box-shadow: 12px 0 30px rgba(0,0,0,0.36);
-      }
-      #info-panel {
-        top: 52px;
-        width: min(360px, 100vw);
-        z-index: 180;
-        box-shadow: -12px 0 30px rgba(0,0,0,0.36);
-      }
-      #legend {
-        left: 10px;
-        bottom: 10px;
-        padding: 7px 9px;
-      }
-      #legend.fp-open { left: 10px; }
-      #graph-stats,
-      #graph-stats.ip-open {
-        right: 10px;
-        bottom: 10px;
-      }
-      #empty-state {
-        top: 52px;
-        padding: 24px;
-        text-align: center;
-      }
-      .fp-section { padding: 16px; }
-      .fp-slider { width: 120px; }
-      .ip-actions {
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
-      }
+      :root { --head-h: 104px; }
+      .dock { display: none; }
+      .graph-head { left: 12px; right: 12px; padding: 0 0 12px; align-items: flex-end; flex-wrap: nowrap; }
+      .graph-head-text { flex: 1; }
+      .graph-title { max-width: none; font-size: 28px; }
+      .graph-chips { display: none; }
+      .head-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+      .head-actions .dock-btn { width: 42px; height: 42px; background: var(--glass); border: 1px solid var(--line); }
+      .head-actions .dock-btn::after { display: none; }
+      .field { left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); border-radius: 20px; }
+      #note-card { left: 10px; right: 10px; bottom: 10px; width: auto; max-height: 60%; }
+      #filter-panel { left: 10px; right: 10px; width: auto; }
     }
   </style>
 </head>
 <body>
 
-<!-- Top bar -->
-<div class="topbar">
-  <a class="topbar-brand" href="/" data-internal-app-link>
-    <img src="/edge-note-mark.v3.svg" alt="EDGE Note">
-    EDGE Note
+<nav class="dock" aria-label="Dock">
+  <a class="dock-brand" href="/" data-internal-app-link aria-label="EDGE Note">
+    <img src="/edge-note-mark.v3.svg" alt="" width="34" height="34">
   </a>
-  <div class="topbar-sep"></div>
-  <div class="topbar-title" id="topbar-title"><span>Local graph</span></div>
-
-  <button class="btn-topbar" id="btn-filters" title="Filters &amp; settings">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-    Filters
-  </button>
-
-  <button class="btn-topbar" id="btn-reset-zoom" title="Fit graph">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-    Fit
-  </button>
-
-  <a class="btn-topbar" href="/" data-internal-app-link>
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
-    Back
+  <a class="dock-btn" href="/" data-internal-app-link data-label="Back to notes" aria-label="Back to notes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
   </a>
-
-  <button class="btn-mobile-menu" id="btn-mobile-menu" type="button" aria-label="Graph menu" aria-expanded="false" aria-controls="mobile-graph-menu">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-  </button>
-</div>
-
-<div id="mobile-graph-menu" aria-label="Graph menu">
-  <button class="mobile-menu-item" id="mobile-filters" type="button">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-    Filters
-  </button>
-  <button class="mobile-menu-item" id="mobile-fit" type="button">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-    Fit graph
-  </button>
-  <a class="mobile-menu-item" href="/">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
-    Back to notes
+  <a class="dock-btn" href="/graph.html" aria-current="page" data-label="Graph" aria-label="Graph">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
   </a>
-</div>
+  <span class="dock-sep" aria-hidden="true"></span>
+  <button class="dock-btn" id="btn-filters" type="button" data-label="Filters" aria-label="Filters" aria-expanded="false" aria-controls="filter-panel">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+  </button>
+  <button class="dock-btn" id="btn-reset-zoom" type="button" data-label="Fit graph" aria-label="Fit graph">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+  </button>
+</nav>
 
-<!-- Nebula backdrop -->
-<canvas id="nebula-canvas"></canvas>
-
-<!-- Graph SVG -->
-<svg id="graph-canvas"></svg>
-
-<!-- Particle overlay -->
-<canvas id="particle-canvas"></canvas>
-
-<!-- ── Filter Panel ── -->
-<div id="filter-panel">
-
-  <!-- Depth -->
-  <div class="fp-section">
-    <div class="fp-section-label">Depth</div>
-    <div class="fp-row">
-      <span class="fp-label">Linked depth</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-depth" min="1" max="5" value="2" step="1">
-        <span class="fp-slider-val" id="val-depth">2</span>
-      </div>
-    </div>
+<header class="graph-head">
+  <div class="graph-head-text">
+    <p class="graph-eyebrow">LOCAL GRAPH</p>
+    <h1 class="graph-title" id="graph-title">Graph</h1>
   </div>
-
-  <!-- Filters -->
-  <div class="fp-section">
-    <div class="fp-section-label">Filters</div>
-    <div class="fp-row">
-      <span class="fp-label">Search notes</span>
-    </div>
-    <input class="fp-search" id="fp-note-search" type="search" placeholder="Jump to note…" autocomplete="off" spellcheck="false">
-
-    <div class="fp-row" style="margin-top:12px">
-      <span class="fp-label">Show orphans</span>
-      <label class="fp-toggle">
-        <input type="checkbox" id="tog-orphans" checked>
-        <div class="fp-toggle-track"></div>
-      </label>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Show tag nodes</span>
-      <label class="fp-toggle">
-        <input type="checkbox" id="tog-tag-nodes">
-        <div class="fp-toggle-track"></div>
-      </label>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Show link labels</span>
-      <label class="fp-toggle">
-        <input type="checkbox" id="tog-link-labels">
-        <div class="fp-toggle-track"></div>
-      </label>
-    </div>
-  </div>
-
-  <!-- Notebooks filter -->
-  <div class="fp-section">
-    <div class="fp-section-label">Notebooks</div>
-    <div class="fp-nb-list" id="fp-nb-list">
-      <span style="font-size:12px;color:var(--text-dim)">Loading…</span>
-    </div>
-  </div>
-
-  <!-- Display -->
-  <div class="fp-section">
-    <div class="fp-section-label">Display</div>
-
-    <div class="fp-row">
-      <span class="fp-label">Node size</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-node-size" min="0.4" max="2.5" value="1" step="0.1">
-        <span class="fp-slider-val" id="val-node-size">1×</span>
-      </div>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Link thickness</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-link-thick" min="0.5" max="4" value="1.5" step="0.5">
-        <span class="fp-slider-val" id="val-link-thick">1.5</span>
-      </div>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Text fade</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-text-fade" min="0" max="5" value="2" step="1">
-        <span class="fp-slider-val" id="val-text-fade">2</span>
-      </div>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Link strength</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-link-str" min="0.1" max="1.5" value="0.6" step="0.1">
-        <span class="fp-slider-val" id="val-link-str">0.6</span>
-      </div>
-    </div>
-
-    <div class="fp-row">
-      <span class="fp-label">Repulsion</span>
-      <div class="fp-slider-wrap">
-        <input class="fp-slider" type="range" id="sl-repulsion" min="50" max="600" value="200" step="25">
-        <span class="fp-slider-val" id="val-repulsion">200</span>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ── Info Panel (right) ── -->
-<div id="info-panel">
-  <div class="ip-header">
-    <div>
-      <div class="ip-title" id="ip-title"></div>
-      <div class="ip-nb" id="ip-nb"></div>
-    </div>
-    <button class="btn-icon-sm" id="ip-close" aria-label="Close">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  <div class="graph-chips" id="graph-chips"></div>
+  <div class="head-actions">
+    <a class="dock-btn" href="/" data-internal-app-link aria-label="Back to notes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+    </a>
+    <button class="dock-btn" id="mobile-filters" type="button" aria-label="Filters" aria-controls="filter-panel">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+    </button>
+    <button class="dock-btn" id="mobile-fit" type="button" aria-label="Fit graph">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
     </button>
   </div>
-  <div class="ip-section">
-    <div class="ip-section-label">Tags</div>
-    <div class="ip-tags" id="ip-tags"></div>
+</header>
+
+<main class="field" aria-label="Graph of linked notes">
+  <svg id="graph-canvas" role="img" aria-label="Notes linked to the focal note"></svg>
+  <div id="graph-stats"></div>
+  <p id="empty-state">No linked notes yet. Link a note with @ or give two notes a shared tag and they connect here.</p>
+
+  <aside id="note-card" aria-live="polite">
+    <div class="nc-title"><span class="chip-dot" id="nc-dot"></span><span id="nc-title"></span></div>
+    <div class="nc-meta" id="nc-meta"></div>
+    <p class="nc-snippet" id="nc-snippet"></p>
+    <div class="nc-conns" id="nc-conns"></div>
+    <div class="nc-actions">
+      <button class="nc-open" id="nc-open" type="button">Open note</button>
+      <button class="nc-focus" id="nc-focus" type="button">Center here</button>
+    </div>
+    <p class="nc-hint" id="nc-hint"></p>
+  </aside>
+
+  <div id="filter-panel" aria-label="Graph filters">
+    <div class="fp-section">
+      <div class="fp-section-label">JUMP TO</div>
+      <input class="fp-search" id="fp-note-search" type="search" placeholder="Find a note…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-label">SHOW</div>
+      <div class="fp-row">
+        <span class="fp-label">Steps out</span>
+        <div class="fp-slider-wrap">
+          <input class="fp-slider" type="range" id="sl-depth" min="1" max="5" value="2" step="1" aria-label="Steps out">
+          <span class="fp-slider-val" id="val-depth">2</span>
+        </div>
+      </div>
+      <div class="fp-row">
+        <span class="fp-label">Unlinked notes</span>
+        <label class="fp-toggle"><input type="checkbox" id="tog-orphans" aria-label="Show unlinked notes"><span class="fp-toggle-track"></span></label>
+      </div>
+      <div class="fp-row">
+        <span class="fp-label">Link labels</span>
+        <label class="fp-toggle"><input type="checkbox" id="tog-link-labels" aria-label="Show link labels"><span class="fp-toggle-track"></span></label>
+      </div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-label">SPACES</div>
+      <div class="fp-nb-list" id="fp-nb-list"><span class="fp-empty">Loading…</span></div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-label">LAYOUT</div>
+      <div class="fp-row">
+        <span class="fp-label">Node size</span>
+        <div class="fp-slider-wrap">
+          <input class="fp-slider" type="range" id="sl-node-size" min="0.6" max="2" value="1" step="0.1" aria-label="Node size">
+          <span class="fp-slider-val" id="val-node-size">1×</span>
+        </div>
+      </div>
+      <div class="fp-row">
+        <span class="fp-label">Labels from zoom</span>
+        <div class="fp-slider-wrap">
+          <input class="fp-slider" type="range" id="sl-text-fade" min="0" max="5" value="2" step="1" aria-label="Labels from zoom">
+          <span class="fp-slider-val" id="val-text-fade">2</span>
+        </div>
+      </div>
+      <div class="fp-row">
+        <span class="fp-label">Spread</span>
+        <div class="fp-slider-wrap">
+          <input class="fp-slider" type="range" id="sl-repulsion" min="200" max="800" value="420" step="20" aria-label="Spread">
+          <span class="fp-slider-val" id="val-repulsion">420</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="ip-section">
-    <div class="ip-section-label">Connections (<span id="ip-conn-count">0</span>)</div>
-  </div>
-  <div class="ip-conns" id="ip-conns"></div>
-  <div class="ip-actions">
-    <button class="btn-open" id="btn-open-note">Open note</button>
-  </div>
-</div>
+</main>
 
-<!-- Tooltip -->
-<div id="tooltip">
-  <div class="tip-title" id="tip-title"></div>
-  <div class="tip-nb" id="tip-nb"></div>
-  <div class="tip-tags" id="tip-tags"></div>
-  <div class="tip-hint" id="tip-hint"></div>
-</div>
+<div id="loading"><div class="spinner"></div><span>Building graph…</span></div>
 
-<!-- Loading -->
-<div id="loading">
-  <div class="spinner"></div>
-  <div class="loading-label">Building graph…</div>
-</div>
-
-<!-- Empty state -->
-<div id="empty-state">
-  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-  <span>No connected notes at this depth. Try adding shared tags.</span>
-</div>
-
-<!-- Legend -->
-<div id="legend">
-  <div class="leg-row"><div class="leg-dot" style="background:#4f7cff"></div> Focal note</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#2a9d5c"></div> Depth 1</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#b7860b"></div> Depth 2+</div>
-  <div class="leg-row"><div class="leg-dot" style="background:#606068;opacity:0.6"></div> Orphan</div>
-  <div class="leg-row"><div class="leg-line" style="background:rgba(79,124,255,0.5)"></div> Tag link</div>
-</div>
-
-<div id="graph-stats"></div>
-
-<script type="module" src="/graph.v2.js"></script>
+<script type="module" src="/graph.v3.js"></script>
 </body>
 </html>
