@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="/edge-note-icon-512.png">
     <meta name="theme-color" content="#27272a">
     <link rel="preload" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/styles.v98.css">
+    <link rel="stylesheet" href="/styles.v99.css">
   </head>
   <body>
 
@@ -321,6 +321,13 @@
                 <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z"/>
               </svg>
             </button>
+            <button class="btn-icon btn-voice" type="button" aria-label="Dictate a voice note" title="Dictate (voice to text)" data-voice-toggle aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/></svg>
+            </button>
+            <button class="btn-ghost btn-ai" type="button" aria-label="Open the AI assistant" title="AI assistant" data-ai-open aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+              <span>Assistant</span>
+            </button>
             <button class="btn-ghost" type="button" data-action="archive-note">Archive</button>
             <button class="btn-ghost btn-danger" type="button" data-action="delete-note">Delete</button>
             <button class="btn-primary" type="button" data-action="save-note">
@@ -617,6 +624,41 @@
       </nav>
     </main>
 
-    <script src="/app.v110.js" type="module"></script>
+
+    <aside class="ai-panel" data-ai-panel hidden aria-label="AI assistant">
+      <header class="ai-panel-header">
+        <div class="ai-panel-title">
+          <strong>Assistant</strong>
+          <span class="ai-model" data-ai-model>Checking AI…</span>
+        </div>
+        <button class="btn-icon" type="button" data-ai-close aria-label="Close assistant">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+
+      <form class="ai-ask" data-ai-ask-form>
+        <div class="ai-scope" role="radiogroup" aria-label="Ask about">
+          <label><input type="radio" name="ai-scope" value="note" checked> This note</label>
+          <label><input type="radio" name="ai-scope" value="all"> All notes</label>
+        </div>
+        <label class="sr-only" for="ai-question">Question</label>
+        <textarea id="ai-question" data-ai-question rows="2" maxlength="1000" placeholder="Ask anything about your notes…"></textarea>
+        <button class="ai-submit" type="submit">Ask</button>
+      </form>
+
+      <div class="ai-actions" aria-label="AI actions">
+        <button type="button" data-ai-action="summarize">Summarize</button>
+        <button type="button" data-ai-action="extract-tasks">Action items</button>
+        <button type="button" data-ai-action="suggest-tags">Suggest tags</button>
+        <button type="button" data-ai-action="create-title">Better title</button>
+        <button type="button" data-ai-action="clean-up">Clean up</button>
+        <button type="button" data-ai-action="translate">Translate KO ⇄ EN</button>
+        <button type="button" data-ai-action="find-related">Related notes</button>
+      </div>
+
+      <div class="ai-result" data-ai-result aria-live="polite"></div>
+    </aside>
+
+    <script src="/app.v111.js" type="module"></script>
   </body>
 </html>

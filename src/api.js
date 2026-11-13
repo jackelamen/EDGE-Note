@@ -10,6 +10,7 @@ import {
   setSessionCookie,
   setupOwnerPassword
 } from "./authRepository.js";
+import { aiActionNames, askAllNotes, checkAiEndpoint, runAiAction, transcribeAudio, transcribeUrl } from "./aiRepository.js";
 import { databaseDiagnostics, isDatabaseError } from "./db.js";
 import { listDevices, registerDevice, updateDeviceCursor } from "./devicesRepository.js";
 import {
@@ -73,6 +74,11 @@ function parseNoteVersionsPath(pathname) {
 function parseNoteVersionRestorePath(pathname) {
   const match = pathname.match(/^\/api\/notes\/(\d+)\/versions\/(\d+)\/restore$/);
   return match ? { noteId: Number(match[1]), versionId: Number(match[2]) } : null;
+}
+
+function parseNoteAiPath(pathname) {
+  const match = pathname.match(/^\/api\/notes\/(\d+)\/ai$/);
+  return match ? Number(match[1]) : null;
 }
 
 function parseNoteAttachmentsPath(pathname) {
@@ -630,6 +636,48 @@ export async function handleApi(req, res, url) {
       }
 
       requireMethod(req, ["DELETE", "PUT"]);
+    });
+    return true;
+  }
+
+  // ─── AI assistant ───────────────────────────────────────────────
+  if (url.pathname === "/api/ai/status") {
+    await safely(res, async () => {
+      requireMethod(req, ["GET"]);
+      const status = await checkAiEndpoint();
+      sendJson(res, 200, {
+        ...status,
+        actions: aiActionNames,
+        voice: Boolean(transcribeUrl())
+      });
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/ai/ask") {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const { question } = await readJson(req);
+      sendJson(res, 200, await askAllNotes({ userId, question }));
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/ai/transcribe") {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const { file } = await readMultipart(req, { limitBytes: 25 * 1024 * 1024 });
+      sendJson(res, 200, await transcribeAudio({ file }));
+    });
+    return true;
+  }
+
+  const noteAiId = parseNoteAiPath(url.pathname);
+  if (noteAiId) {
+    await safely(res, async () => {
+      requireMethod(req, ["POST"]);
+      const { action, question } = await readJson(req);
+      sendJson(res, 200, await runAiAction({ userId, noteId: noteAiId, action, question }));
     });
     return true;
   }

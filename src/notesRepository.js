@@ -219,11 +219,15 @@ export async function findRelatedNotes({ userId, noteId, limit = 6 }) {
 
   const cleanLimit = Math.min(Math.max(Number(limit) || 6, 1), 12);
   const tagTerms = (note.tags || []).map((tag) => `#${tag}`).join(" ");
-  const words = `${note.title || ""} ${tagTerms} ${note.body || ""}`
+  // Unicode-aware: the old [^a-z0-9] filter erased Korean entirely, so
+  // Korean notes never found related notes. Hangul words are short, so they
+  // qualify from 2 characters; Latin words from 4.
+  const plainBody = String(note.body || "").replace(/<[^>]+>/g, " ");
+  const words = `${note.title || ""} ${tagTerms} ${plainBody}`
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .split(/\s+/)
-    .filter((word) => word.length > 3 && !relatedStopWords.has(word))
+    .filter((word) => word.length >= (/[가-힣]/.test(word) ? 2 : 4) && !relatedStopWords.has(word))
     .filter((word, index, allWords) => allWords.indexOf(word) === index)
     .slice(0, 12);
 
@@ -247,6 +251,41 @@ export async function findRelatedNotes({ userId, noteId, limit = 6 }) {
       ["noteId", noteId],
       ...words.map((word, index) => [`term${index}`, `%${word}%`])
     ])
+  ).then((rows) => rows.map(mapNote));
+}
+
+// Notes matching any of the given terms (title, body or tags), best match
+// first. Used to pick context for "ask all notes"; with no terms, returns
+// the most recently edited notes.
+export async function searchNotesByTerms({ userId, terms = [], limit = 6 }) {
+  const cleanLimit = Math.min(Math.max(Number(limit) || 6, 1), 12);
+  const cleanTerms = terms.map((term) => String(term).trim()).filter(Boolean).slice(0, 8);
+
+  if (!cleanTerms.length) {
+    return query(
+      `${listSelect}
+       WHERE n.user_id = :userId AND n.deleted_at IS NULL
+       ORDER BY n.updated_at DESC
+       LIMIT ${cleanLimit}`,
+      { userId }
+    ).then((rows) => rows.map(mapNote));
+  }
+
+  const params = { userId };
+  cleanTerms.forEach((term, index) => {
+    params[`term${index}`] = `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+  });
+  const match = (index) => `(n.title LIKE :term${index} OR n.body LIKE :term${index} OR ts.tagsCsv LIKE :term${index})`;
+  const score = (index) => `(CASE WHEN n.title LIKE :term${index} THEN 3 WHEN ts.tagsCsv LIKE :term${index} THEN 2 WHEN n.body LIKE :term${index} THEN 1 ELSE 0 END)`;
+
+  return query(
+    `${listSelect}
+     WHERE n.user_id = :userId
+       AND n.deleted_at IS NULL
+       AND (${cleanTerms.map((_, index) => match(index)).join(" OR ")})
+     ORDER BY ${cleanTerms.map((_, index) => score(index)).join(" + ")} DESC, n.updated_at DESC
+     LIMIT ${cleanLimit}`,
+    params
   ).then((rows) => rows.map(mapNote));
 }
 

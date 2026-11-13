@@ -27,6 +27,10 @@ export const config = {
     modelName: process.env.AI_MODEL_NAME || "gemma",
     apiKey: process.env.AI_API_KEY || "",
     timeoutMs: Number(process.env.AI_TIMEOUT_MS || 30000),
-    maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 800)
+    maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS || 800),
+    // Voice notes (speech to text). Optional: the URL defaults to the
+    // /audio/transcriptions endpoint next to AI_ENDPOINT_URL.
+    transcribeUrl: process.env.AI_TRANSCRIBE_URL || "",
+    transcribeModel: process.env.AI_TRANSCRIBE_MODEL || "whisper-large-v3-turbo"
   }
 };

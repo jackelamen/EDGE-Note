@@ -15,7 +15,7 @@
     "build": "echo 'No build required'",
     "start": "node --env-file=.env src/server.js",
     "dev": "EDGE_NOTE_ENV=development node src/server.js",
-    "check": "for file in src/*.js public/*.js scripts/*.js; do node --check \"$file\"; done",
+    "check": "for file in src/*.js scripts/*.js; do node --check \"$file\" || exit 1; done; for file in public/*.js; do node --input-type=module --check < \"$file\" || { echo \"Module syntax error in $file\"; exit 1; }; done",
     "verify": "npm run check && node scripts/verify-setup.js",
     "verify:prod-env": "node scripts/check-production-env.js",
     "verify:ai": "node scripts/check-ai-endpoint.js",
