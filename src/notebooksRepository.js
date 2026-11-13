@@ -79,7 +79,7 @@ async function todayVisibility(userId) {
 export async function createNotebook({ userId, input }) {
   const name = String(input.name || "").trim();
   if (!name) {
-    const error = new Error("Notebook name is required.");
+    const error = new Error("Space name is required.");
     error.status = 400;
     throw error;
   }
@@ -118,7 +118,7 @@ export async function updateNotebook({ userId, notebookId, input }) {
   if (input.name !== undefined) {
     const trimmed = String(input.name || "").trim();
     if (!trimmed) {
-      const error = new Error("Notebook name is required.");
+      const error = new Error("Space name is required.");
       error.status = 400;
       throw error;
     }
@@ -171,7 +171,7 @@ export async function updateNotebook({ userId, notebookId, input }) {
   }
 
   if (!result.affectedRows) {
-    const error = new Error("Notebook not found.");
+    const error = new Error("Space not found.");
     error.status = 404;
     throw error;
   }
@@ -225,7 +225,7 @@ export async function deleteNotebook({ userId, notebookId }) {
   );
 
   if (!result.affectedRows) {
-    const error = new Error("Notebook not found.");
+    const error = new Error("Space not found.");
     error.status = 404;
     throw error;
   }

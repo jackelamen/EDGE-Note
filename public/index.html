@@ -87,8 +87,8 @@
 
         <div class="sidebar-section">
           <div class="sidebar-section-header">
-            <span>Notebooks</span>
-            <button class="btn-section-add" type="button" data-action="open-manage-notebooks" aria-label="Manage notebooks" title="Manage notebooks">
+            <span>Spaces</span>
+            <button class="btn-section-add" type="button" data-action="open-manage-notebooks" aria-label="Manage Spaces" title="Manage Spaces">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
             </button>
           </div>
@@ -100,13 +100,13 @@
         <!-- Notebook manage panel — slides over sidebar content -->
         <div class="nb-manage-panel" data-nb-manage-panel hidden>
           <div class="nb-manage-header">
-            <span>Manage Notebooks</span>
+            <span>Manage Spaces</span>
             <button type="button" class="nb-manage-close" data-action="close-manage-notebooks" aria-label="Done">Done</button>
           </div>
           <div class="nb-manage-list" data-nb-manage-list></div>
           <div class="nb-manage-add">
             <form class="nb-manage-form" data-nb-manage-form>
-              <input type="text" class="nb-manage-name-input" data-nb-manage-name placeholder="New notebook name…" autocomplete="off">
+              <input type="text" class="nb-manage-name-input" data-nb-manage-name placeholder="New Space name…" autocomplete="off">
               <select class="nb-manage-parent-select" data-nb-manage-parent aria-label="Parent">
                 <option value="">Top level</option>
               </select>
@@ -529,9 +529,9 @@
           <div class="document-meta">
             <label class="meta-pill">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              <span class="sr-only">Notebook</span>
+              <span class="sr-only">Space</span>
               <select data-note-notebook>
-                <option value="">No notebook</option>
+                <option value="">No Space</option>
               </select>
             </label>
             <label class="meta-pill" data-tag-pill>
@@ -643,9 +643,9 @@
 
       <!-- Mobile notebook management modal -->
       <div class="mobile-modal-overlay" data-mobile-modal-overlay hidden>
-        <div class="mobile-modal" data-mobile-notebooks-modal role="dialog" aria-label="Manage notebooks">
+        <div class="mobile-modal" data-mobile-notebooks-modal role="dialog" aria-label="Manage Spaces">
           <header class="mobile-modal-header">
-            <h2>Notebooks</h2>
+            <h2>Spaces</h2>
             <button type="button" class="mobile-modal-close" data-action="close-notebooks-modal" aria-label="Close">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
@@ -654,8 +654,8 @@
             <div class="mobile-notebooks-list" data-mobile-notebooks-list></div>
             <div class="mobile-notebook-form-wrap">
               <form class="mobile-notebook-form" data-mobile-notebook-form>
-                <input type="text" placeholder="New notebook name…" data-mobile-notebook-name autocomplete="off">
-                <select data-mobile-notebook-parent aria-label="Parent notebook">
+                <input type="text" placeholder="New Space name…" data-mobile-notebook-name autocomplete="off">
+                <select data-mobile-notebook-parent aria-label="Parent Space">
                   <option value="">No parent (top level)</option>
                 </select>
                 <button type="submit" class="btn-primary">Add</button>
@@ -682,9 +682,9 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           Graph
         </a>
-        <button type="button" data-mobile-panel="notebooks" aria-label="Notebooks" data-action="open-notebooks-modal">
+        <button type="button" data-mobile-panel="notebooks" aria-label="Spaces" data-action="open-notebooks-modal">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6h4M2 10h4M2 14h4M2 18h4"/><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M16 2v20"/></svg>
-          Notebooks
+          Spaces
         </button>
       </nav>
     </main>
@@ -754,6 +754,6 @@
       </div>
     </div>
 
-    <script src="/app.v119.js" type="module"></script>
+    <script src="/app.v120.js" type="module"></script>
   </body>
 </html>
