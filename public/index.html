@@ -10,7 +10,8 @@
     <link rel="apple-touch-icon" href="/edge-note-icon-v3-512.png">
     <meta name="theme-color" content="#0e1a2b">
     <link rel="preload" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/styles.v102.css">
+    <link rel="preload" href="/fonts/newsreader-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/styles.v103.css">
   </head>
   <body>
 
@@ -212,19 +213,16 @@
       </aside>
 
       <!-- Home view -->
-      <section class="home-view" data-home-view hidden aria-label="Home">
-        <header class="home-header">
+      <section class="home-view" data-home-view hidden aria-label="Today">
+        <div class="lit-today">
+          <!-- The lit page: greeting, capture, today's timeline -->
+          <article class="lit-page today-page">
+            <header class="home-header">
           <div class="home-header-left">
             <p class="home-date" data-home-date></p>
             <h1 data-home-greeting>Good morning</h1>
           </div>
-          <button class="btn-primary" type="button" data-action="new-note">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            New note
-          </button>
-        </header>
-
-        <div class="home-content">
+            </header>
           <!-- Phones have no sidebar: the command bar gets its own entry point -->
           <button class="cmd-trigger cmd-trigger-mobile" type="button" data-cmd-open aria-label="Search or ask">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -245,11 +243,10 @@
           </form>
           <p class="today-capture-status" data-today-capture-status aria-live="polite"></p>
 
-          <div class="today-grid">
-            <section class="today-panel today-daily" aria-labelledby="today-daily-title">
+            <section class="today-daily" aria-labelledby="today-daily-title">
               <div class="today-section-head">
-                <div>
-                  <p class="today-eyebrow">Daily note</p>
+                <div class="today-daily-head">
+                  <svg class="bar-mark" viewBox="0 0 18 15" aria-hidden="true"><rect width="18" height="3" rx="1.5"/><rect class="bar-mark-mid" y="6" width="12" height="3" rx="1.5"/><rect y="12" width="18" height="3" rx="1.5"/></svg>
                   <h2 id="today-daily-title" data-today-daily-title>Today</h2>
                 </div>
                 <button class="today-link" type="button" data-today-open-daily>Open note</button>
@@ -257,15 +254,33 @@
               <ol class="today-entries" data-today-entries></ol>
             </section>
 
-            <section class="today-panel today-tasks" aria-labelledby="today-tasks-title">
+          </article>
+
+          <!-- On the ink beside the page: tasks, spaces, ask -->
+          <aside class="today-side" aria-label="Today at a glance">
+            <section class="today-side-card today-tasks" aria-labelledby="today-tasks-title">
               <div class="today-section-head">
                 <h2 id="today-tasks-title">Open tasks</h2>
                 <span class="today-muted">from all notes</span>
               </div>
               <ul class="today-task-list" data-today-tasks></ul>
             </section>
-          </div>
+          <!-- Notebooks -->
+          <section class="home-section today-spaces">
+            <div class="home-section-header">
+              <h2>Spaces</h2>
+              <button class="home-see-all btn-text" type="button" data-action="manage-notebooks">Manage</button>
+            </div>
+            <div class="home-notebooks" data-home-notebooks></div>
+          </section>
+            <button class="today-ask" type="button" data-cmd-open>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+              <span>Ask your notes anything</span>
+              <kbd class="cmd-kbd" data-cmd-kbd>⌘K</kbd>
+            </button>
+          </aside>
 
+          <div class="today-below">
           <!-- Scratchpad (legacy: only shown while it still holds text) -->
           <section class="home-section home-scratchpad-section" data-scratchpad-section>
             <div class="home-section-header">
@@ -301,14 +316,7 @@
             <div class="home-cards" data-home-recent></div>
           </section>
 
-          <!-- Notebooks -->
-          <section class="home-section">
-            <div class="home-section-header">
-              <h2>Notebooks</h2>
-              <button class="home-see-all btn-text" type="button" data-action="manage-notebooks">Manage</button>
-            </div>
-            <div class="home-notebooks" data-home-notebooks></div>
-          </section>
+          </div>
         </div>
       </section>
 
@@ -361,7 +369,12 @@
       <!-- Editor -->
       <section class="editor" aria-label="Note editor">
         <header class="editor-header">
-          <div class="editor-breadcrumb" data-editor-breadcrumb>All notes</div>
+          <div class="editor-lead">
+            <button class="btn-icon btn-drawer" type="button" data-drawer-toggle aria-pressed="true" aria-label="Hide notes list" title="Notes list">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+            </button>
+            <div class="editor-breadcrumb" data-editor-breadcrumb>All notes</div>
+          </div>
           <div class="editor-actions">
             <button class="btn-icon" type="button" aria-label="Favorite" title="Favorite" data-action="toggle-favorite">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -739,6 +752,6 @@
       </div>
     </div>
 
-    <script src="/app.v115.js" type="module"></script>
+    <script src="/app.v116.js" type="module"></script>
   </body>
 </html>
