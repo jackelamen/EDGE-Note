@@ -92,38 +92,59 @@ function checksumFor(note, action, extra = "") {
     .digest("hex");
 }
 
-async function getCachedOutput({ noteId, outputType, modelName, inputChecksum }) {
-  const rows = await query(
-    `SELECT output_json AS outputJson, created_at AS createdAt
-     FROM ai_outputs
-     WHERE note_id = :noteId
-       AND output_type = :outputType
-       AND model_name = :modelName
-       AND input_checksum = :inputChecksum
-     LIMIT 1`,
-    { noteId, outputType, modelName, inputChecksum }
-  );
+// The ai_outputs cache only saves repeat calls. It must never block an
+// answer: if the table is missing or the database rejects the query, log it
+// and carry on without the cache.
+function logCacheProblem(step, error) {
+  console.error(`AI cache ${step} skipped: ${error.code || ""} ${error.sqlMessage || error.message}`);
+}
 
-  return rows[0] || null;
+async function getCachedOutput({ noteId, outputType, modelName, inputChecksum }) {
+  try {
+    const rows = await query(
+      `SELECT output_json AS outputJson, created_at AS createdAt
+       FROM ai_outputs
+       WHERE note_id = :noteId
+         AND output_type = :outputType
+         AND model_name = :modelName
+         AND input_checksum = :inputChecksum
+       LIMIT 1`,
+      { noteId, outputType, modelName, inputChecksum }
+    );
+    const row = rows[0];
+    if (!row) return null;
+    // MySQL returns a JSON column parsed; MariaDB (JSON = LONGTEXT) returns text.
+    const outputJson = typeof row.outputJson === "string" ? JSON.parse(row.outputJson) : row.outputJson;
+    return { ...row, outputJson };
+  } catch (error) {
+    logCacheProblem("read", error);
+    return null;
+  }
 }
 
 async function cacheOutput({ noteId, outputType, modelName, inputChecksum, outputJson }) {
-  await query(
-    `INSERT INTO ai_outputs
-       (note_id, output_type, model_name, input_checksum, output_json)
-     VALUES
-       (:noteId, :outputType, :modelName, :inputChecksum, CAST(:outputJson AS JSON))
-     ON DUPLICATE KEY UPDATE
-       output_json = VALUES(output_json),
-       created_at = CURRENT_TIMESTAMP`,
-    {
-      noteId,
-      outputType,
-      modelName,
-      inputChecksum,
-      outputJson: JSON.stringify(outputJson)
-    }
-  );
+  try {
+    // Plain JSON text: valid for a MySQL JSON column and for MariaDB, which
+    // rejects CAST(... AS JSON) (Hostinger's shared databases are MariaDB).
+    await query(
+      `INSERT INTO ai_outputs
+         (note_id, output_type, model_name, input_checksum, output_json)
+       VALUES
+         (:noteId, :outputType, :modelName, :inputChecksum, :outputJson)
+       ON DUPLICATE KEY UPDATE
+         output_json = VALUES(output_json),
+         created_at = CURRENT_TIMESTAMP`,
+      {
+        noteId,
+        outputType,
+        modelName,
+        inputChecksum,
+        outputJson: JSON.stringify(outputJson)
+      }
+    );
+  } catch (error) {
+    logCacheProblem("write", error);
+  }
 }
 
 export function parseJsonContent(content) {

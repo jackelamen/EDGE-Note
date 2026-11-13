@@ -119,6 +119,9 @@ function parseAttachmentPath(pathname) {
 
 
 function sendDatabaseUnavailable(res, error) {
+  // The response stays generic; the real cause goes to the server log
+  // (Hostinger: Node.js app logs) so it can be diagnosed.
+  console.error(`Database error: ${error.code || ""} ${error.errno || ""} ${error.sqlMessage || error.message}`);
   sendJson(res, 503, {
     error: "Database unavailable",
     code: error.code || "DATABASE_ERROR",
