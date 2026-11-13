@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="/edge-note-icon-v3-512.png">
     <meta name="theme-color" content="#0e1a2b">
     <link rel="preload" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/styles.v100.css">
+    <link rel="stylesheet" href="/styles.v101.css">
   </head>
   <body>
 
@@ -49,6 +49,12 @@
           <img class="brand-mark" src="/edge-note-mark.v3.svg" alt="Toggle sidebar" title="Toggle sidebar" role="button" tabindex="0" width="26" height="26">
           <strong>EDGE Note</strong>
         </div>
+
+        <button class="cmd-trigger" type="button" data-cmd-open aria-label="Search or ask (Command K)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="cmd-trigger-label">Search or ask…</span>
+          <kbd class="cmd-kbd" data-cmd-kbd>⌘K</kbd>
+        </button>
 
         <button class="btn-new-note" type="button" data-action="new-note">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -219,6 +225,12 @@
         </header>
 
         <div class="home-content">
+          <!-- Phones have no sidebar: the command bar gets its own entry point -->
+          <button class="cmd-trigger cmd-trigger-mobile" type="button" data-cmd-open aria-label="Search or ask">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <span class="cmd-trigger-label">Search or ask your notes</span>
+          </button>
+
           <!-- Today: quick capture into the daily note -->
           <form class="today-capture" data-today-capture autocomplete="off">
             <label class="sr-only" for="today-capture-input">Capture to today's note</label>
@@ -307,7 +319,7 @@
             <p class="eyebrow" data-list-eyebrow>Notes</p>
             <h1 data-list-title>All notes</h1>
           </div>
-          <button class="btn-icon" type="button" aria-label="Search" title="Search" data-action="focus-search">
+          <button class="btn-icon" type="button" aria-label="Search or ask" title="Search or ask (⌘K)" data-action="focus-search" data-cmd-open>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7"/>
               <path d="m16 16 4 4"/>
@@ -694,6 +706,24 @@
       <div class="ai-result" data-ai-result aria-live="polite"></div>
     </aside>
 
-    <script src="/app.v112.js" type="module"></script>
+
+    <!-- Command bar (⌘K): search notes, run actions, ask your notes -->
+    <div class="cmd-backdrop" data-cmd hidden>
+      <div class="cmd" role="dialog" aria-modal="true" aria-label="Search and commands">
+        <div class="cmd-input-row">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <label class="sr-only" for="cmd-input">Search, run a command, or ask</label>
+          <input id="cmd-input" data-cmd-input type="text" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Search notes, run a command, or ask…">
+          <button type="button" class="cmd-esc" data-cmd-close aria-label="Close">esc</button>
+        </div>
+        <div class="cmd-body">
+          <ul id="cmd-list" class="cmd-list" role="listbox" aria-label="Results" data-cmd-list></ul>
+          <section class="cmd-answer" data-cmd-answer hidden aria-live="polite"></section>
+        </div>
+        <div class="cmd-footer" aria-hidden="true"><span>↑↓ move</span><span>↵ open</span><span data-cmd-mod-hint>⌘↵ new note</span><span>esc close</span></div>
+      </div>
+    </div>
+
+    <script src="/app.v113.js" type="module"></script>
   </body>
 </html>
