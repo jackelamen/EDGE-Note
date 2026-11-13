@@ -11,7 +11,10 @@ const source = readFileSync(join(root, "node_modules/lucide-static/sprite.svg"),
 const publicDir = join(root, "public");
 
 // Everything that can name an icon: markup and the app/graph scripts.
-const code = ["index.html", "graph.html", "graph.v1.js", "app.v109.js"]
+// The app bundle is versioned; use whichever one index.html loads.
+const indexHtml = readFileSync(join(publicDir, "index.html"), "utf8");
+const appBundle = indexHtml.match(/\/(app\.v\d+\.js)/)[1];
+const code = ["index.html", "graph.html", "graph.v1.js", appBundle]
   .map((file) => readFileSync(join(publicDir, file), "utf8"))
   .join("\n");
 

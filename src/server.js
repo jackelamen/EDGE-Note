@@ -17,7 +17,8 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".webmanifest": "application/manifest+json; charset=utf-8",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".woff2": "font/woff2"
 };
 
 function safePublicPath(pathname) {
@@ -58,7 +59,8 @@ async function serveStatic(req, res, url) {
     // graph.v1.js) never change in place - a change means a new filename -
     // so browsers may keep them. Everything else (index.html, manifest,
     // unversioned assets) stays uncached so updates show up immediately.
-    const versioned = /\.v\d+\.(js|css)$/.test(filePath);
+    // Self-hosted font files are also immutable (a new font = a new file).
+    const versioned = /\.v\d+\.(js|css)$/.test(filePath) || /\.woff2$/.test(filePath);
     res.writeHead(200, withSecurityHeaders({
       ...pageHeaders,
       "content-type": type,

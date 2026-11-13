@@ -9,7 +9,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/edge-note-icon-192.png">
     <link rel="apple-touch-icon" href="/edge-note-icon-512.png">
     <meta name="theme-color" content="#27272a">
-    <link rel="stylesheet" href="/styles.v97.css">
+    <link rel="preload" href="/fonts/schibsted-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/styles.v98.css">
   </head>
   <body>
 
@@ -452,7 +453,7 @@
         </section>
 
         <article class="document">
-          <input class="title-input" value="" aria-label="Note title" data-note-title placeholder="Untitled note">
+          <textarea class="title-input" rows="1" aria-label="Note title" data-note-title placeholder="Untitled note" spellcheck="true"></textarea>
           <div class="document-meta">
             <label class="meta-pill">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -610,12 +611,12 @@
           Graph
         </a>
         <button type="button" data-mobile-panel="notebooks" aria-label="Notebooks" data-action="open-notebooks-modal">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 6h4M2 10h4M2 14h4M2 18h4"/><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M16 2v20"/></svg>
           Notebooks
         </button>
       </nav>
     </main>
 
-    <script src="/app.v109.js" type="module"></script>
+    <script src="/app.v110.js" type="module"></script>
   </body>
 </html>

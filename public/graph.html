@@ -248,9 +248,13 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-label { font-size: 13px; color: var(--text-dim); }
 
+    /* Sits below the centred focal node (it used to print on top of the
+       node's label), and never blocks clicks on the graph. */
     #empty-state {
       position: fixed; inset: 0; top: 48px; display: none; flex-direction: column;
       align-items: center; justify-content: center; gap: 10px;
+      padding-top: 180px;
+      pointer-events: none;
       color: var(--text-dim); font-size: 13px;
     }
     #empty-state svg { opacity: 0.25; }
