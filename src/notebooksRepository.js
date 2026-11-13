@@ -10,6 +10,8 @@ function mapNotebook(row) {
     iconColor: row.iconColor || null,
     sortOrder: row.sortOrder,
     noteCount: row.noteCount || 0,
+    // Undefined when the database predates migration 0015 (see todayVisibility)
+    showOnToday: row.showOnToday,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };
@@ -39,7 +41,39 @@ export async function listNotebooks({ userId }) {
     { userId }
   );
 
-  return rows.map(mapNotebook);
+  const visibility = await todayVisibility(userId);
+  return rows.map((row) => mapNotebook({
+    ...row,
+    showOnToday: visibility ? visibility.get(Number(row.id)) !== false : undefined
+  }));
+}
+
+// show_on_today arrives with migration 0015. Read it in its own query so the
+// notebook list keeps working on databases that have not run it yet, and
+// re-check now and then so running the migration needs no restart.
+let todayColumnMissingSince = 0;
+const TODAY_COLUMN_RECHECK_MS = 5 * 60 * 1000;
+
+function isMissingColumn(error) {
+  return error?.code === "ER_BAD_FIELD_ERROR" || /unknown column/i.test(error?.message || "");
+}
+
+async function todayVisibility(userId) {
+  if (todayColumnMissingSince && Date.now() - todayColumnMissingSince < TODAY_COLUMN_RECHECK_MS) return null;
+  try {
+    const rows = await query(
+      `SELECT id, show_on_today AS showOnToday
+       FROM notebooks
+       WHERE user_id = :userId AND deleted_at IS NULL`,
+      { userId }
+    );
+    todayColumnMissingSince = 0;
+    return new Map(rows.map((row) => [Number(row.id), Boolean(Number(row.showOnToday))]));
+  } catch (error) {
+    if (!isMissingColumn(error)) throw error;
+    todayColumnMissingSince = Date.now();
+    return null;
+  }
 }
 
 export async function createNotebook({ userId, input }) {
@@ -107,18 +141,34 @@ export async function updateNotebook({ userId, notebookId, input }) {
     params.parentId = input.parentId ? Number(input.parentId) : null;
   }
 
+  if (input.showOnToday !== undefined) {
+    fields.push("show_on_today = :showOnToday");
+    params.showOnToday = input.showOnToday ? 1 : 0;
+  }
+
   if (!fields.length) {
     return listNotebooks({ userId });
   }
 
-  const result = await query(
-    `UPDATE notebooks
-     SET ${fields.join(", ")}
-     WHERE id = :notebookId
-       AND user_id = :userId
-       AND deleted_at IS NULL`,
-    params
-  );
+  let result;
+  try {
+    result = await query(
+      `UPDATE notebooks
+       SET ${fields.join(", ")}
+       WHERE id = :notebookId
+         AND user_id = :userId
+         AND deleted_at IS NULL`,
+      params
+    );
+  } catch (error) {
+    if (input.showOnToday !== undefined && isMissingColumn(error)) {
+      const friendly = new Error("Run database/migrations/0015_notebook_show_on_today.sql to sync Today's Spaces across devices.");
+      friendly.status = 409;
+      friendly.code = "migration_0015_missing";
+      throw friendly;
+    }
+    throw error;
+  }
 
   if (!result.affectedRows) {
     const error = new Error("Notebook not found.");
