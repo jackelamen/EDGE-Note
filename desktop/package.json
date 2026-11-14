@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
-    "icons": "tauri icon ../public/edge-note-icon-v3-1024.png"
+    "icons": "tauri icon ../public/edge-note-icon-v3-1024.png",
+    "install-app": "./install.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
