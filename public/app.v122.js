@@ -7035,15 +7035,21 @@ if (today.form) {
     const text = today.input.value;
     if (await captureToToday(text, today.asTask)) today.input.value = "";
   });
-  // Shorter placeholders on phones so they aren't cut off.
-  const narrowScreen = window.matchMedia("(max-width: 660px)");
+  // Shorter placeholders when the box itself is narrow (phones, foldables,
+  // split screen) so they are never cut off. Measured on the input, not the
+  // screen, because the box width depends on the layout around it.
   const setCapturePlaceholder = () => {
+    const narrow = today.input.clientWidth > 0 && today.input.clientWidth < 300;
     today.input.placeholder = today.asTask
-      ? (narrowScreen.matches ? "Add a task…" : "Add a task to today…")
-      : (narrowScreen.matches ? "Capture anything…" : "Capture a thought, task or idea…");
+      ? (narrow ? "Add a task…" : "Add a task to today…")
+      : (narrow ? "Capture anything…" : "Capture a thought, task or idea…");
   };
   setCapturePlaceholder();
-  narrowScreen.addEventListener?.("change", setCapturePlaceholder);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(setCapturePlaceholder).observe(today.input);
+  } else {
+    window.addEventListener("resize", setCapturePlaceholder);
+  }
   today.taskToggle?.addEventListener("click", () => {
     today.asTask = !today.asTask;
     today.taskToggle.setAttribute("aria-pressed", today.asTask ? "true" : "false");
