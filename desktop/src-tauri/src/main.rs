@@ -7,7 +7,7 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, RunEvent, webview::PageLoadEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -37,6 +37,15 @@ fn show_main(app: &AppHandle) -> Option<WebviewWindow> {
     let _ = window.set_focus();
     Some(window)
 }
+
+// Shell version. When this changes (hotkey, windows, tray, icons), also bump
+// "version" in Cargo.toml, tauri.conf.json and package.json, and
+// public/desktop-version.json, so Settings can tell people to update.
+const SHELL_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// Where desktop/ lived when this app was built, so the menu-bar item can
+// re-run install.sh from the same checkout.
+const DESKTOP_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 
 const SITE: &str = "https://lightpink-pheasant-889269.hostingersite.com";
 
@@ -75,6 +84,25 @@ fn build_capture_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .build()
 }
 
+// Opens Terminal and runs: git pull, then install.sh (build, replace, reopen).
+// Terminal keeps the output visible, so any failure is readable.
+fn update_app() {
+    let dir = std::path::Path::new(DESKTOP_DIR);
+    if !dir.join("install.sh").exists() {
+        eprintln!("Update unavailable: {DESKTOP_DIR}/install.sh not found");
+        return;
+    }
+    let dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+    let dir = dir.to_string_lossy().replace('\'', "'\\''");
+    let command = format!("cd '{dir}' && git pull --ff-only && ./install.sh");
+    // AppleScript string literal: escape backslashes and double quotes.
+    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        "tell application \"Terminal\"\nactivate\ndo script \"{escaped}\"\nend tell"
+    );
+    let _ = std::process::Command::new("osascript").args(["-e", &script]).spawn();
+}
+
 fn quick_capture(app: &AppHandle) {
     let bubble = app
         .get_webview_window("capture")
@@ -101,6 +129,15 @@ fn main() {
     let handler_shortcut = capture_shortcut.clone();
 
     tauri::Builder::default()
+        // Lets the site's Settings show which shell version is running. This
+        // only sets a plain value on the page; it grants the site no access.
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
+                let _ = webview.eval(format!(
+                    "window.__EDGE_DESKTOP__ = {{ version: '{SHELL_VERSION}' }};"
+                ));
+            }
+        })
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
@@ -123,9 +160,10 @@ fn main() {
 
             let capture_item = MenuItem::with_id(app, "capture", "Quick capture (⌥⇧N)", true, None::<&str>)?;
             let show_item = MenuItem::with_id(app, "show", "Open EDGE Note", true, None::<&str>)?;
+            let update_item = MenuItem::with_id(app, "update", "Update EDGE Note…", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit EDGE Note", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&capture_item, &show_item, &separator, &quit_item])?;
+            let menu = Menu::with_items(app, &[&capture_item, &show_item, &update_item, &separator, &quit_item])?;
 
             let mut tray = TrayIconBuilder::with_id("edge-note-tray")
                 .tooltip("EDGE Note")
@@ -135,6 +173,7 @@ fn main() {
                     "show" => {
                         show_main(app);
                     }
+                    "update" => update_app(),
                     "quit" => app.exit(0),
                     _ => {}
                 });
