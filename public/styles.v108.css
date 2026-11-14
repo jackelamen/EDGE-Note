@@ -5771,3 +5771,10 @@ body, .app-shell { background: var(--stage); }
 /* ── styles.v108: Settings > Mac app has one button; give it the full row ── */
 [data-desktop-update-section] .backup-actions { grid-template-columns: 1fr; }
 [data-desktop-update-section] .backup-actions button { white-space: nowrap; }
+
+/* Sign-in: typed text and password dots follow the theme (they defaulted
+   to black, invisible on the dark card). */
+.auth-field input { color: var(--ink); caret-color: var(--accent); }
+.auth-field input::placeholder { color: var(--ink-4); }
+/* "Logged out." is a confirmation, not an error */
+.auth-message.is-info { color: var(--ink-3); }
