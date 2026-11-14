@@ -26,6 +26,30 @@
             </intent-filter>
         </activity>
 
+        <!-- Quick capture: home-screen widget and the floating bubble it opens -->
+        <activity
+            android:name=".CaptureActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EdgeCapture"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.edgenote.app.capture"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustNothing" />
+
+        <receiver
+            android:name=".CaptureWidgetProvider"
+            android:exported="true"
+            android:label="@string/capture_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/capture_widget_info" />
+        </receiver>
+
         <provider
           android:name="androidx.core.content.FileProvider"
           android:authorities="${applicationId}.fileprovider"

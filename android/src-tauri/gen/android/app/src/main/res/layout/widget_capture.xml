@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen quick capture: the bar opens the capture bubble, the check
+     opens it as a task, the logo opens the app. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:minHeight="56dp"
+    android:background="@drawable/widget_capture_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp">
+
+    <ImageView
+        android:id="@+id/widget_mark"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:contentDescription="@string/capture_widget_open_app"
+        android:padding="12dp"
+        android:src="@drawable/widget_mark" />
+
+    <TextView
+        android:id="@+id/widget_hint"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:paddingStart="2dp"
+        android:paddingEnd="8dp"
+        android:text="@string/capture_widget_hint"
+        android:textColor="#A3AEC0"
+        android:textSize="16sp" />
+
+    <ImageView
+        android:id="@+id/widget_task"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/widget_task_bg"
+        android:contentDescription="@string/capture_widget_task"
+        android:padding="11dp"
+        android:src="@drawable/widget_task" />
+</LinearLayout>
