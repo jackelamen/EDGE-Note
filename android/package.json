@@ -1,0 +1,13 @@
+{
+  "name": "edge-note-android",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "tauri": "tauri",
+    "icons": "tauri icon ../public/edge-note-icon-v3-1024.png",
+    "build:apk": "tauri android build --apk --target aarch64"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

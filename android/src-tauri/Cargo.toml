@@ -1,0 +1,15 @@
+[package]
+name = "edge-note-android"
+version = "0.1.0"
+description = "EDGE Note for Android"
+edition = "2021"
+
+[lib]
+name = "edge_note_android_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
