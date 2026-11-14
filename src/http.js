@@ -1,12 +1,12 @@
 const maxJsonBytes = 1024 * 1024;
 
-export function contentSecurityPolicy({ extraScriptSrc = [] } = {}) {
+export function contentSecurityPolicy({ extraScriptSrc = [], extraConnectSrc = [] } = {}) {
   return [
     "default-src 'self'",
     ["script-src 'self'", ...extraScriptSrc].join(" "),
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
-    "connect-src 'self'",
+    ["connect-src 'self'", ...extraConnectSrc].join(" "),
     "font-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

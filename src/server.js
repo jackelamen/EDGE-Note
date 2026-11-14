@@ -52,9 +52,14 @@ async function serveStatic(req, res, url) {
     if (!info.isFile()) throw new Error("Not a file");
     // Only the graph page may load d3 from the CDN; everything else keeps
     // the strict script-src 'self'.
-    const pageHeaders = basename(filePath) === "graph.html"
+    // The service worker keeps an offline copy of that d3 bundle, so it may
+    // fetch from the same CDN (its own CSP governs its fetches).
+    const name = basename(filePath);
+    const pageHeaders = name === "graph.html"
       ? { "content-security-policy": contentSecurityPolicy({ extraScriptSrc: ["https://cdn.jsdelivr.net"] }) }
-      : {};
+      : name === "sw.js"
+        ? { "content-security-policy": contentSecurityPolicy({ extraConnectSrc: ["https://cdn.jsdelivr.net"] }) }
+        : {};
     // Files whose name carries a version (app.v109.js, styles.v97.css,
     // graph.v1.js) never change in place - a change means a new filename -
     // so browsers may keep them. Everything else (index.html, manifest,
